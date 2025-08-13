@@ -1,0 +1,135 @@
+/* Import Tailwind layers */
+@import "tailwindcss";
+
+/* (garde le reste de ton CSS tel quel : .glass, .gradient-border, etc.) */
+
+
+/* ---------- PALETTE LUXE ---------- */
+:root {
+  --gold: #C6A972;
+  --deep-blue: #004e7c;
+  --azure: #009dc4;
+  --sand: #f9f5ef;
+  --off-white: #fafafa;
+}
+
+/* ---------- FOND ET TYPO ---------- */
+body {
+  background-color: var(--off-white);
+  color: #222;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.6;
+}
+
+/* ---------- BOUTONS LUXE ---------- */
+.btn-luxe {
+  @apply px-6 py-3 font-semibold rounded-full text-white transition-all duration-300 shadow-lg;
+  background: linear-gradient(135deg, var(--gold), var(--deep-blue));
+}
+.btn-luxe:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+}
+
+/* ---------- EFFET GLASS ---------- */
+.glass {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+}
+
+/* ---------- BORDURE DÉGRADÉ ---------- */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--gold), var(--azure));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ---------- BULLES VIDÉO ---------- */
+.bubble {
+  border-radius: 9999px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  border: 3px solid var(--off-white);
+}
+.bubble-oval {
+  border-radius: 100% / 70%;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  border: 3px solid var(--off-white);
+}
+
+/* ---------- ANIMATIONS ---------- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp 1s ease-out forwards;
+}
+
+@keyframes slowZoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.05); }
+}
+.slow-zoom {
+  animation: slowZoom 20s ease-in-out infinite alternate;
+}
+
+/* ---------- CARTES HÔTEL ---------- */
+.card-luxe {
+  @apply p-6 rounded-xl shadow-lg transition-all duration-500;
+  background-color: white;
+}
+.card-luxe:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+}
+
+/* ---------- LIENS ---------- */
+a {
+  color: var(--deep-blue);
+  transition: color 0.3s ease;
+}
+a:hover {
+  color: var(--gold);
+}
+/* --- UI luxe pour boutons sur image --- */
+.btn-pill { @apply h-10 md:h-11 px-4 md:px-5 rounded-xl transition-all duration-300; }
+.btn-glass-white { 
+  @apply border border-white/60 text-white/90 backdrop-blur;
+  background: rgba(255,255,255,0.12);
+}
+.btn-glass-white:hover { background: rgba(255,255,255,0.18); }
+
+.btn-solid-white { @apply bg-white text-slate-900; }
+.btn-solid-white:hover { @apply bg-white/90; }
+
+/* Icônes plus lisibles sur fond photo */
+.icon-white { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+
+/* Titres chic */
+.heading-luxe {
+  @apply font-serif font-semibold tracking-[0.01em];
+  text-shadow: 0 1px 1px rgba(0,0,0,.35);
+}
+
+/* Boutons texte compact */
+.btn-tight { line-height: 1.15; }   /* réduit l’espace entre lignes */
+
+:root { --wave-opacity: .08; } /* mets .04 à .10 selon ton goût */
+@keyframes waveSlide { to { transform: translateX(-25%); } }
+
+
