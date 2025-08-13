@@ -3,16 +3,10 @@
 import React, { useMemo, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Globe, Phone, Mail, Star, Instagram, Facebook, Linkedin, Link2, MapPin,
-} from "lucide-react";
+import { Instagram, Facebook, Linkedin, Link2, Phone, Mail, MapPin, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import Script from "next/script";
-
-
 
 /** ========= CONTENU (à personnaliser si besoin) ========= */
 const CONFIG = {
@@ -34,8 +28,8 @@ const CONFIG = {
       nameEn: "Best Western Plus La Corniche",
       stars: 4,
       bookingUrl: "https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR",
-      phone: "04 94 41 35 12",               // ← laisse tes valeurs actuelles si tu les as modifiées
-      email: "contact-corniche@htbm.fr",     // ← idem
+      phone: "04 94 41 35 12",
+      email: "contact-corniche@htbm.fr",
       socials: {
         instagram: "https://www.instagram.com/hotels_toulon_mer/",
         facebook: "https://www.facebook.com/hotelstbm",
@@ -50,8 +44,8 @@ const CONFIG = {
       nameEn: "Hotel Les Voiles",
       stars: 3,
       bookingUrl: "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR",
-      phone: "04 94 41 36 23",               // ← laisse tes valeurs actuelles si tu les as modifiées
-      email: "contact-lesvoiles@htbm.fr",    // ← idem
+      phone: "04 94 41 36 23",
+      email: "contact-lesvoiles@htbm.fr",
       socials: {
         instagram: "https://www.instagram.com/hotels_toulon_mer/",
         facebook: "https://www.facebook.com/hotelstbm",
@@ -66,7 +60,7 @@ const CONFIG = {
     titleFr: "Le Rooftop",
     titleEn: "The Rooftop",
     menuUrl: "https://www.monsieurcocktail.com/menu-sunday-sunset/",
-    bookingUrl: "", // vide ⇒ pas de bouton
+    bookingUrl: "",
     bg: "/images/rooftop.jpg", 
   },
   pro: {
@@ -77,11 +71,11 @@ const CONFIG = {
     bg: "/images/business.jpg",
   },
   media: {
-  bubbles: [
-    "https://res.cloudinary.com/dclj42mpj/video/upload/v1755098533/sea_bhzotx.mp4",    // grande ovale (gauche)
-    "https://res.cloudinary.com/dclj42mpj/video/upload/v1755098499/sunset_lswe4c.mp4", // petit cercle
-  ],
-},
+    bubbles: [
+      "https://res.cloudinary.com/dclj42mpj/video/upload/v1755098533/sea_bhzotx.mp4",    // grande ovale (gauche)
+      "https://res.cloudinary.com/dclj42mpj/video/upload/v1755098499/sunset_lswe4c.mp4", // petit cercle
+    ],
+  },
 };
 /** ====================================================== */
 
@@ -117,293 +111,253 @@ export default function Page() {
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden text-slate-900">
-      {/* Background doux */}
-<div className="pointer-events-none absolute inset-0 -z-10">
-  {/* Dégradés au fond (plus bas en z-index) */}
-  <div className="absolute inset-0 z-[-20] bg-[radial-gradient(60%_60%_at_80%_10%,#93C5FD40,transparent_60%),radial-gradient(50%_50%_at_10%_90%,#C6A97226,transparent_60%)]" />
-  <div className="absolute inset-0 z-[-19] bg-gradient-to-b from-[#FAF9F6] via-white to-[#FAF9F6]" />
-
-  {/* Vagues très discrètes (au-dessus des dégradés) */}
-  <div className="waves z-[-18]">
-    {/* Top */}
-    <svg className="top layer1" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="wg1" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#1f4f82"/><stop offset="100%" stopColor="#79a7d8"/>
-        </linearGradient>
-      </defs>
-      <path fill="url(#wg1)"
-        d="M0,96 L60,90 C120,84 240,72 360,90 C480,108 600,156 720,152 C840,148 960,100 1080,92 C1200,84 1320,112 1380,128 L1440,144 L1440,0 L0,0 Z" />
-    </svg>
-
-    <svg className="top layer2" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="wg2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#2d6da0"/><stop offset="100%" stopColor="#93c5fd"/>
-        </linearGradient>
-      </defs>
-      <path fill="url(#wg2)"
-        d="M0,120 L80,114 C160,108 320,96 480,112 C640,128 800,172 960,156 C1120,140 1280,64 1360,52 L1440,40 L1440,0 L0,0 Z" />
-    </svg>
-
-    {/* Bottom miroir — on redessine directement (pas de <use> qui peut foirer) */}
-    <svg className="bot layer1" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
-      <path fill="url(#wg1)"
-        d="M0,96 L60,90 C120,84 240,72 360,90 C480,108 600,156 720,152 C840,148 960,100 1080,92 C1200,84 1320,112 1380,128 L1440,144 L1440,160 L0,160 Z" />
-    </svg>
-  </div>
-
-
-
-        <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_80%_10%,#93C5FD40,transparent_60%),radial-gradient(50%_50%_at_10%_90%,#C6A97226,transparent_60%)]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F6] via-white to-[#FAF9F6]" />
+      {/* ======= BACKGROUND LUXE MÉDITERRANÉE (clair & dynamique) ======= */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        {/* Couche 1 : ciel → azur très clair */}
+        <div className="absolute inset-0 z-[-30]" style={{
+          background: "linear-gradient(180deg, #EAF6FF 0%, #F7FBFF 38%, #FFF7E6 100%)",
+        }} />
+        {/* Couche 2 : halo "soleil" discret en haut droit */}
+        <div className="absolute -top-40 right-[-10%] w-[60vw] h-[60vw] rounded-full blur-3xl z-[-29]" style={{
+          background: "radial-gradient(closest-side, rgba(255,213,128,0.55), rgba(255,213,128,0.18) 55%, transparent 70%)",
+        }} />
+        {/* Couche 3 : reflets d'eau très légers (motif) */}
+        <svg className="absolute inset-x-0 top-28 z-[-28] opacity-[0.18]" viewBox="0 0 1440 220" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="az-g1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6EC1E4"/>
+              <stop offset="100%" stopColor="#B5E2FA"/>
+            </linearGradient>
+          </defs>
+          <path fill="url(#az-g1)" d="M0,96 C120,120 240,140 360,132 C480,124 600,88 720,88 C840,88 960,124 1080,136 C1200,148 1320,136 1440,120 L1440,0 L0,0 Z" />
+        </svg>
+        {/* Couche 4 : sable doux en bas */}
+        <div className="absolute bottom-[-20%] left-[-10%] w-[80vw] h-[40vw] rounded-[40%] blur-2xl z-[-27]" style={{
+          background: "radial-gradient(closest-side, rgba(240,220,190,0.65), rgba(240,220,190,0.28) 60%, transparent 70%)",
+        }} />
       </div>
 
-      {/* TOPBAR ultra-compact + parfaitement centré */}
-<div className="sticky top-0 z-40 w-full backdrop-blur supports-[backdrop-filter]:bg-white/60">
-  <div className="relative mx-auto max-w-6xl px-4 py-0">
-    {/* Actions à droite, hors flux pour ne pas décentrer le titre */}
-    <div className="absolute right-0 top-1 flex items-center gap-2">
-      <Button variant="ghost" size="sm" onClick={() => setLang("fr")} className={lang==="fr"?"font-semibold":""}>FR</Button>
-      <Separator orientation="vertical" className="h-5" />
-      <Button variant="ghost" size="sm" onClick={() => setLang("en")} className={lang==="en"?"font-semibold":""}>EN</Button>
-      <Separator orientation="vertical" className="h-5" />
-      <a href={CONFIG.instagram} target="_blank" rel="noreferrer">
-        <Button variant="ghost" size="icon" aria-label="Instagram"><Instagram className="h-5 w-5"/></Button>
-      </a>
-      <a href={CONFIG.facebook} target="_blank" rel="noreferrer">
-        <Button variant="ghost" size="icon" aria-label="Facebook"><Facebook className="h-5 w-5"/></Button>
-      </a>
-      {CONFIG.linkedin && (
-        <a href={CONFIG.linkedin} target="_blank" rel="noreferrer">
-          <Button variant="ghost" size="icon" aria-label="LinkedIn"><Linkedin className="h-5 w-5"/></Button>
-        </a>
-      )}
-    </div>
+      {/* ======= HEADER FONDU (intégré au fond) ======= */}
+      <div className="sticky top-0 z-40 w-full">
+        <div className="relative mx-auto max-w-6xl px-4 pr-28 md:pr-0">
+          {/* voile de fusion haut/bas pour éviter la coupure */}
+          <div className="absolute inset-x-0 -top-6 h-6 pointer-events-none" style={{
+            background: "linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,0))",
+          }} />
+          <div className="relative grid grid-cols-12 items-center min-h-[72px] bg-white/55 backdrop-blur-md supports-[backdrop-filter]:bg-white/45 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+            {/* Branding centré */}
+            <div className="col-span-12 flex items-center justify-center gap-3 py-2 text-center">
+              {CONFIG.brandLogo && (
+                <Image
+                  src={CONFIG.brandLogo}
+                  alt="Hôtel Toulon Bord de Mer"
+                  width={56}
+                  height={56}
+                  className="rounded-full shadow-sm ring-1 ring-black/5 md:w-[64px] md:h-[64px]"
+                  priority
+                />
+              )}
+              <div className="leading-tight">
+                <div className="text-[10px] md:text-[11px] uppercase tracking-[0.22em] text-slate-600 -mb-0.5">
+                  {t.heroTag}
+                </div>
+                <h1 className="font-serif text-[28px] md:text-[34px] font-semibold tracking-tight leading-[1.05] m-0 text-slate-900">
+                  {lang === "fr" ? CONFIG.brandFr : CONFIG.brandEn}
+                </h1>
+              </div>
+            </div>
 
-    {/* Branding centré */}
-    <div className="flex items-center justify-center gap-3 py-2 text-center">
-      {CONFIG.brandLogo && (
-        <Image
-          src={CONFIG.brandLogo}
-          alt="Hôtel Toulon Bord de Mer"
-          width={56}
-          height={56}
-          className="rounded-full shadow-sm ring-1 ring-white/70 md:w-[64px] md:h-[64px]"
-          priority
-        />
-      )}
-      <div className="leading-tight">
-        <div className="text-[10px] md:text-[11px] uppercase tracking-[0.22em] opacity-70 -mb-0.5">
-          {t.heroTag}
+            {/* Actions à droite (hors flux visuel) */}
+            <div className="absolute right-2 md:right-0 top-2 flex items-center gap-2 text-slate-700">
+              <Button variant="ghost" size="sm" onClick={() => setLang("fr")} className={lang==="fr"?"font-semibold":""}>FR</Button>
+              <Separator orientation="vertical" className="h-5" />
+              <Button variant="ghost" size="sm" onClick={() => setLang("en")} className={lang==="en"?"font-semibold":""}>EN</Button>
+              <Separator orientation="vertical" className="h-5" />
+              <a href={CONFIG.instagram} target="_blank" rel="noreferrer"><Button variant="ghost" size="icon" aria-label="Instagram"><Instagram className="h-5 w-5"/></Button></a>
+              <a href={CONFIG.facebook} target="_blank" rel="noreferrer"><Button variant="ghost" size="icon" aria-label="Facebook"><Facebook className="h-5 w-5"/></Button></a>
+              {CONFIG.linkedin && (
+                <a href={CONFIG.linkedin} target="_blank" rel="noreferrer"><Button variant="ghost" size="icon" aria-label="LinkedIn"><Linkedin className="h-5 w-5"/></Button></a>
+              )}
+            </div>
+
+            {/* voile bas pour fondre dans la page */}
+            <div className="absolute inset-x-0 -bottom-6 h-6 pointer-events-none" style={{
+              background: "linear-gradient(to top, rgba(255,255,255,0.86), rgba(255,255,255,0))",
+            }} />
+          </div>
         </div>
-        <h1 className="font-serif text-[28px] md:text-[34px] font-semibold tracking-tight leading-[1.05] m-0">
-          {lang === "fr" ? CONFIG.brandFr : CONFIG.brandEn}
-        </h1>
       </div>
-    </div>
-  </div>
-</div>
 
-
-
-
-      {/* HERO : bulles vidéo + Rooftop/Pro + cartes hôtels */}
+      {/* ======= CONTENU ======= */}
       <main className="mx-auto max-w-6xl px-4 pb-8">
         <section className="grid grid-cols-12 gap-5 pt-6 md:pt-8 items-stretch">
           {/* Col gauche : bulles vidéo + Rooftop & Pro */}
-          <div className="col-span-12 md:col-span-6 flex flex-col gap-4 -mt-4 md:-mt-6">
-
-            {/* Bulles vidéo — 2 éléments luxe */}
-<motion.div
-  initial={{ opacity: 0, y: 8 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.5 }}
-  className="relative h-[320px] md:h-[380px]"
->
-  {/* Grande ovale (gauche) */}
-  {CONFIG.media.bubbles[0] && (
-    <motion.div
-      className="absolute left-6 md:left-10 top-10 w-72 h-56 md:w-[420px] md:h-[300px] bubble-oval shadow-xl ring-1 ring-white/50"
-      animate={{ y: [0, -6, 0] }}
-      transition={{ duration: 7, repeat: Infinity, repeatType: "mirror" }}
-    >
-      <video
-        src={CONFIG.media.bubbles[0]}
-        autoPlay
-        muted
-        playsInline
-        loop
-        preload="metadata"
-        className="w-full h-full object-cover"
-      />
-    </motion.div>
-  )}
-
-  {/* Cercle (droite) */}
-  {CONFIG.media.bubbles[1] && (
-    <motion.div
-      className="absolute left-4 md:right-8 top-2 w-36 h-36 md:w-44 md:h-44 bubble shadow-xl ring-1 ring-white/50"
-      animate={{ y: [0, -8, 0], rotate: [0, 1.2, 0] }}
-      transition={{ duration: 6.5, repeat: Infinity, repeatType: "mirror", delay: 0.12 }}
-    >
-      <video
-        src={CONFIG.media.bubbles[1]}
-        autoPlay
-        muted
-        playsInline
-        loop
-        preload="metadata"
-        className="w-full h-full object-cover"
-      />
-    </motion.div>
-  )}
-
-  {/* Label luxe (facultatif) */}
- 
-</motion.div>
-
-
-  {/* Cercle (droite) */}
-  
-
-           {/* Rooftop & Pro – version image de fond + overlay luxe */}
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 -mt-8 md:-mt-9">
-
-  {/* Rooftop */}
-  <div className="relative overflow-hidden rounded-3xl gradient-border shadow-xl group min-h-[240px]">
-    <Image src={CONFIG.rooftop.bg} alt={t.rooftop} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/10" />
-    <div className="relative p-5 flex flex-col gap-3 h-full">
-      <h3 className="text-white text-[22px] md:text-[24px] font-semibold tracking-tight drop-shadow">
-  {t.rooftop}
-</h3>
-      <div className="mt-auto flex flex-col gap-2">
-        <a href={CONFIG.rooftop.menuUrl} target="_blank" rel="noreferrer">
-          <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
-            <Link2 className="mr-2 h-4 w-4 icon-white" /> {t.menu}
-          </Button>
-        </a>
-        {/* Pas de bouton résa si pas d’URL */}
-        {CONFIG.rooftop.bookingUrl ? (
-          <a href={CONFIG.rooftop.bookingUrl} target="_blank" rel="noreferrer">
-            <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
-              {t.reserveTable}
-            </Button>
-          </a>
-        ) : null}
-      </div>
-    </div>
-  </div>
-
-  {/* Espace Pro */}
-  <div className="relative overflow-hidden rounded-3xl gradient-border shadow-xl group min-h-[240px]">
-    <Image src={CONFIG.pro.bg} alt={t.pro} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/10" />
-    <div className="relative p-5 flex flex-col gap-3 h-full">
-      <h3 className="text-white text-[22px] md:text-[24px] font-semibold tracking-tight drop-shadow">
-  {t.pro}
-</h3>
-
-      <div className="mt-auto flex flex-col gap-2">
-        {/* ⇩ Même style “glass” que cowork + interligne réduit */}
-        <a href={CONFIG.pro.seminarUrl} target="_blank" rel="noreferrer">
-          <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
-            {t.seminar}
-          </Button>
-        </a>
-        <a href={CONFIG.pro.coworkUrl} target="_blank" rel="noreferrer">
-          <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
-            {t.cowork}
-          </Button>
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-</div>
-
-
-
-          {/* Col droite : cartes hôtels “glass” avec photo + logo */}
-          <div className="col-span-12 md:col-span-6 mt-2 md:mt-0 grid grid-cols-1 gap-4">
-
-
-  {CONFIG.hotels.map((h) => (
-    <motion.div key={h.key} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-      <div className="relative overflow-hidden rounded-3xl gradient-border shadow-2xl group min-h-[260px]">
-        {/* Image de fond */}
-        <Image src={h.image} alt={h.nameFr} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
-        {/* Overlay lisibilité */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/15" />
-        {/* Contenu */}
-        <div className="relative p-6 flex flex-col h-[260px] sm:h-[280px]">
-
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              {h.logo && (
-                <div className="relative w-12 h-12 bg-white/92 rounded-full overflow-hidden ring-1 ring-black/10 shadow-sm">
-                  <Image src={h.logo} fill alt={`${h.nameFr} logo`} className="object-contain p-1.5" />
-                </div>
+          <div className="col-span-12 md:col-span-6 flex flex-col gap-4 -mt-4 md:-mt-6 order-2 md:order-1">
+            {/* Bulles vidéo */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="relative h-[320px] md:h-[380px] will-change-transform"
+              style={{ WebkitBackfaceVisibility: "hidden", backfaceVisibility: "hidden", WebkitTransform: "translateZ(0)", transform: "translateZ(0)" }}
+            >
+              {/* Grande ovale */}
+              {CONFIG.media.bubbles[0] && (
+                <motion.div
+                  className="absolute left-6 md:left-10 top-10 w-72 h-56 md:w-[420px] md:h-[300px] bubble-oval shadow-xl ring-1 ring-white/50 will-change-transform"
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 7, repeat: Infinity, repeatType: "mirror" }}
+                  style={{ WebkitBackfaceVisibility: "hidden", backfaceVisibility: "hidden", WebkitTransform: "translateZ(0)", transform: "translateZ(0)" }}
+                >
+                  <video
+                    src={CONFIG.media.bubbles[0]}
+                    autoPlay
+                    muted
+                    playsInline
+                    loop
+                    preload="auto"
+                    controls={false}
+                    disablePictureInPicture
+                    className="w-full h-full object-cover"
+                    style={{ WebkitTransform: "translateZ(0)", transform: "translateZ(0)", WebkitBackfaceVisibility: "hidden", backfaceVisibility: "hidden" }}
+                  />
+                </motion.div>
               )}
-              <h3 className="text-white font-serif text-2xl drop-shadow-sm">
-                {lang === "fr" ? h.nameFr : h.nameEn}
-              </h3>
+
+              {/* Cercle */}
+              {CONFIG.media.bubbles[1] && (
+                <motion.div
+                  className="absolute left-4 md:right-8 top-2 w-36 h-36 md:w-44 md:h-44 bubble shadow-xl ring-1 ring-white/50 will-change-transform"
+                  animate={{ y: [0, -8, 0], rotate: [0, 1.2, 0] }}
+                  transition={{ duration: 6.5, repeat: Infinity, repeatType: "mirror", delay: 0.12 }}
+                  style={{ WebkitBackfaceVisibility: "hidden", backfaceVisibility: "hidden", WebkitTransform: "translateZ(0)", transform: "translateZ(0)" }}
+                >
+                  <video
+                    src={CONFIG.media.bubbles[1]}
+                    autoPlay
+                    muted
+                    playsInline
+                    loop
+                    preload="auto"
+                    controls={false}
+                    disablePictureInPicture
+                    className="w-full h-full object-cover"
+                    style={{ WebkitTransform: "translateZ(0)", transform: "translateZ(0)", WebkitBackfaceVisibility: "hidden", backfaceVisibility: "hidden" }}
+                  />
+                </motion.div>
+              )}
+            </motion.div>
+
+            {/* Rooftop & Pro */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 -mt-8 md:-mt-9">
+              {/* Rooftop */}
+              <div className="relative overflow-hidden rounded-3xl gradient-border shadow-xl group min-h-[240px]">
+                <Image src={CONFIG.rooftop.bg} alt={t.rooftop} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/10" />
+                <div className="relative p-5 flex flex-col gap-3 h-full">
+                  <h3 className="text-white text-[22px] md:text-[24px] font-semibold tracking-tight drop-shadow">
+                    {t.rooftop}
+                  </h3>
+                  <div className="mt-auto flex flex-col gap-2">
+                    <a href={CONFIG.rooftop.menuUrl} target="_blank" rel="noreferrer">
+                      <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
+                        <Link2 className="mr-2 h-4 w-4 icon-white" /> {t.menu}
+                      </Button>
+                    </a>
+                    {CONFIG.rooftop.bookingUrl ? (
+                      <a href={CONFIG.rooftop.bookingUrl} target="_blank" rel="noreferrer">
+                        <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
+                          {t.reserveTable}
+                        </Button>
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              {/* Espace Pro */}
+              <div className="relative overflow-hidden rounded-3xl gradient-border shadow-xl group min-h-[240px]">
+                <Image src={CONFIG.pro.bg} alt={t.pro} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/10" />
+                <div className="relative p-5 flex flex-col gap-3 h-full">
+                  <h3 className="text-white text-[22px] md:text-[24px] font-semibold tracking-tight drop-shadow">
+                    {t.pro}
+                  </h3>
+                  <div className="mt-auto flex flex-col gap-2">
+                    <a href={CONFIG.pro.seminarUrl} target="_blank" rel="noreferrer">
+                      <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
+                        {t.seminar}
+                      </Button>
+                    </a>
+                    <a href={CONFIG.pro.coworkUrl} target="_blank" rel="noreferrer">
+                      <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
+                        {t.cowork}
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-  {Array.from({ length: h.stars }).map((_, i) => (
-    <Star
-      key={i}
-      className="h-5 w-5 text-[#FFD84D] drop-shadow-[0_0_6px_rgba(255,216,77,0.65)]"
-      fill="currentColor"          // ⇒ étoile pleine
-      strokeWidth={1.5}            // ⇒ trait un poil plus fin
-    />
-  ))}
-</div>
 
           </div>
 
-          <div className="mt-2 flex items-center gap-2 text-white/90">
-            <MapPin className="h-4 w-4 icon-white" />
-            <span className="text-sm">{h.address}</span>
+          {/* Col droite : cartes hôtels */}
+          <div className="col-span-12 md:col-span-6 mt-2 md:mt-0 grid grid-cols-1 gap-4 order-1 md:order-2">
+            {CONFIG.hotels.map((h) => (
+              <motion.div key={h.key} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
+                <div className="relative overflow-hidden rounded-3xl gradient-border shadow-2xl group min-h-[260px]">
+                  <Image src={h.image} alt={h.nameFr} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/25 to-black/10" />
+                  <div className="relative p-6 flex flex-col h-[260px] sm:h-[280px]">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        {h.logo && (
+                          <div className="relative w-12 h-12 bg-white/92 rounded-full overflow-hidden ring-1 ring-black/10 shadow-sm">
+                            <Image src={h.logo} fill alt={`${h.nameFr} logo`} className="object-contain p-1.5" />
+                          </div>
+                        )}
+                        <h3 className="text-white font-serif text-2xl drop-shadow-sm">
+                          {lang === "fr" ? h.nameFr : h.nameEn}
+                        </h3>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: h.stars }).map((_, i) => (
+                          <Star key={i} className="h-5 w-5 text-[#FFD84D] drop-shadow-[0_0_6px_rgba(255,216,77,0.65)]" fill="currentColor" strokeWidth={1.5} />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-white/90">
+                      <MapPin className="h-4 w-4 icon-white" />
+                      <span className="text-sm">{h.address}</span>
+                    </div>
+                    <div className="mt-auto flex flex-wrap items-center gap-2">
+                      {h.bookingUrl && (
+                        <a href={h.bookingUrl} target="_blank" rel="noreferrer">
+                          <Button className="btn-pill btn-solid-white">{t.book}</Button>
+                        </a>
+                      )}
+                      <a href={`tel:${h.phone.replace(/\s/g,"")}`}>
+                        <Button className="btn-pill btn-glass-white">
+                          <Phone className="mr-2 h-4 w-4 icon-white" /> {h.phone}
+                        </Button>
+                      </a>
+                      <a href={`mailto:${h.email}`}>
+                        <Button className="btn-pill btn-glass-white">
+                          <Mail className="mr-2 h-4 w-4 icon-white" /> {h.email}
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
-
-          {/* CTAs harmonisés */}
-          <div className="mt-auto flex flex-wrap items-center gap-2">
-
-            {h.bookingUrl && (
-              <a href={h.bookingUrl} target="_blank" rel="noreferrer">
-                <Button className="btn-pill btn-solid-white">{t.book}</Button>
-              </a>
-            )}
-            <a href={`tel:${h.phone.replace(/\s/g,"")}`}>
-              <Button className="btn-pill btn-glass-white">
-                <Phone className="mr-2 h-4 w-4 icon-white" /> {h.phone}
-              </Button>
-            </a>
-            <a href={`mailto:${h.email}`}>
-              <Button className="btn-pill btn-glass-white">
-                <Mail className="mr-2 h-4 w-4 icon-white" /> {h.email}
-              </Button>
-            </a>
-            
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  ))}
-
-  {/* Pastilles déco (facultatives) */}
-  
-</div>
 
         </section>
       </main>
 
-      {/* Footer compact */}
-      <footer className="mx-auto max-w-6xl px-4 py-6 text-xs opacity-70">
+      {/* Footer */}
+      <footer className="mx-auto max-w-6xl px-4 py-6 text-xs text-slate-600">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>© {new Date().getFullYear()} {lang === "fr" ? CONFIG.brandFr : CONFIG.brandEn}</div>
           <div className="flex items-center gap-3">
@@ -413,30 +367,50 @@ export default function Page() {
         </div>
       </footer>
 
+      {/* Schema.org */}
       <Script id="hotel-schema" type="application/ld+json"
-  dangerouslySetInnerHTML={{
-    __html: JSON.stringify([
-      {
-        "@context":"https://schema.org",
-        "@type":"Hotel",
-        "name": CONFIG.hotels[0].nameFr,
-        "address": { "@type":"PostalAddress", "streetAddress":"Plage du Mourillon", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
-        "telephone": CONFIG.hotels[0].phone,
-        "email": CONFIG.hotels[0].email,
-        "url": CONFIG.hotels[0].bookingUrl
-      },
-      {
-        "@context":"https://schema.org",
-        "@type":"Hotel",
-        "name": CONFIG.hotels[1].nameFr,
-        "address": { "@type":"PostalAddress", "streetAddress":"124 rue Gubler", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
-        "telephone": CONFIG.hotels[1].phone,
-        "email": CONFIG.hotels[1].email,
-        "url": CONFIG.hotels[1].bookingUrl
-      }
-    ])
-  }}
-/>
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([
+            {
+              "@context":"https://schema.org",
+              "@type":"Hotel",
+              "name": CONFIG.hotels[0].nameFr,
+              "address": { "@type":"PostalAddress", "streetAddress":"Plage du Mourillon", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
+              "telephone": CONFIG.hotels[0].phone,
+              "email": CONFIG.hotels[0].email,
+              "url": CONFIG.hotels[0].bookingUrl
+            },
+            {
+              "@context":"https://schema.org",
+              "@type":"Hotel",
+              "name": CONFIG.hotels[1].nameFr,
+              "address": { "@type":"PostalAddress", "streetAddress":"124 rue Gubler", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
+              "telephone": CONFIG.hotels[1].phone,
+              "email": CONFIG.hotels[1].email,
+              "url": CONFIG.hotels[1].bookingUrl
+            }
+          ])
+        }}
+      />
+
+      {/* Styles utilitaires spécifiques (optionnels) */}
+      <style jsx global>{`
+        .gradient-border { position: relative; }
+        .gradient-border::before {
+          content: ""; position: absolute; inset: -1px; border-radius: 1.5rem;
+          background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.2));
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor; mask-composite: exclude; padding: 1px;
+        }
+        .btn-pill { border-radius: 9999px; }
+        .btn-glass-white { background: rgba(255,255,255,0.28); backdrop-filter: blur(8px); color: #fff; }
+        .btn-glass-white:hover { background: rgba(255,255,255,0.36); }
+        .btn-solid-white { background: #fff; color: #0f172a; }
+        .btn-solid-white:hover { background: #f8fafc; }
+        .icon-white { color: #fff; }
+        .bubble { border-radius: 9999px; overflow: hidden; }
+        .bubble-oval { border-radius: 9999px/60%; overflow: hidden; }
+      `}</style>
 
     </div>
   );
