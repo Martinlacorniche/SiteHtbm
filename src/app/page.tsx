@@ -109,8 +109,44 @@ export default function Page() {
     return lang === "fr" ? fr : en;
   }, [lang]);
 
+  const [showPopup, setShowPopup] = useState(true);
+
+
   return (
     <div className="min-h-screen w-full relative overflow-hidden text-slate-900">
+      {showPopup && (
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div className="relative max-w-lg w-full rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+      <Image
+        src="/images/popup.png"
+        alt="Offre Privilège 15 Août"
+        width={800}
+        height={600}
+        className="object-cover w-full h-80"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-6 flex flex-col justify-end">
+        <h2 className="text-3xl font-bold text-white drop-shadow-lg mb-2">
+          Offre Unique
+        </h2>
+        <p className="text-white text-lg leading-snug drop-shadow-md">
+          Venez vivre les festivités du 15 Août à la meilleure place !
+          <br /> Loft de 40m², Champagne inclus, <br />
+           Contactez-nous vite au{" "}
+          <a href="tel:0494413512" className="underline">
+            04 94 41 35 12
+          </a>
+        </p>
+      </div>
+      <button
+        onClick={() => setShowPopup(false)}
+        className="absolute top-3 right-3 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg"
+      >
+        ✕
+      </button>
+    </div>
+  </div>
+)}
+
       {/* ======= BACKGROUND LUXE MÉDITERRANÉE (clair & dynamique) ======= */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         {/* Couche 1 : ciel → azur très clair */}
@@ -448,6 +484,15 @@ export default function Page() {
         .bubble { border-radius: 9999px; overflow: hidden; }
         .bubble-oval { border-radius: 9999px/60%; overflow: hidden; }
       `}</style>
+<style jsx global>{`
+  @keyframes fade-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.4s ease-out;
+  }
+`}</style>
 
     </div>
   );
