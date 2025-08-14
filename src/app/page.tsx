@@ -137,56 +137,75 @@ export default function Page() {
         }} />
       </div>
 
-      {/* ======= HEADER FONDU (intégré au fond) ======= */}
-      <div className="sticky top-0 z-40 w-full">
-        <div className="relative mx-auto max-w-6xl px-4 pr-28 md:pr-0">
-          {/* voile de fusion haut/bas pour éviter la coupure */}
-          <div className="absolute inset-x-0 -top-6 h-6 pointer-events-none" style={{
-            background: "linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,0))",
-          }} />
-          <div className="relative grid grid-cols-12 items-center min-h-[72px] bg-white/55 backdrop-blur-md supports-[backdrop-filter]:bg-white/45 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-            {/* Branding centré */}
-            <div className="col-span-12 flex items-center justify-center gap-3 py-2 text-center">
-              {CONFIG.brandLogo && (
-                <Image
-                  src={CONFIG.brandLogo}
-                  alt="Hôtel Toulon Bord de Mer"
-                  width={56}
-                  height={56}
-                  className="rounded-full shadow-sm ring-1 ring-black/5 md:w-[64px] md:h-[64px]"
-                  priority
-                />
-              )}
-              <div className="leading-tight">
-                <div className="text-[10px] md:text-[11px] uppercase tracking-[0.22em] text-slate-600 -mb-0.5">
-                  {t.heroTag}
-                </div>
-                <h1 className="font-serif text-[28px] md:text-[34px] font-semibold tracking-tight leading-[1.05] m-0 text-slate-900">
-                  {lang === "fr" ? CONFIG.brandFr : CONFIG.brandEn}
-                </h1>
-              </div>
-            </div>
+      {/* ======= HEADER (fondu, plein écran, responsive) ======= */}
+<div className="sticky top-0 z-40 w-full">
+  <div className="relative mx-auto max-w-[1600px] px-3 md:px-6">
+    {/* degrade haut/bas pour eviter toute "coupure" visuelle */}
+    <div
+      className="pointer-events-none absolute inset-x-0 -top-6 h-6"
+      style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,0))" }}
+    />
+    <div className="edge-fade header-glass header-tight relative w-full rounded-none md:rounded-xl shadow-none ring-0 grid grid-cols-12 items-center">
+      
+      {/* Colonne gauche - FR/EN + reseaux */}
+      <div className="col-span-12 md:col-span-3 order-2 md:order-1">
+        <div className="px-2 md:px-3 py-1 flex items-center justify-center md:justify-start gap-1.5 md:gap-2 text-slate-700">
+          <button onClick={() => setLang('fr')} className={`text-sm px-2 py-1 rounded ${lang==='fr'?'font-semibold':''}`}>FR</button>
+          <span className="hidden md:inline-block h-4 w-px bg-slate-300" />
+          <button onClick={() => setLang('en')} className={`text-sm px-2 py-1 rounded ${lang==='en'?'font-semibold':''}`}>EN</button>
 
-            {/* Actions à droite (hors flux visuel) */}
-            <div className="absolute right-2 md:right-0 top-2 flex items-center gap-2 text-slate-700">
-              <Button variant="ghost" size="sm" onClick={() => setLang("fr")} className={lang==="fr"?"font-semibold":""}>FR</Button>
-              <Separator orientation="vertical" className="h-5" />
-              <Button variant="ghost" size="sm" onClick={() => setLang("en")} className={lang==="en"?"font-semibold":""}>EN</Button>
-              <Separator orientation="vertical" className="h-5" />
-              <a href={CONFIG.instagram} target="_blank" rel="noreferrer"><Button variant="ghost" size="icon" aria-label="Instagram"><Instagram className="h-5 w-5"/></Button></a>
-              <a href={CONFIG.facebook} target="_blank" rel="noreferrer"><Button variant="ghost" size="icon" aria-label="Facebook"><Facebook className="h-5 w-5"/></Button></a>
-              {CONFIG.linkedin && (
-                <a href={CONFIG.linkedin} target="_blank" rel="noreferrer"><Button variant="ghost" size="icon" aria-label="LinkedIn"><Linkedin className="h-5 w-5"/></Button></a>
-              )}
-            </div>
+          <div className="mx-1 h-4 w-px bg-slate-300" />
 
-            {/* voile bas pour fondre dans la page */}
-            <div className="absolute inset-x-0 -bottom-6 h-6 pointer-events-none" style={{
-              background: "linear-gradient(to top, rgba(255,255,255,0.86), rgba(255,255,255,0))",
-            }} />
+          <a href={CONFIG.instagram} target="_blank" rel="noreferrer" aria-label="Instagram" className="p-1.5 rounded hover:bg-white/60">
+            <Instagram className="h-5 w-5" />
+          </a>
+          <a href={CONFIG.facebook} target="_blank" rel="noreferrer" aria-label="Facebook" className="p-1.5 rounded hover:bg-white/60">
+            <Facebook className="h-5 w-5" />
+          </a>
+          {CONFIG.linkedin && (
+            <a href={CONFIG.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="p-1.5 rounded hover:bg-white/60">
+              <Linkedin className="h-5 w-5" />
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* Branding centre */}
+      <div className="col-span-12 md:col-span-6 order-1 md:order-2">
+        <div className="flex items-center justify-center gap-3 py-2 text-center">
+          {CONFIG.brandLogo && (
+            <Image
+              src={CONFIG.brandLogo}
+              alt="Hotel Toulon Bord de Mer"
+              width={56}
+              height={56}
+              className="rounded-full shadow-sm ring-1 ring-black/5 md:w-[64px] md:h-[64px]"
+              priority
+            />
+          )}
+          <div className="leading-tight">
+            <div className="text-[10px] md:text-[11px] uppercase tracking-[0.22em] text-slate-600 -mb-0.5">
+              {t.heroTag}
+            </div>
+            <h1 className="font-serif text-[28px] md:text-[34px] font-semibold tracking-tight leading-[1.05] m-0 text-slate-900">
+              {lang === "fr" ? CONFIG.brandFr : CONFIG.brandEn}
+            </h1>
           </div>
         </div>
       </div>
+
+      {/* Colonne droite vide */}
+      <div className="col-span-12 md:col-span-3 order-3" />
+
+      {/* degrade bas pour fondre dans la page */}
+      <div
+        className="absolute inset-x-0 -bottom-6 h-6 pointer-events-none"
+        style={{ background: "linear-gradient(to top, rgba(255,255,255,0.86), rgba(255,255,255,0))" }}
+      />
+    </div>
+  </div>
+</div>
+
 
       {/* ======= CONTENU ======= */}
       <main className="mx-auto max-w-6xl px-4 pb-8">

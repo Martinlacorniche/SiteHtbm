@@ -132,4 +132,32 @@ a:hover {
 :root { --wave-opacity: .08; } /* mets .04 à .10 selon ton goût */
 @keyframes waveSlide { to { transform: translateX(-25%); } }
 
+/* Fait disparaître les bords latéraux du header (fade horizontal) */
+.edge-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+          mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+@media (min-width: 768px) {
+  .edge-fade {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 56px, black calc(100% - 56px), transparent);
+            mask-image: linear-gradient(to right, transparent, black 56px, black calc(100% - 56px), transparent);
+  }
+}
+
+/* Verre propre sans ombre marquée */
+.header-glass {
+  background: rgba(255,255,255,0.58);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+@supports (backdrop-filter: blur(10px)) {
+  .header-glass { background: rgba(255,255,255,0.42); }
+}
+
+/* Petits raffinements */
+.header-tight { min-height: 72px; }
+@media (max-width: 767px) {
+  .header-tight { min-height: 64px; }
+}
+
+
 
