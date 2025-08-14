@@ -57,15 +57,15 @@ const CONFIG = {
   ],
 
   rooftop: {
-    titleFr: "Le Rooftop",
-    titleEn: "The Rooftop",
+    titleFr: "Rooftop - Les Voiles",
+    titleEn: "Rooftop - Les Voiles",
     menuUrl: "https://www.monsieurcocktail.com/menu-sunday-sunset/",
     bookingUrl: "",
     bg: "/images/rooftop.jpg", 
   },
   pro: {
-    titleFr: "Espace Pro",
-    titleEn: "Business",
+    titleFr: "Espace Pro ",
+    titleEn: "Business ",
     seminarUrl: "https://bw-plus-la-corniche.backyou.app/fr/c/request#__step_request_0",
     coworkUrl: "https://mywo.fr/etablissements/mywo-toulon",
     bg: "/images/business.jpg",
@@ -346,9 +346,18 @@ export default function Page() {
                       </div>
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-white/90">
-                      <MapPin className="h-4 w-4 icon-white" />
-                      <span className="text-sm">{h.address}</span>
-                    </div>
+  <a
+  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.address)}`}
+  target="_blank"
+  rel="noreferrer"
+  className="hotel-address-link flex items-center gap-2 hover:underline"
+>
+  <MapPin className="h-4 w-4 icon-white" />
+  <span className="text-sm">{h.address}</span>
+</a>
+
+</div>
+
                     <div className="mt-auto flex flex-wrap items-center gap-2">
                       {h.bookingUrl && (
                         <a href={h.bookingUrl} target="_blank" rel="noreferrer">
@@ -374,6 +383,15 @@ export default function Page() {
 
         </section>
       </main>
+
+{/* Citation */}
+<section className="mx-auto max-w-4xl px-4 pt-0 pb-10 text-center">
+  <p className="font-serif italic text-xl md:text-2xl text-slate-800 drop-shadow-sm">
+    {lang === "fr"
+      ? "Besoin de soleil, de mer, de plage ou d'un chez-soi ? Bienvenue chez vous !"
+      : "Need sun, sea, sand, or a home away from home? Welcome to your place!"}
+  </p>
+</section>
 
       {/* Footer */}
       <footer className="mx-auto max-w-6xl px-4 py-6 text-xs text-slate-600">

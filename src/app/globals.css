@@ -106,6 +106,14 @@ a {
 a:hover {
   color: var(--gold);
 }
+
+/* Liens d'adresse d'hôtel - blancs sur fond sombre */
+.hotel-address-link {
+  color: rgba(255,255,255,0.9) !important;
+}
+.hotel-address-link:hover {
+  color: #fff !important;
+}
 /* --- UI luxe pour boutons sur image --- */
 .btn-pill { @apply h-10 md:h-11 px-4 md:px-5 rounded-xl transition-all duration-300; }
 .btn-glass-white { 
