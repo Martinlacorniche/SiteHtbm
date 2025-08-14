@@ -11,7 +11,7 @@ import Script from "next/script";
 /** ========= CONTENU (à personnaliser si besoin) ========= */
 const CONFIG = {
   brandFr: "Hôtel Toulon Bord de Mer",
-  brandEn: "Hotel Toulon Seafront",
+  brandEn: "Hotel Toulon Bord de Mer",
   brandLogo: "/logos/logo-bleu.png",
 
   instagram: "https://www.instagram.com/hotels_toulon_mer/",
