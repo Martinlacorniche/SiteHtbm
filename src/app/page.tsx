@@ -72,8 +72,8 @@ const CONFIG = {
   },
   media: {
     bubbles: [
-      "https://res.cloudinary.com/dclj42mpj/video/upload/v1755098533/sea_bhzotx.mp4",    // grande ovale (gauche)
-      "https://res.cloudinary.com/dclj42mpj/video/upload/v1755098499/sunset_lswe4c.mp4", // petit cercle
+      "https://ia801600.us.archive.org/2/items/20250828-141235-118/20250828_141235_118.mp4",    // grande ovale (gauche)
+      "https://ia601000.us.archive.org/31/items/20250828-142116-547_202509/20250828_142116_547.mp4", // petit cercle
     ],
   },
 };
@@ -110,10 +110,17 @@ export default function Page() {
   }, [lang]);
 
   const [showPopup, setShowPopup] = useState(true);
+  // Afficher le popup seulement avant le 15 septembre 2025
+const today = new Date();
+const showBackToSchool = today < new Date("2025-09-15");
+
 
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden text-slate-900">
+           
+
+
       
       {/* ======= BACKGROUND LUXE MÉDITERRANÉE (clair & dynamique) ======= */}
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -209,6 +216,16 @@ export default function Page() {
     </div>
   </div>
 </div>
+
+{showPopup && showBackToSchool && (
+  <div className="flex justify-center mt-3">
+    <div className="animate-fade-in rounded-full bg-sky-800/90 text-white shadow-md px-4 md:px-6 py-1.5 text-sm md:text-base font-medium">
+      {lang === "fr"
+        ? "📚🌴 La rentrée peut aussi rimer avec soleil ! Toute l’équipe HTBM vous envoie plein de good vibes ✨"
+        : "📚🌴 Back to school doesn’t mean back to boring! The HTBM team sends you sunny vibes ✨"}
+    </div>
+  </div>
+)}
 
 
       {/* ======= CONTENU ======= */}
