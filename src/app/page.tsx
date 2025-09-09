@@ -217,15 +217,6 @@ const showBackToSchool = today < new Date("2025-09-15");
   </div>
 </div>
 
-{showPopup && showBackToSchool && (
-  <div className="flex justify-center mt-3">
-    <div className="animate-fade-in rounded-full bg-sky-800/90 text-white shadow-md px-4 md:px-6 py-1.5 text-sm md:text-base font-medium">
-      {lang === "fr"
-        ? "📚🌴 La rentrée peut aussi rimer avec soleil ! Toute l’équipe HTBM vous envoie plein de good vibes ✨"
-        : "📚🌴 Back to school doesn’t mean back to boring! The HTBM team sends you sunny vibes ✨"}
-    </div>
-  </div>
-)}
 
 
       {/* ======= CONTENU ======= */}
