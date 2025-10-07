@@ -56,13 +56,15 @@ const CONFIG = {
     },
   ],
 
-  rooftop: {
-    titleFr: "Rooftop - Les Voiles",
-    titleEn: "Rooftop - Les Voiles",
-    menuUrl: "https://www.monsieurcocktail.com/menu-sunday-sunset/",
-    bookingUrl: "",
-    bg: "/images/rooftop.jpg", 
+    rooftop: {
+    titleFr: "Villa Les Voiles",
+    titleEn: "Villa Les Voiles",
+    subtitleFr: "Location pour groupes durant la saison hivernale",
+    subtitleEn: "Group rental during the winter season",
+    bookingUrl: "https://www.airbnb.com/l/hjiNz0ra",
+    bg: "/images/rooftop.jpg",
   },
+
   pro: {
     titleFr: "Espace Pro ",
     titleEn: "Business ",
@@ -86,7 +88,7 @@ export default function Page() {
       hotels: "Nos hôtels",
       book: "Réserver",
       rooftop: CONFIG.rooftop.titleFr,
-      menu: "Voir la carte",
+      menu: "Réserver",
       reserveTable: "Réserver",
       pro: CONFIG.pro.titleFr,
       seminar: "Réserver un séminaire",
@@ -286,23 +288,20 @@ const showBackToSchool = today < new Date("2025-09-15");
                 <Image src={CONFIG.rooftop.bg} alt={t.rooftop} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/10" />
                 <div className="relative p-5 flex flex-col gap-3 h-full">
-                  <h3 className="text-white text-[22px] md:text-[24px] font-semibold tracking-tight drop-shadow">
-                    {t.rooftop}
-                  </h3>
-                  <div className="mt-auto flex flex-col gap-2">
-                    <a href={CONFIG.rooftop.menuUrl} target="_blank" rel="noreferrer">
-                      <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
-                        <Link2 className="mr-2 h-4 w-4 icon-white" /> {t.menu}
-                      </Button>
-                    </a>
-                    {CONFIG.rooftop.bookingUrl ? (
-                      <a href={CONFIG.rooftop.bookingUrl} target="_blank" rel="noreferrer">
-                        <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
-                          {t.reserveTable}
-                        </Button>
-                      </a>
-                    ) : null}
-                  </div>
+                 <h3 className="text-white text-[22px] md:text-[24px] font-semibold tracking-tight drop-shadow">
+  {t.rooftop}
+</h3>
+<p className="text-white/90 text-sm leading-snug drop-shadow-sm">
+  {lang === "fr" ? CONFIG.rooftop.subtitleFr : CONFIG.rooftop.subtitleEn}
+</p>
+<div className="mt-auto flex flex-col gap-2">
+  <a href={CONFIG.rooftop.bookingUrl} target="_blank" rel="noreferrer">
+    <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
+      <Link2 className="mr-2 h-4 w-4 icon-white" /> Réserver
+    </Button>
+  </a>
+</div>
+
                 </div>
               </div>
 
