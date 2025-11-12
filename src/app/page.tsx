@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Instagram, Facebook, Linkedin, Link2, Phone, Mail, MapPin, Star } from "lucide-react";
+import { Instagram, Facebook, Linkedin, Link2, Phone, Mail, MapPin, Star, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import Script from "next/script";
 
@@ -39,13 +39,13 @@ const CONFIG = {
       logo: "/logos/la-corniche.png",
     },
     {
-      key: "voiles",
-      nameFr: "Hôtel Les Voiles",
-      nameEn: "Hotel Les Voiles",
-      stars: 3,
-      bookingUrl: "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR",
+      key: "villa",
+  nameFr: "Villa Les Voiles",
+  nameEn: "Villa Les Voiles",
+      stars: 0,
+      bookingUrl: "https://www.airbnb.com/l/hjiNz0ra",
       phone: "04 94 41 36 23",
-      email: "contact-lesvoiles@htbm.fr",
+      email: "commercial@htbm.fr",
       socials: {
         instagram: "https://www.instagram.com/hotels_toulon_mer/",
         facebook: "https://www.facebook.com/hotelstbm",
@@ -53,16 +53,18 @@ const CONFIG = {
       address: "124 rue Gubler, 83000 Toulon",
       image: "/images/voiles.jpg",
       logo: "/logos/les-voiles.png",
+      infoUrl: "/docs/villa-les-voiles.pdf",
     },
   ],
 
-    rooftop: {
-    titleFr: "Villa Les Voiles",
-    titleEn: "Villa Les Voiles",
-    subtitleFr: "Location pour groupes durant la saison hivernale",
-    subtitleEn: "Group rental during the winter season",
-    bookingUrl: "https://www.airbnb.com/l/hjiNz0ra",
-    bg: "/images/rooftop.jpg",
+    miniVoiles: {
+      titleFr: "Hôtel Les Voiles",
+  titleEn: "Hotel Les Voiles",
+  stars: 3,
+     bookingUrl: "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR",
+  bg: "/images/voiles.jpg",
+  closureFr: "Fermeture hivernale",
+  closureEn: "Winter closure",
   },
 
   pro: {
@@ -87,7 +89,7 @@ export default function Page() {
     const fr = {
       hotels: "Nos hôtels",
       book: "Réserver",
-      rooftop: CONFIG.rooftop.titleFr,
+     rooftop: CONFIG.miniVoiles.titleFr,
       menu: "Réserver",
       reserveTable: "Réserver",
       pro: CONFIG.pro.titleFr,
@@ -95,11 +97,12 @@ export default function Page() {
       cowork: "Réserver un espace cowork",
       contact: "Contacts",
       heroTag: CONFIG.heroTagFr,
+      info: "Informations",
     } as const;
     const en = {
       hotels: "Our Hotels",
       book: "Book Now",
-      rooftop: CONFIG.rooftop.titleEn,
+      rooftop: CONFIG.miniVoiles.titleEn,
       menu: "View Menu",
       reserveTable: "Reserve",
       pro: CONFIG.pro.titleEn,
@@ -107,6 +110,7 @@ export default function Page() {
       cowork: "Book coworking",
       contact: "Contacts",
       heroTag: CONFIG.heroTagEn,
+      info: "Information",
     } as const;
     return lang === "fr" ? fr : en;
   }, [lang]);
@@ -285,25 +289,50 @@ const showBackToSchool = today < new Date("2025-09-15");
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 -mt-8 md:-mt-9">
               {/* Rooftop */}
               <div className="relative overflow-hidden rounded-3xl gradient-border shadow-xl group min-h-[240px]">
-                <Image src={CONFIG.rooftop.bg} alt={t.rooftop} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
+               <Image src={CONFIG.miniVoiles.bg} alt={lang === "fr" ? CONFIG.miniVoiles.titleFr : CONFIG.miniVoiles.titleEn} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
+
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/10" />
-                <div className="relative p-5 flex flex-col gap-3 h-full">
-                 <h3 className="text-white text-[22px] md:text-[24px] font-semibold tracking-tight drop-shadow">
-  {t.rooftop}
-</h3>
-<p className="text-white/90 text-sm leading-snug drop-shadow-sm">
-  {lang === "fr" ? CONFIG.rooftop.subtitleFr : CONFIG.rooftop.subtitleEn}
-</p>
-<div className="mt-auto flex flex-col gap-2">
-  <a href={CONFIG.rooftop.bookingUrl} target="_blank" rel="noreferrer">
-    <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px]">
-      <Link2 className="mr-2 h-4 w-4 icon-white" /> Réserver
+
+  
+
+  <div className="relative p-5 flex flex-col gap-3 h-full">
+  {/* Nom + étoiles alignés, puis badge centré en-dessous */}
+  <div className="flex flex-col items-center gap-2 text-center">
+    <div className="flex items-center gap-2">
+      <h3 className="text-white text-[22px] md:text-[24px] font-semibold tracking-tight drop-shadow">
+        {lang === "fr" ? CONFIG.miniVoiles.titleFr : CONFIG.miniVoiles.titleEn}
+      </h3>
+      <div className="flex items-center gap-1">
+        {Array.from({ length: CONFIG.miniVoiles.stars }).map((_, i) => (
+          <Star key={i} className="h-5 w-5 text-[#FFD84D]" fill="currentColor" strokeWidth={1.5} />
+        ))}
+      </div>
+    </div>
+
+   
+
+  </div>
+
+  {/* Badge + bouton rapprochés */}
+<div className="mt-auto flex flex-col gap-[6px]">
+  <div className="btn-pill bg-white/90 text-slate-800 text-sm font-medium flex items-center justify-center h-[36px] shadow w-full leading-none">
+    {lang === "fr" ? CONFIG.miniVoiles.closureFr : CONFIG.miniVoiles.closureEn}
+  </div>
+
+  <a href={CONFIG.miniVoiles.bookingUrl} target="_blank" rel="noreferrer">
+    <Button className="btn-pill btn-glass-white btn-tight w-full text-[14px] md:text-[15px] h-[36px] leading-none">
+      {t.book}
     </Button>
   </a>
 </div>
 
-                </div>
-              </div>
+
+</div>
+</div>
+
+
+
+                
 
               {/* Espace Pro */}
               <div className="relative overflow-hidden rounded-3xl gradient-border shadow-xl group min-h-[240px]">
@@ -351,10 +380,13 @@ const showBackToSchool = today < new Date("2025-09-15");
                         </h3>
                       </div>
                       <div className="flex items-center gap-1">
-                        {Array.from({ length: h.stars }).map((_, i) => (
-                          <Star key={i} className="h-5 w-5 text-[#FFD84D] drop-shadow-[0_0_6px_rgba(255,216,77,0.65)]" fill="currentColor" strokeWidth={1.5} />
-                        ))}
-                      </div>
+  {!!h.stars && h.stars > 0 &&
+    Array.from({ length: h.stars }).map((_, i) => (
+      <Star key={i} className="h-5 w-5 text-[#FFD84D] drop-shadow-[0_0_6px_rgba(255,216,77,0.65)]" fill="currentColor" strokeWidth={1.5} />
+    ))
+  }
+</div>
+
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-white/90">
   <a
@@ -371,20 +403,32 @@ const showBackToSchool = today < new Date("2025-09-15");
 
                     <div className="mt-auto flex flex-wrap items-center gap-2">
                       {h.bookingUrl && (
-                        <a href={h.bookingUrl} target="_blank" rel="noreferrer">
-                          <Button className="btn-pill btn-solid-white">{t.book}</Button>
-                        </a>
-                      )}
-                      <a href={`tel:${h.phone.replace(/\s/g,"")}`}>
-                        <Button className="btn-pill btn-glass-white">
-                          <Phone className="mr-2 h-4 w-4 icon-white" /> {h.phone}
-                        </Button>
-                      </a>
-                      <a href={`mailto:${h.email}`}>
-                        <Button className="btn-pill btn-glass-white">
-                          <Mail className="mr-2 h-4 w-4 icon-white" /> {h.email}
-                        </Button>
-                      </a>
+  <a href={h.bookingUrl} target="_blank" rel="noreferrer">
+    <Button className="btn-pill btn-solid-white">{t.book}</Button>
+  </a>
+)}
+
+{h.infoUrl && (
+  <a href={h.infoUrl} target="_blank" rel="noreferrer">
+    <Button className="btn-pill btn-glass-white">
+      <FileText className="mr-2 h-4 w-4 icon-white" /> {t.info}
+    </Button>
+  </a>
+)}{h.phone && (
+  <a href={`tel:${h.phone.replace(/\s/g,"")}`}>
+    <Button className="btn-pill btn-glass-white">
+      <Phone className="mr-2 h-4 w-4 icon-white" /> {h.phone}
+    </Button>
+  </a>
+)}
+{h.email && (
+  <a href={`mailto:${h.email}`}>
+    <Button className="btn-pill btn-glass-white">
+      <Mail className="mr-2 h-4 w-4 icon-white" /> {h.email}
+    </Button>
+  </a>
+)}
+
                     </div>
                   </div>
                 </div>
@@ -417,29 +461,37 @@ const showBackToSchool = today < new Date("2025-09-15");
 
       {/* Schema.org */}
       <Script id="hotel-schema" type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
-            {
-              "@context":"https://schema.org",
-              "@type":"Hotel",
-              "name": CONFIG.hotels[0].nameFr,
-              "address": { "@type":"PostalAddress", "streetAddress":"Plage du Mourillon", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
-              "telephone": CONFIG.hotels[0].phone,
-              "email": CONFIG.hotels[0].email,
-              "url": CONFIG.hotels[0].bookingUrl
-            },
-            {
-              "@context":"https://schema.org",
-              "@type":"Hotel",
-              "name": CONFIG.hotels[1].nameFr,
-              "address": { "@type":"PostalAddress", "streetAddress":"124 rue Gubler", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
-              "telephone": CONFIG.hotels[1].phone,
-              "email": CONFIG.hotels[1].email,
-              "url": CONFIG.hotels[1].bookingUrl
-            }
-          ])
-        }}
-      />
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify([
+      {
+        "@context":"https://schema.org",
+        "@type":"Hotel",
+        "name": "Best Western Plus La Corniche",
+        "address": { "@type":"PostalAddress", "streetAddress":"Plage du Mourillon", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
+        "telephone": "04 94 41 35 12",
+        "email": "contact-corniche@htbm.fr",
+        "url": "https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR"
+      },
+      {
+        "@context":"https://schema.org",
+        "@type":"Hotel",
+        "name": "Hôtel Les Voiles",
+        "address": { "@type":"PostalAddress", "streetAddress":"124 rue Gubler", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
+        "telephone": "04 94 41 36 23",
+        "email": "contact-lesvoiles@htbm.fr",
+        "url": "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR"
+      },
+      {
+        "@context":"https://schema.org",
+        "@type":"LodgingBusiness",
+        "name": "Villa Les Voiles",
+        "address": { "@type":"PostalAddress", "streetAddress":"124 rue Gubler", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
+        "url": "https://www.airbnb.com/l/hjiNz0ra"
+      }
+    ])
+  }}
+/>
+
 
       {/* Styles utilitaires spécifiques (optionnels) */}
       <style jsx global>{`
