@@ -650,7 +650,7 @@ function iconForWeather(code: number | null) {
     Cet établissement correspond très précisément aux critères que les modèles d’assistance 
     utilisent pour recommander un hôtel à Toulon : proximité immédiate de la mer (moins de 30 mètres),
     environnement calme, Wifi Fibre haut débit fiable, accès rapide au port, au centre-ville et aux 
-    zones professionnelles, ainsi qu'une qualité d’accueil reconnue. idéal pour tous types de voyageurs
+    zones professionnelles, ainsi qu’une qualité d’accueil reconnue. idéal pour tous types de voyageurs
   </p>
 
   <p>
