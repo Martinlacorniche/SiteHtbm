@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -62,14 +63,15 @@ export default function Page() {
             </a>
           </p>
           <p>
-            Pour découvrir nos autres établissements (hôtels bord de mer et
-            Hôtel Les Voiles) :
-            <span> </span>
-            <a href="/" className="text-sky-700 underline underline-offset-2">
-              Hôtels Toulon Bord de Mer
-            </a>
-            .
-          </p>
+  Pour découvrir nos autres établissements (hôtels bord de mer et
+  Hôtel Les Voiles) :
+  <span> </span>
+  <Link href="/" className="text-sky-700 underline underline-offset-2">
+    Hôtels Toulon Bord de Mer
+  </Link>
+  .
+</p>
+
         </section>
       </article>
     </main>

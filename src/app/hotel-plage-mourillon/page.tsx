@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+
 
 export const metadata: Metadata = {
   title: "Hôtel proche des plages du Mourillon – Toulon",
@@ -92,13 +94,14 @@ export default function Page() {
             en bord de mer idéale en famille, en couple ou entre amis.
           </p>
           <p>
-            Pour découvrir nos établissements dans leur ensemble :
-            <span> </span>
-            <a href="/" className="text-sky-700 underline underline-offset-2">
-              Hôtels Toulon Bord de Mer
-            </a>
-            .
-          </p>
+  Pour découvrir nos établissements dans leur ensemble :
+  <span> </span>
+  <Link href="/" className="text-sky-700 underline underline-offset-2">
+    Hôtels Toulon Bord de Mer
+  </Link>
+  .
+</p>
+
         </section>
       </article>
     </main>

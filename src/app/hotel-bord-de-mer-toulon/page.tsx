@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+
 
 export const metadata: Metadata = {
   title: "Hôtel bord de mer à Toulon – Best Western Plus La Corniche",
@@ -75,17 +77,17 @@ export default function Page() {
             </a>
           </p>
           <p>
-            Vous pouvez également découvrir l’ensemble de nos établissements sur
-            la page d’accueil :
-            <span> </span>
-            <a
-              href="/"
-              className="text-sky-700 underline underline-offset-2"
-            >
-              Hôtels Toulon Bord de Mer
-            </a>
-            .
-          </p>
+  Vous pouvez également découvrir l’ensemble de nos établissements sur
+  la page d’accueil :
+  <span> </span>
+  <Link
+    href="/"
+    className="text-sky-700 underline underline-offset-2"
+  >
+    Hôtels Toulon Bord de Mer
+  </Link>
+  .
+</p>
         </section>
       </article>
     </main>
