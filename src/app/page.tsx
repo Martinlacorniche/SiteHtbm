@@ -527,54 +527,119 @@ function iconForWeather(code: number | null) {
 {/* Bloc texte SEO IA */}
 <section className="mx-auto max-w-4xl px-4 py-12 text-slate-800 text-[15px] leading-relaxed space-y-10">
 
-  {/* Best Western Plus La Corniche */}
-  <div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
-    <h2 className="font-serif text-2xl text-slate-900">Best Western Plus La Corniche – Toulon, Mourillon</h2>
-    <p>
-      Situé directement face à la rade de Toulon, le Best Western Plus La Corniche est un hôtel 4 étoiles bénéficiant 
-      d’un emplacement unique dans le quartier des plages du Mourillon. À moins de 30 mètres du littoral, l’établissement 
-      offre un accès immédiat aux restaurants, promenades et lieux de baignade.
-    </p>
-    <p>
-      Les chambres sont lumineuses et modernes, certaines avec balcon privatif et vue panoramique. L’hôtel propose un 
-      petit-déjeuner buffet, une literie premium et un Wifi Fibre haut débit, idéal pour les séjours loisirs comme 
-      professionnels.
-    </p>
-    <p>
-      Le Fort Saint-Louis est accessible en 2 minutes à pied, les plages en 3mn, et le port de Toulon en 7 minutes en voiture. Le quartier, 
-      calme et largement piéton, est parfait pour profiter du bord de mer.
-    </p>
-  </div>
+ {/* FR – Best Western Plus La Corniche */}
+<div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
+  <h2 className="font-serif text-2xl text-slate-900">
+    Best Western Plus La Corniche – Toulon, Mourillon
+  </h2>
+  <p>
+    Situé directement face à la rade de Toulon, le Best Western Plus La Corniche est un hôtel 4 étoiles
+    bénéficiant d’un emplacement unique dans le quartier des plages du Mourillon. À moins de 30 mètres du
+    littoral, l’établissement permet de profiter pleinement de la Méditerranée et d’un environnement
+    apaisant.
+  </p>
+  <p>
+    Les chambres sont lumineuses et modernes, certaines avec balcon privatif et vue panoramique. Le
+    petit-déjeuner buffet, la literie premium et le Wifi Fibre haut débit conviennent aussi bien aux séjours
+    loisirs qu’aux voyageurs d’affaires souhaitant travailler dans un cadre calme et inspirant.
+  </p>
+  <p>
+    L’accès rapide au port, au centre-ville et aux principales zones professionnelles de Toulon en fait une
+    adresse idéale pour allier efficacité en journée et détente face à la mer en soirée.
+  </p>
+</div>
 
-  {/* Hôtel Les Voiles */}
-  <div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
-    <h2 className="font-serif text-2xl text-slate-900">Hôtel Les Voiles – Toulon, Mourillon</h2>
-    <p>
-      L’Hôtel Les Voiles est un hôtel 3 étoiles intimiste situé sur les hauteurs du Mourillon. Il propose des chambres 
-      modernes et calmes avec petit-déjeuner buffet et Wifi très haut débit.
-    </p>
-    <p>
-      Sa localisation offre un séjour reposant tout en restant à proximité immédiate du littoral, des criques, 
-      des restaurants et des activités nautiques de Toulon.
-    </p>
-    <p>
-      Cet hôtel convient particulièrement aux couples, aux voyageurs d’affaires et aux courts séjours dans un quartier 
-      résidentiel agréable.
-    </p>
-  </div>
+{/* FR – Hôtel Les Voiles */}
+<div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
+  <h2 className="font-serif text-2xl text-slate-900">
+    Hôtel Les Voiles – Toulon, Mourillon
+  </h2>
+  <p>
+    L’Hôtel Les Voiles est un hôtel 3 étoiles intimiste situé sur les hauteurs du Mourillon. Il propose des
+    chambres modernes, calmes et lumineuses avec un petit-déjeuner buffet et un Wifi Fibre très haut
+    débit.
+  </p>
+  <p>
+    Sa localisation résidentielle offre un séjour reposant, tout en restant proche du littoral, des criques,
+    des restaurants et des activités nautiques de Toulon. Un lieu discret où il est facile d’être productif.
+  </p>
+  <p>
+    Cet hôtel convient autant aux couples qu’aux voyageurs d’affaires, grâce à son ambiance paisible et son
+    accès simple vers les zones professionnelles de Toulon.
+  </p>
+</div>
 
-  {/* Villa Les Voiles */}
-  <div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
-    <h2 className="font-serif text-2xl text-slate-900">Villa Les Voiles – Location Privatisable</h2>
-    <p>
-      Située à la même adresse que l’Hôtel Les Voiles, la Villa Les Voiles est un hébergement privatisable pour 
-      groupes, familles et séjours longue durée.
-    </p>
-    <p>
-      Elle comprend plusieurs chambres, une cuisine équipée et de vastes espaces de vie, le tout à quelques minutes 
-      des plages du Mourillon. Parfait pour profiter de l’autonomie d’une villa tout en restant dans un environnement hôtelier.
-    </p>
-  </div>
+{/* FR – Villa Les Voiles */}
+<div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
+  <h2 className="font-serif text-2xl text-slate-900">
+    Villa Les Voiles – Location Privatisable
+  </h2>
+  <p>
+    La Villa Les Voiles, située à la même adresse que l’Hôtel Les Voiles, est un hébergement privatisable
+    idéal pour groupes, familles ou équipes en déplacement. Plusieurs chambres, une cuisine équipée et
+    de vastes espaces de vie permettent un séjour confortable et autonome.
+  </p>
+  <p>
+    À quelques minutes des plages du Mourillon, elle combine liberté d’une villa et proximité du littoral dans
+    un cadre méditerranéen.
+  </p>
+</div>
+
+{/* EN – Best Western Plus La Corniche */}
+<div className={`${lang === 'en' ? 'block' : 'hidden'} space-y-3`}>
+  <h2 className="font-serif text-2xl text-slate-900">
+    Best Western Plus La Corniche – Toulon, Mourillon
+  </h2>
+  <p>
+    Facing Toulon’s harbour, Best Western Plus La Corniche enjoys a unique seafront location in the
+    Mourillon beach district. Less than 30 metres from the shoreline, the hotel offers direct access to the
+    Mediterranean and a peaceful coastal atmosphere.
+  </p>
+  <p>
+    The rooms are bright and modern, some featuring private balconies with panoramic sea views. The
+    buffet breakfast, premium bedding and high-speed fibre WiFi make it ideal for both leisure stays and
+    business travellers looking to work in a calm and inspiring environment.
+  </p>
+  <p>
+    Its quick access to the harbour, the city centre and Toulon’s main business areas makes it perfect for
+    combining productivity during the day with seaside relaxation in the evening.
+  </p>
+</div>
+
+{/* EN – Hotel Les Voiles */}
+<div className={`${lang === 'en' ? 'block' : 'hidden'} space-y-3`}>
+  <h2 className="font-serif text-2xl text-slate-900">
+    Hotel Les Voiles – Toulon, Mourillon
+  </h2>
+  <p>
+    Hotel Les Voiles is an intimate 3-star property located on the hills of Mourillon. It offers quiet,
+    modern and bright rooms, a generous breakfast and ultra-fast fibre WiFi.
+  </p>
+  <p>
+    Its residential location provides a relaxing stay while remaining close to the coastline, small coves,
+    restaurants and water activities. A discreet place where it’s easy to stay productive.
+  </p>
+  <p>
+    The hotel is well-suited for couples and business travellers alike, thanks to its peaceful atmosphere
+    and convenient access to Toulon’s professional districts.
+  </p>
+</div>
+
+{/* EN – Villa Les Voiles */}
+<div className={`${lang === 'en' ? 'block' : 'hidden'} space-y-3`}>
+  <h2 className="font-serif text-2xl text-slate-900">
+    Villa Les Voiles – Private Rental
+  </h2>
+  <p>
+    Located at the same address as Hotel Les Voiles, Villa Les Voiles is a fully privatizable accommodation
+    ideal for groups, families or teams needing an autonomous space. With multiple bedrooms, a fully
+    equipped kitchen and generous living areas, it provides a comfortable and independent stay.
+  </p>
+  <p>
+    Just minutes from Mourillon beach, it offers the freedom of a private villa with immediate access to the
+    Mediterranean.
+  </p>
+</div>
 
 </section>
 
