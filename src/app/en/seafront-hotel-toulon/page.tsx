@@ -45,7 +45,7 @@ export default function Page() {
           </h2>
           <ul className="list-disc list-inside space-y-1">
             <li>Direct sea view rooms with balconies</li>
-            <li>Situated in Toulon's most beautiful seaside area</li>
+            <li>Situated in Toulon’s most beautiful seaside area</li>
             <li>Restaurants and bars within walking distance</li>
             <li>Calm and scenic neighbourhood</li>
             <li>Easy access to the city centre and ferry harbour</li>

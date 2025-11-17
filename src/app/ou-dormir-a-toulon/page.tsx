@@ -29,7 +29,7 @@ export default function Page() {
         <section className="space-y-3">
           <h2 className="font-serif text-2xl text-slate-900">Pour les familles</h2>
           <p>
-            Pour un séjour en famille à Toulon, l'Hôtel Les Voiles est idéal : environnement calme, chambres modernes,
+            Pour un séjour en famille à Toulon, l’Hôtel Les Voiles est idéal : environnement calme, chambres modernes,
             proximité immédiate des plages du Mourillon et accès simple aux activités nautiques.  
             Pour les familles nombreuses, la <strong>Villa Les Voiles</strong> offre encore plus d’espace avec plusieurs chambres et une cuisine équipée.
           </p>
