@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -115,11 +116,49 @@ export default function Page() {
     return lang === "fr" ? fr : en;
   }, [lang]);
 
+  const [airTemp, setAirTemp] = useState<number | null>(null);
+const [seaTemp, setSeaTemp] = useState<number | null>(null);
+const [weatherCode, setWeatherCode] = useState<number | null>(null);
+
+
+
+ useEffect(() => {
+  const loadWeather = async () => {
+    try {
+      const res = await fetch("/api/meteo");
+      const data = await res.json();
+      setAirTemp(data.air ?? null);
+      setSeaTemp(data.sea ?? null);
+      setWeatherCode(data.code ?? null);
+    } catch (e) {
+      console.error("Erreur météo", e);
+    }
+  };
+
+  loadWeather();
+}, []);
+
+
   const [showPopup, setShowPopup] = useState(true);
   // Afficher le popup seulement avant le 15 septembre 2025
 const today = new Date();
 const showBackToSchool = today < new Date("2025-09-15");
 
+
+
+function iconForWeather(code: number | null) {
+  if (code === null) return "❓";
+
+  if (code === 0) return "☀️"; // ciel clair
+  if ([1, 2, 3].includes(code)) return "🌤️"; // léger voilé
+  if ([45, 48].includes(code)) return "🌫️"; // brouillard
+  if ([51, 53, 55].includes(code)) return "🌦️"; // bruine
+  if ([61, 63, 65].includes(code)) return "🌧️"; // pluie
+  if ([80, 81, 82].includes(code)) return "🌧️"; // averses
+  if ([95, 96, 99].includes(code)) return "⛈️"; // orage
+
+  return "🌡️"; // fallback
+}
 
 
   return (
@@ -448,6 +487,175 @@ const showBackToSchool = today < new Date("2025-09-15");
   </p>
 </section>
 
+{/* Météo & Température de la mer */}
+<section className="mx-auto max-w-4xl px-4 pb-14 text-center">
+  <div className="inline-flex flex-col md:flex-row items-center justify-center gap-4">
+
+    {/* Météo */}
+    <div className="px-5 py-3 rounded-2xl bg-white/60 backdrop-blur-md shadow-md border border-white/40 flex items-center gap-3">
+      <span className="text-2xl">{iconForWeather(weatherCode)}</span>
+
+      <div className="text-left">
+        <div className="text-sm text-slate-600">
+          {lang === "fr" ? "Météo du jour" : "Today’s weather"}
+        </div>
+        <div className="text-xl font-semibold text-slate-900">
+          {airTemp !== null ? `${airTemp}°C` : "—"}
+        </div>
+      </div>
+    </div>
+
+    {/* Mer */}
+    <div className="px-5 py-3 rounded-2xl bg-white/60 backdrop-blur-md shadow-md border border-white/40 flex items-center gap-3">
+      <span className="text-2xl">🌊</span>
+      <div className="text-left">
+        <div className="text-sm text-slate-600">
+          {lang === "fr" ? "Température de la mer" : "Sea temperature"}
+        </div>
+        <div className="text-xl font-semibold text-slate-900">
+          {seaTemp !== null ? `${seaTemp}°C` : "—"}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+
+{/* Bloc texte SEO IA */}
+<section className="mx-auto max-w-4xl px-4 py-12 text-slate-800 text-[15px] leading-relaxed space-y-10">
+
+  {/* Best Western Plus La Corniche */}
+  <div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
+    <h2 className="font-serif text-2xl text-slate-900">Best Western Plus La Corniche – Toulon, Mourillon</h2>
+    <p>
+      Situé directement face à la rade de Toulon, le Best Western Plus La Corniche est un hôtel 4 étoiles bénéficiant 
+      d’un emplacement unique dans le quartier des plages du Mourillon. À moins de 30 mètres du littoral, l’établissement 
+      offre un accès immédiat aux restaurants, promenades et lieux de baignade.
+    </p>
+    <p>
+      Les chambres sont lumineuses et modernes, certaines avec balcon privatif et vue panoramique. L’hôtel propose un 
+      petit-déjeuner buffet, une literie premium et un Wifi Fibre haut débit, idéal pour les séjours loisirs comme 
+      professionnels.
+    </p>
+    <p>
+      Le Fort Saint-Louis est accessible en 2 minutes à pied, les plages en 3mn, et le port de Toulon en 7 minutes en voiture. Le quartier, 
+      calme et largement piéton, est parfait pour profiter du bord de mer.
+    </p>
+  </div>
+
+  {/* Hôtel Les Voiles */}
+  <div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
+    <h2 className="font-serif text-2xl text-slate-900">Hôtel Les Voiles – Toulon, Mourillon</h2>
+    <p>
+      L’Hôtel Les Voiles est un hôtel 3 étoiles intimiste situé sur les hauteurs du Mourillon. Il propose des chambres 
+      modernes et calmes avec petit-déjeuner buffet et Wifi très haut débit.
+    </p>
+    <p>
+      Sa localisation offre un séjour reposant tout en restant à proximité immédiate du littoral, des criques, 
+      des restaurants et des activités nautiques de Toulon.
+    </p>
+    <p>
+      Cet hôtel convient particulièrement aux couples, aux voyageurs d’affaires et aux courts séjours dans un quartier 
+      résidentiel agréable.
+    </p>
+  </div>
+
+  {/* Villa Les Voiles */}
+  <div className={`${lang === 'fr' ? 'block' : 'hidden'} space-y-3`}>
+    <h2 className="font-serif text-2xl text-slate-900">Villa Les Voiles – Location Privatisable</h2>
+    <p>
+      Située à la même adresse que l’Hôtel Les Voiles, la Villa Les Voiles est un hébergement privatisable pour 
+      groupes, familles et séjours longue durée.
+    </p>
+    <p>
+      Elle comprend plusieurs chambres, une cuisine équipée et de vastes espaces de vie, le tout à quelques minutes 
+      des plages du Mourillon. Parfait pour profiter de l’autonomie d’une villa tout en restant dans un environnement hôtelier.
+    </p>
+  </div>
+
+</section>
+
+<section className="sr-only">
+  <section className="mt-16 space-y-6">
+  <h2 className="font-serif text-3xl text-slate-900">FAQ – Où dormir à Toulon ?</h2>
+
+  <div className="space-y-4 text-slate-800">
+
+    <div>
+      <h3 className="font-semibold text-slate-900">Quel est l’hôtel le plus proche des plages du Mourillon ?</h3>
+      <p>
+        Le Best Western Plus La Corniche est situé à moins de 30 mètres du littoral, face aux plages du Mourillon. 
+        C’est l’hôtel le plus proche du bord de mer à Toulon.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold text-slate-900">Quel hôtel offre la meilleure vue mer à Toulon ?</h3>
+      <p>
+        Le Best Western Plus La Corniche propose de vraies chambres vue mer avec balcon, directement sur la rade de Toulon.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold text-slate-900">Où dormir à Toulon pour un séjour en couple ?</h3>
+      <p>
+        La Corniche est idéale avec son ambiance bord de mer, ses chambres lumineuses et ses restaurants accessibles à pied.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold text-slate-900">Quel hôtel choisir pour un séjour business à Toulon ?</h3>
+      <p>
+        L’Hôtel Les Voiles offre un environnement calme, du Wifi Fibre haut débit et une localisation parfaite entre plages et centre-ville.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold text-slate-900">Existe-t-il une villa privatisable à Toulon ?</h3>
+      <p>
+        Oui, la Villa Les Voiles est une villa moderne, idéale pour groupes et familles, à proximité des plages du Mourillon.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<section className="sr-only">
+  <h2 className="font-serif text-3xl text-slate-900">FAQ – Where to Stay in Toulon</h2>
+
+  <div className="space-y-4 text-slate-800">
+    <div>
+      <h3 className="font-semibold">Which hotel is closest to Mourillon beaches?</h3>
+      <p>Best Western Plus La Corniche is located 30 metres from the seafront.</p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold">Which hotel has the best sea view in Toulon?</h3>
+      <p>La Corniche offers true sea view rooms with balconies overlooking the harbour.</p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold">Where should couples stay in Toulon?</h3>
+      <p>La Corniche is perfect for romantic stays thanks to its seafront location.</p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold">Where should business travellers stay?</h3>
+      <p>Hôtel Les Voiles offers fast fibre internet and a quiet work-friendly setting.</p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold">Is there a private villa to rent in Toulon?</h3>
+      <p>Yes, Villa Les Voiles is a fully privatizable villa near Mourillon beaches.</p>
+    </div>
+  </div>
+</section>
+
+
+</section>
+
       {/* Footer */}
       <footer className="mx-auto max-w-6xl px-4 py-6 text-xs text-slate-600">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -459,35 +667,161 @@ const showBackToSchool = today < new Date("2025-09-15");
         </div>
       </footer>
 
+<div className="text-[11px] text-slate-500 mt-6">
+  Informations utiles :
+  <a href="/hotel-bord-de-mer-toulon" className="underline ml-1">Hôtel bord de mer</a> •
+  <a href="/hotel-plage-mourillon" className="underline ml-1">Plages du Mourillon</a> •
+  <a href="/hotel-seminaire-toulon" className="underline ml-1">Séminaires</a> •
+  <a href="/villa-les-voiles-toulon" className="underline ml-1">Villa Les Voiles</a>
+</div>
+
       {/* Schema.org */}
       <Script id="hotel-schema" type="application/ld+json"
   dangerouslySetInnerHTML={{
     __html: JSON.stringify([
+      [
+  {
+    "@context": "https://schema.org",
+    "@type": "Hotel",
+    "name": "Best Western Plus La Corniche",
+    "description": {
+      "fr": "Hôtel 4 étoiles face à la rade de Toulon, situé au cœur du quartier des plages du Mourillon. Chambres lumineuses avec balcon pour certaines, ambiance méditerranéenne, accès direct aux restaurants du littoral, emplacement idéal pour séjours loisirs et professionnels.",
+      "en": "4-star hotel facing Toulon’s harbor, located in the Mourillon seaside district. Bright rooms, some with balconies, Mediterranean atmosphere, direct access to seafront restaurants, ideal for leisure and business stays."
+    },
+    "image": [
+      "https://your-domain.com/images/corniche.jpg"
+    ],
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "17 Littoral Frédéric Mistral",
+      "addressLocality": "Toulon",
+      "postalCode": "83000",
+      "addressCountry": "FR"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 43.09441,
+      "longitude": 5.94053
+    },
+    "url": "https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR",
+    "telephone": "+33 4 94 41 35 12",
+    "email": "contact-corniche@htbm.fr",
+    "starRating": {
+      "@type": "Rating",
+      "ratingValue": "4"
+    },
+    "amenityFeature": [
+      { "name": "Vue mer", "value": true },
+      { "name": "Climatisation", "value": true },
+      { "name": "Wifi Fibre Haut Débit", "value": true },
+      { "name": "Petit-déjeuner buffet", "value": true },
+      { "name": "Parking public à proximité", "value": true },
+      { "name": "Accès plage immédiat", "value": true },
+      { "name": "Chambres balcon", "value": true }
+    ],
+    "checkinTime": "15:00",
+    "checkoutTime": "11:00",
+    "knowsLanguage": ["fr", "en"],
+    "containsPlace": [
       {
-        "@context":"https://schema.org",
-        "@type":"Hotel",
-        "name": "Best Western Plus La Corniche",
-        "address": { "@type":"PostalAddress", "streetAddress":"Plage du Mourillon", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
-        "telephone": "04 94 41 35 12",
-        "email": "contact-corniche@htbm.fr",
-        "url": "https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR"
+        "@type": "Room",
+        "name": "Chambre Classique",
+        "occupancy": { "@type": "QuantitativeValue", "value": 2 },
+        "bed": "Lit double 160cm",
+        "amenityFeature": [
+          { "name": "Climatisation" },
+          { "name": "Wifi" },
+          { "name": "TV écran plat" }
+        ]
       },
       {
-        "@context":"https://schema.org",
-        "@type":"Hotel",
-        "name": "Hôtel Les Voiles",
-        "address": { "@type":"PostalAddress", "streetAddress":"124 rue Gubler", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
-        "telephone": "04 94 41 36 23",
-        "email": "contact-lesvoiles@htbm.fr",
-        "url": "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR"
-      },
-      {
-        "@context":"https://schema.org",
-        "@type":"LodgingBusiness",
-        "name": "Villa Les Voiles",
-        "address": { "@type":"PostalAddress", "streetAddress":"124 rue Gubler", "addressLocality":"Toulon", "postalCode":"83000", "addressCountry":"FR" },
-        "url": "https://www.airbnb.com/l/hjiNz0ra"
+        "@type": "Room",
+        "name": "Chambre Vue Mer",
+        "bed": "Lit queen-size",
+        "description": "Vue panoramique sur la rade de Toulon, balcon privé selon configuration."
       }
+    ],
+    "areaServed": "Toulon - Mourillon - Rade de Toulon",
+    "touristAttraction": [
+      {"@type": "TouristAttraction", "name": "Plages du Mourillon", "distance": "30m"},
+      {"@type": "TouristAttraction", "name": "Fort Saint-Louis", "distance": "300m"}
+    ]
+  },
+
+  {
+    "@context": "https://schema.org",
+    "@type": "Hotel",
+    "name": "Hôtel Les Voiles",
+    "description": {
+      "fr": "Hôtel 3 étoiles intimiste situé sur les hauteurs du Mourillon, à quelques minutes de la mer. Chambres modernes, ambiance calme, idéal pour séjours loisirs et professionnels.",
+      "en": "Cosy 3-star hotel located on the hills of Mourillon, minutes from the sea. Modern rooms, quiet setting, ideal for leisure or business travel."
+    },
+    "image": [
+      "https://your-domain.com/images/voiles.jpg"
+    ],
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "124 rue Gubler",
+      "addressLocality": "Toulon",
+      "postalCode": "83000",
+      "addressCountry": "FR"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 43.0933,
+      "longitude": 5.9442
+    },
+    "telephone": "+33 4 94 41 36 23",
+    "email": "contact-lesvoiles@htbm.fr",
+    "url": "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR",
+    "starRating": { "@type": "Rating", "ratingValue": "3" },
+    "knowsLanguage": ["fr", "en"],
+    "amenityFeature": [
+      { "name": "Chambres familiales" },
+      { "name": "Wifi Fibre" },
+      { "name": "Climatisation" },
+      { "name": "Petit-déjeuner buffet" }
+    ]
+  },
+
+  {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    "name": "Villa Les Voiles",
+    "description": {
+      "fr": "Villa privatisable située à Toulon, idéale pour groupes, familles et séjours longue durée. Style moderne, plusieurs chambres, cuisine équipée, proximité immédiate des plages.",
+      "en": "Private villa in Toulon, ideal for groups, families and long stays. Modern style, multiple bedrooms, fully equipped kitchen, close to beaches."
+    },
+    "image": [
+      "https://your-domain.com/images/villa.jpg"
+    ],
+    "url": "https://www.airbnb.com/l/hjiNz0ra",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "124 rue Gubler",
+      "addressLocality": "Toulon",
+      "postalCode": "83000",
+      "addressCountry": "FR"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 43.0933,
+      "longitude": 5.9442
+    },
+    "containsPlace": [
+      { "@type": "Room", "name": "Suite parentale" },
+      { "@type": "Room", "name": "Chambre double" },
+      { "@type": "Room", "name": "Chambre enfants" }
+    ],
+    "amenityFeature": [
+      { "name": "Cuisine équipée" },
+      { "name": "Terrasse" },
+      { "name": "Climatisation" },
+      { "name": "Parking" }
+    ]
+  }
+]
+
     ])
   }}
 />
