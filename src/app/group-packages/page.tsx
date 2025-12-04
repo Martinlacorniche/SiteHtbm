@@ -14,8 +14,8 @@ const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 // --- DATA ---
 const CONFIG = {
-  email: "commercial@htbm.fr",
-  phone: "04 94 41 36 23", 
+  email: "commercial2@htbm.fr",
+  phone: "04 94 41 35 12", 
   
   texts: {
     fr: {
