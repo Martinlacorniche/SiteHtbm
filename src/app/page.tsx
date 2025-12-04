@@ -221,6 +221,7 @@ export default function PageUltimeV14() {
               <X className="w-8 h-8" />
             </button>
             <div className="flex flex-col gap-4 md:gap-6 text-center font-serif text-3xl md:text-5xl">
+              <a href="/group-packages" className="hover:text-amber-300 transition-colors">Packages Groupes</a>
               <a href={CONFIG.corniche.bookingUrl} className="hover:text-blue-300 transition-colors">{CONFIG.corniche.title}</a>
               <a href={CONFIG.voiles.bookingUrl} className="hover:text-green-300 transition-colors">{CONFIG.voiles.title}</a>
               <a href={CONFIG.villa.bookingUrl} className="hover:text-amber-300 transition-colors">{CONFIG.villa.title}</a>
