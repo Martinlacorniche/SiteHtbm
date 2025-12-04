@@ -65,7 +65,6 @@ const CONFIG = {
       desc: { fr: "La Méditerranée comme terrain de jeu. Échappée en mer, voiles et couchers de soleil.", en: "The Mediterranean as your playground. Sea escape, sailing, and sunsets." },
       color: "text-blue-200", 
       tag: { fr: "Sur l'eau", en: "On the water" },
-      // SEO OPTIMISATION
       alt_fr: "Activité nautique de paddle et yacht club pour incentive de groupe à Toulon.",
       alt_en: "Paddle and Yacht Club nautical activity for a group incentive in Toulon.",
     },
@@ -75,7 +74,6 @@ const CONFIG = {
       desc: { fr: "Itinéraire sur mesure entre littoral varois et arrière-pays. VTT ou vélos de route.", en: "Custom itinerary between the Var coast and the hinterland. Mountain or road bikes." },
       color: "text-green-200",
       tag: { fr: "Sur la terre", en: "On the land" },
-      // SEO OPTIMISATION
       alt_fr: "Sortie VTT et vélo de route pour groupe d'entreprise près de Toulon.",
       alt_en: "Mountain and road bike tour for a corporate group near Toulon.",
     },
@@ -85,7 +83,6 @@ const CONFIG = {
       desc: { fr: "Derrière le bar, apprenez l'art de la mixologie. Création signature face à la mer.", en: "Behind the bar, learn the art of mixology. Signature creation facing the sea." },
       color: "text-red-200",
       tag: { fr: "Sur mesure", en: "Tailor-made" },
-      // SEO OPTIMISATION
       alt_fr: "Master class de cocktail en bord de mer pour événement incentive.",
       alt_en: "Seaside cocktail master class for an incentive event.",
     },
@@ -95,7 +92,6 @@ const CONFIG = {
       desc: { fr: "Apéritif privatisé au sommet, dîner léger et ambiance musicale élégante.", en: "Private sunset aperitif, light dinner, and elegant musical atmosphere." },
       color: "text-amber-200",
       tag: { fr: "Au sommet", en: "At the top" },
-      // SEO OPTIMISATION
       alt_fr: "Soirée privée en rooftop vue mer pour événement de groupe à l'hôtel.",
       alt_en: "Private rooftop evening with sea view for a group hotel event.",
     }
@@ -107,7 +103,7 @@ const CONFIG = {
   }
 };
 
-// --- Composant des Bulles de Forfait (Logique d'agrandissement et lisibilité OK) ---
+// --- Composant des Bulles de Forfait (Logique d'agrandissement conservée) ---
 const PackageGridItem = ({ pkg, email, lang, index, hoveredIndex, setHoveredIndex }: { 
     pkg: typeof CONFIG.packages[0], 
     email: string, 
@@ -148,7 +144,6 @@ const PackageGridItem = ({ pkg, email, lang, index, hoveredIndex, setHoveredInde
             <div className="absolute inset-0 pointer-events-none">
                 <Image 
                     src={pkg.image} 
-                    // --- CORRECTION SEO: Utilisation de la nouvelle balise alt ---
                     alt={pkg[`alt_${lang}` as keyof typeof pkg] as string}
                     fill 
                     className="object-cover transition-transform duration-700 ease-in-out group-hover:scale-110 z-0" 
@@ -163,14 +158,17 @@ const PackageGridItem = ({ pkg, email, lang, index, hoveredIndex, setHoveredInde
                 
                 {/* Titre principal toujours visible */}
                 <div className="transition-opacity duration-300"> 
-                    <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md opacity-70 mb-2 block">{pkg.tag[lang]}</span>
+                    {/* --- CORRECTION ICI : Retrait de l'opacité et shadow-lg --- */}
+                    <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-lg mb-2 block">
+                        {pkg.tag[lang]}
+                    </span>
                     <h3 className="font-serif text-3xl md:text-4xl leading-snug drop-shadow-lg text-white mb-4">
                         {pkg.title}
                     </h3>
                 </div>
 
-                {/* Texte descriptif et CTA apparaissant au hover (Lisibilité OK) */}
-                <div className="space-y-4 transition-opacity duration-500 opacity-0 group-hover:opacity-100">
+                {/* Texte descriptif et CTA (Affichage Permanent sur Mobile OK) */}
+                <div className="space-y-4 transition-opacity duration-500 opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
                     <p className="text-base font-medium leading-relaxed text-white/90 drop-shadow-md">
                         {pkg.desc[lang]}
                     </p>
@@ -223,7 +221,6 @@ export default function GroupPackagesPage() {
       )}>
         <Link href="/" className="flex items-center gap-3 z-50 relative group">
              <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden shadow-sm border border-white/20 bg-white">
-                {/* --- CORRECTION SEO: Ajout de mots-clés dans la balise alt du logo --- */}
                 <Image src="/logos/logo-bleu.png" alt="Logo HTBM Hôtels Toulon Bord de Mer" fill className="object-cover p-1" />
              </div>
              <div className="flex flex-col">
@@ -243,7 +240,7 @@ export default function GroupPackagesPage() {
         </div>
       </nav>
 
-      {/* --- MENU (Corrigé pour la traduction) --- */}
+      {/* --- MENU (Inchangé) --- */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div 
