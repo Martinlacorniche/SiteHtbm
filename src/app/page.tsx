@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script"; 
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, MapPin, Star, Wind, Thermometer, Menu, X, Instagram, Facebook, Phone, Building2, Mail, FileText, Home } from "lucide-react";
+import { ArrowRight, MapPin, Star, Wind, Thermometer, Menu, X, Instagram, Facebook, Phone, Building2, Mail, FileText, Home, Plus, Minus } from "lucide-react";
 import { Playfair_Display, Inter } from 'next/font/google';
 import { cn } from "@/lib/utils"; 
 
@@ -64,6 +64,10 @@ const CONFIG = {
     shortTitle: "L'Horizon", 
     tagline: { fr: "Vivre face à la mer", en: "Living by the sea" },
     stars: 4,
+    features: {
+      fr: ["Soins uniques by Byca", "Espace gym (Exclusivité : Zwift Ride)", "Réception 24/24", "Accès Plage"],
+      en: ["Unique Byca Amenities", "Gym (Zwift Ride Exclusive)", "24/7 Reception", "Beach Access"]
+    },
     desc: {
       fr: "L'expérience 4 étoiles les pieds dans l'eau. Rade de Toulon, balcon panoramique et embruns.",
       en: "The 4-star experience right on the water. Toulon harbor, panoramic balconies and sea spray."
@@ -82,6 +86,10 @@ const CONFIG = {
     tagline: { fr: "L'intimité sur la colline", en: "Intimacy on the hill" },
     stars: 3,
     isClosed: true, 
+    features: {
+      fr: ["Wifi Haut Débit", "Rooftop & Vue", "Petit-Déj Inclus"],
+      en: ["High Speed Wifi", "Rooftop & View", "Breakfast Included"]
+    },
     desc: {
       fr: "Un boutique-hôtel niché au calme sur les hauteurs du Mourillon. Jardin secret et douceur de vivre.",
       en: "A boutique hotel nestled in the quiet heights of Mourillon. Secret garden and gentle living."
@@ -128,6 +136,10 @@ export default function PageUltimeV14() {
 
   // --- POPUP STATE ---
   const [showPopup, setShowPopup] = useState(false);
+  
+  // --- MOBILE EXPAND STATE ---
+  const [mobileExpandLeft, setMobileExpandLeft] = useState(false);
+  const [mobileExpandRight, setMobileExpandRight] = useState(false);
 
   const vidRefLeft = useRef<HTMLVideoElement>(null);
   const vidRefRight = useRef<HTMLVideoElement>(null);
@@ -378,15 +390,43 @@ export default function PageUltimeV14() {
 
             <div className="relative z-30 h-full flex flex-col justify-between p-6 md:p-12 text-white pointer-events-none">
                 <div className="transform transition-all duration-500 translate-y-0 group-hover:-translate-y-2 pt-4 md:pt-0">
-                    <div className="flex items-center gap-3 mb-3 opacity-90">
-                        <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md">{CONFIG.corniche.title}</span>
-                        <div className="flex text-[#FFD84D] drop-shadow-md"><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/></div>
+                    <div className="flex items-center justify-between mb-3 opacity-90">
+                        <div className="flex items-center gap-3">
+                            <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md">{CONFIG.corniche.title}</span>
+                            <div className="flex text-[#FFD84D] drop-shadow-md"><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/></div>
+                        </div>
+                        {/* BOUTON + (MOBILE ONLY) */}
+                        <button 
+                            onClick={(e) => {
+                                e.preventDefault(); 
+                                e.stopPropagation();
+                                setMobileExpandLeft(!mobileExpandLeft);
+                            }}
+                            className="md:hidden pointer-events-auto p-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:bg-white/40 transition-colors"
+                            aria-label="Voir les détails"
+                        >
+                            {mobileExpandLeft ? <Minus className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
+                        </button>
                     </div>
+
                     <h2 className="font-serif text-5xl md:text-8xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.corniche.shortTitle}</h2>
                     <p className="font-serif italic text-xl md:text-2xl opacity-90 text-white drop-shadow-md">{CONFIG.corniche.tagline[lang]}</p>
                 </div>
 
-                <div className="space-y-6 transition-all duration-500 translate-y-0 opacity-100 md:opacity-0 md:translate-y-4 md:group-hover:opacity-100 md:group-hover:translate-y-0">
+                <div className={cn(
+                    "space-y-6 transition-all duration-500",
+                    mobileExpandLeft ? "max-h-[500px] opacity-100 mt-4" : "max-h-0 opacity-0 overflow-hidden mt-0",
+                    "md:max-h-full md:mt-0 md:transform md:translate-y-4 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-y-0"
+                )}>
+                    {/* TAGS FEATURES */}
+                    <div className="flex flex-wrap gap-2">
+                        {CONFIG.corniche.features[lang].map((feature, i) => (
+                            <span key={i} className="px-3 py-1 rounded-md border border-white/30 bg-white/10 backdrop-blur-md text-white text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-sm">
+                            {feature}
+                            </span>
+                        ))}
+                    </div>
+
                     <p className="text-sm md:text-base leading-relaxed text-white font-medium drop-shadow-md max-w-md">
                         {CONFIG.corniche.desc[lang]}
                     </p>
@@ -425,9 +465,23 @@ export default function PageUltimeV14() {
 
           <div className="relative z-30 h-full flex flex-col justify-between p-6 md:p-12 text-white pointer-events-none">
             <div className="transform transition-all duration-500 translate-y-0 group-hover:-translate-y-2 pt-4 md:pt-0">
-              <div className="flex items-center gap-3 mb-3 opacity-90">
-                <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md">{CONFIG.voiles.title}</span>
-                <div className="flex text-[#FFD84D] drop-shadow-md"><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/></div>
+              <div className="flex items-center justify-between mb-3 opacity-90">
+                <div className="flex items-center gap-3">
+                    <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md">{CONFIG.voiles.title}</span>
+                    <div className="flex text-[#FFD84D] drop-shadow-md"><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/></div>
+                </div>
+                {/* BOUTON + (MOBILE ONLY) */}
+                <button 
+                    onClick={(e) => {
+                        e.preventDefault(); 
+                        e.stopPropagation();
+                        setMobileExpandRight(!mobileExpandRight);
+                    }}
+                    className="md:hidden pointer-events-auto p-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:bg-white/40 transition-colors"
+                    aria-label="Voir les détails"
+                >
+                    {mobileExpandRight ? <Minus className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
+                </button>
               </div>
               
               {CONFIG.voiles.isClosed && (
@@ -441,7 +495,20 @@ export default function PageUltimeV14() {
               <p className="font-serif italic text-xl md:text-2xl opacity-90 text-white drop-shadow-md">{CONFIG.voiles.tagline[lang]}</p>
             </div>
 
-            <div className="space-y-6 transition-all duration-500 translate-y-0 opacity-100 md:opacity-0 md:translate-y-4 md:group-hover:opacity-100 md:group-hover:translate-y-0">
+            <div className={cn(
+                "space-y-6 transition-all duration-500",
+                mobileExpandRight ? "max-h-[500px] opacity-100 mt-4" : "max-h-0 opacity-0 overflow-hidden mt-0",
+                "md:max-h-full md:mt-0 md:transform md:translate-y-4 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-y-0"
+            )}>
+                 {/* TAGS FEATURES */}
+                 <div className="flex flex-wrap gap-2">
+                    {CONFIG.voiles.features[lang].map((feature, i) => (
+                        <span key={i} className="px-3 py-1 rounded-md border border-white/30 bg-white/10 backdrop-blur-md text-white text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-sm">
+                        {feature}
+                        </span>
+                    ))}
+                </div>
+
               <p className="text-sm md:text-base leading-relaxed text-white font-medium drop-shadow-md max-w-md">
                   {CONFIG.voiles.desc[lang]}
               </p>
