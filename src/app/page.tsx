@@ -88,7 +88,7 @@ const CONFIG = {
     isClosed: true, 
     features: {
       fr: ["Accès Plage", "Rooftop & Vue", "Petit-Déj Inclus"],
-      en: ["High Speed Wifi", "Rooftop & View", "Breakfast Included"]
+      en: ["Beach Access", "Rooftop & View", "Breakfast Included"]
     },
     desc: {
       fr: "Un boutique-hôtel intimiste niché au calme sur les hauteurs du Mourillon. Jardin secret et douceur de vivre.",
