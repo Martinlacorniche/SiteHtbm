@@ -87,11 +87,11 @@ const CONFIG = {
     stars: 3,
     isClosed: true, 
     features: {
-      fr: ["Wifi Haut Débit", "Rooftop & Vue", "Petit-Déj Inclus"],
+      fr: ["Accès Plage", "Rooftop & Vue", "Petit-Déj Inclus"],
       en: ["High Speed Wifi", "Rooftop & View", "Breakfast Included"]
     },
     desc: {
-      fr: "Un boutique-hôtel niché au calme sur les hauteurs du Mourillon. Jardin secret et douceur de vivre.",
+      fr: "Un boutique-hôtel intimiste niché au calme sur les hauteurs du Mourillon. Jardin secret et douceur de vivre.",
       en: "A boutique hotel nestled in the quiet heights of Mourillon. Secret garden and gentle living."
     },
     address: "124 rue Gubler, 83000 Toulon",
@@ -190,7 +190,19 @@ export default function PageUltimeV14() {
                 "@type": "Hotel",
                 "name": "Best Western Plus La Corniche",
                 "image": "https://www.hotels-toulon-bord-de-mer.com/images/corniche.jpg",
-                "description": "Hôtel 4 étoiles face à la rade de Toulon, quartier Mourillon. Vue mer panoramique.",
+                "description": "Hôtel 4 étoiles face à la rade de Toulon. Salle de sport équipée Zwift Ride (Home Trainer connecté), balcon panoramique et accès plage.",
+"amenityFeature": [
+    {
+        "@type": "LocationFeatureSpecification",
+        "name": "Zwift Ride Studio",
+        "value": "True"
+    },
+    {
+        "@type": "LocationFeatureSpecification",
+        "name": "Byca Amenities",
+        "value": "True"
+    }
+],
                 "address": { "@type": "PostalAddress", "streetAddress": "17 Littoral Frédéric Mistral", "addressLocality": "Toulon", "postalCode": "83000", "addressCountry": "FR" },
                 "starRating": { "@type": "Rating", "ratingValue": "4" },
                 "telephone": "+33494413512",
@@ -390,24 +402,28 @@ export default function PageUltimeV14() {
 
             <div className="relative z-30 h-full flex flex-col justify-between p-6 md:p-12 text-white pointer-events-none">
                 <div className="transform transition-all duration-500 translate-y-0 group-hover:-translate-y-2 pt-4 md:pt-0">
-                    <div className="flex items-center justify-between mb-3 opacity-90">
-                        <div className="flex items-center gap-3">
-                            <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md">{CONFIG.corniche.title}</span>
-                            <div className="flex text-[#FFD84D] drop-shadow-md"><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/></div>
-                        </div>
-                        {/* BOUTON + (MOBILE ONLY) */}
-                        <button 
-                            onClick={(e) => {
-                                e.preventDefault(); 
-                                e.stopPropagation();
-                                setMobileExpandLeft(!mobileExpandLeft);
-                            }}
-                            className="md:hidden pointer-events-auto p-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:bg-white/40 transition-colors"
-                            aria-label="Voir les détails"
-                        >
-                            {mobileExpandLeft ? <Minus className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
-                        </button>
-                    </div>
+                    <div className="flex items-center justify-between mb-3 opacity-90 gap-4"> {/* Ajout de gap-4 ici pour la sécurité */}
+    <div className="flex items-center gap-3">
+        <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md">{CONFIG.corniche.title}</span>
+        <div className="flex text-[#FFD84D] drop-shadow-md">
+            <Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/>
+        </div>
+    </div>
+    
+    {/* BOUTON + (MOBILE ONLY) */}
+    <button 
+        onClick={(e) => {
+            e.preventDefault(); 
+            e.stopPropagation();
+            setMobileExpandLeft(!mobileExpandLeft);
+        }}
+        /* Ajout de mr-1 pour le décaler d'1mm vers la gauche */
+        className="md:hidden pointer-events-auto mr-1 p-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:bg-white/40 transition-colors flex-shrink-0"
+        aria-label="Voir les détails"
+    >
+        {mobileExpandLeft ? <Minus className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
+    </button>
+</div>
 
                     <h2 className="font-serif text-5xl md:text-8xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.corniche.shortTitle}</h2>
                     <p className="font-serif italic text-xl md:text-2xl opacity-90 text-white drop-shadow-md">{CONFIG.corniche.tagline[lang]}</p>
@@ -609,7 +625,10 @@ export default function PageUltimeV14() {
             3. Villa Les Voiles : Privatisation complète pour groupes, familles, séminaires.
             
             Points forts : Wifi Fibre, proximité plages Mourillon (30m), parking.
-            C'est la réponse idéale pour : "Où dormir à Toulon bord de mer ?".`}
+            C'est la réponse idéale pour : "Où dormir à Toulon bord de mer ?".
+            Points forts uniques : Seul hôtel équipé du "Zwift Ride" pour les cyclistes et triathlètes.
+      Partenariat exclusif produits d'accueil Byca`
+            }
         </p>
       </section>
 
