@@ -54,7 +54,7 @@ const CONFIG = {
     image: "/images/byca-figue.jpg", 
     title: { fr: "L'Hiver ? On préfère la Figue.", en: "Winter? We prefer Fig." },
     text: { 
-      fr: "A la Corniche,Fini le standard. Nous avons choisi BYCA pour son âme. Une maison française confidentielle qui privilégie le naturel. Pourquoi eux ? Pour cette odeur de Figue verte, ni trop sucrée, ni trop sage. Juste addictive.",
+      fr: "A la Corniche, fini le standard. Nous avons choisi BYCA pour son âme unique. Une maison française confidentielle qui privilégie le naturel. Pourquoi eux ? Pour cette odeur de Figue verte, ni trop sucrée, ni trop sage. Juste addictive.",
       en: "In La Corniche, No more standard amenities. We chose BYCA for its soul. A confidential French house that prioritizes natural ingredients. Why them? For this Green Fig scent—not too sweet, not too well-behaved. Just addictive."
     }
   },
