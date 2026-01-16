@@ -110,7 +110,7 @@ const CONFIG = {
       fr: "Ni hôtel, ni maison. Le vôtre. Idéal pour les tribus, les groupes ou les séminaires.",
       en: "Neither hotel nor house. Yours. Ideal for tribes or executive seminars."
     },
-    bookingUrl: "https://www.airbnb.com/l/hjiNz0ra",
+    bookingUrl: "https://www.leboncoin.fr/ad/locations_saisonnieres/3076521661",
     infoUrl: "/docs/villa-les-voiles.pdf",
     image: "/images/villa.jpg", 
   },
