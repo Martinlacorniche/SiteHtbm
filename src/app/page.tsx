@@ -105,13 +105,19 @@ const CONFIG = {
   villa: {
     title: "Villa Les Voiles",
     shortTitle: "La Villa",
-    tagline: { fr: "Votre maison de famille", en: "Your family home" },
+    tagline: { fr: "Votre hôtel privatisé en bord de mer ", en: "A seaside hotel, exclusively yours" },
+    features: {
+      fr: ["Jusqu'à 16 Chambres", "Rooftop Vue Mer", "Patio Ombragé", "Privatisation Totale"],
+      en: ["Up to 16 Rooms", "Sea View Rooftop", "Shaded Patio", "Full Privatization"]
+    },
+  
+    desc: {
+      fr: "L'expérience unique d'un hôtel rien que pour vous (de mi-octobre à mi-mai). Une adresse secrète du Mourillon à 300m des plages.",
+      en: "The unique experience of a hotel just for you (from mid-October to mid-May). A secret address in Mourillon, 300m from the beaches."
+    },
     phone: "07 59 91 63 54",
     email: "commercial2@htbm.fr", 
-    desc: {
-      fr: "Ni hôtel, ni maison. Le vôtre. Idéal pour les tribus, les groupes ou les séminaires.",
-      en: "Neither hotel nor house. Yours. Ideal for tribes or executive seminars."
-    },
+    
     bookingUrl: "https://www.leboncoin.fr/ad/locations_saisonnieres/3076521661",
     infoUrl: "/docs/villa-les-voiles.pdf",
     image: "/images/villa.jpg", 
@@ -541,6 +547,15 @@ export default function PageUltimeV15() {
                 mobileExpandVilla ? "max-h-[500px] opacity-100 mt-4" : "max-h-0 opacity-0 overflow-hidden mt-0",
                 "md:max-h-full md:mt-0 md:transform md:translate-y-4 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-y-0"
             )}>
+              {/* --- C'EST ICI QUE JE L'AI RAJOUTÉ --- */}
+              <div className="flex flex-wrap gap-2">
+                    {CONFIG.villa.features[lang].map((feature, i) => (
+                        <span key={i} className="px-3 py-1 rounded-md border border-white/30 bg-white/10 backdrop-blur-md text-white text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-sm">
+                        {feature}
+                        </span>
+                    ))}
+              </div>
+              
               <p className="text-sm md:text-base leading-relaxed text-white font-medium drop-shadow-md max-w-md">
                   {CONFIG.villa.desc[lang]}
               </p>
