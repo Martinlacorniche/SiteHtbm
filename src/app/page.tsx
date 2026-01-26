@@ -383,7 +383,7 @@ export default function PageUltimeV15() {
                     </div>
 
                     <h2 className="font-serif text-5xl md:text-7xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.corniche.shortTitle}</h2>
-                    <p className="font-serif italic text-xl md:text-2xl opacity-90 text-white drop-shadow-md">{CONFIG.corniche.tagline[lang]}</p>
+                    <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium drop-shadow-lg">{CONFIG.corniche.tagline[lang]}</p>
                 </div>
 
                 <div className={cn(
@@ -418,7 +418,7 @@ export default function PageUltimeV15() {
             </div>
         </div>
 
-        {/* --- 2. VOILES --- */}
+        {/* --- 2. VOILES (CORRIGÉ ALIGNEMENT) --- */}
         <div 
           className={cn(
             "group relative overflow-hidden rounded-2xl transition-all duration-700 ease-in-out cursor-pointer bg-slate-200",
@@ -457,15 +457,16 @@ export default function PageUltimeV15() {
                 </button>
               </div>
               
+              {/* J'ai déplacé le badge APRES le titre et la tagline pour ne pas casser l'alignement */}
+              <h2 className="font-serif text-5xl md:text-7xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.voiles.shortTitle}</h2>
+              <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium drop-shadow-lg mb-4">{CONFIG.voiles.tagline[lang]}</p>
+
               {CONFIG.voiles.isClosed && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white text-[10px] font-medium uppercase tracking-widest mb-4 shadow-sm">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white text-[10px] font-medium uppercase tracking-widest shadow-sm">
                        <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse"/>
                        {t.winter_closure}
                   </div>
               )}
-
-              <h2 className="font-serif text-5xl md:text-7xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.voiles.shortTitle}</h2>
-              <p className="font-serif italic text-xl md:text-2xl opacity-90 text-white drop-shadow-md">{CONFIG.voiles.tagline[lang]}</p>
             </div>
 
             <div className={cn(
@@ -539,7 +540,7 @@ export default function PageUltimeV15() {
               </div>
 
               <h2 className="font-serif text-5xl md:text-7xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.villa.shortTitle}</h2>
-              <p className="font-serif italic text-xl md:text-2xl opacity-90 text-white drop-shadow-md">{CONFIG.villa.tagline[lang]}</p>
+              <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium drop-shadow-lg">{CONFIG.villa.tagline[lang]}</p>
             </div>
 
             <div className={cn(
