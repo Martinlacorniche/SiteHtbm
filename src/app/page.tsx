@@ -48,15 +48,13 @@ const CONFIG = {
     }
   },
 
- // --- CONFIG POPUP BYCA ---
+ // --- CONFIG POPUP ---
+
   popup: {
-    endDate: "2026-01-31", 
-    image: "/images/byca-figue.jpg", 
-    title: { fr: "L'Hiver ? On préfère la Figue.", en: "Winter? We prefer Fig." },
-    text: { 
-      fr: "A la Corniche, fini le standard. Nous avons choisi BYCA pour son âme unique. Une maison française confidentielle qui privilégie le naturel. Pourquoi eux ? Pour cette odeur de Figue verte, ni trop sucrée, ni trop sage. Juste addictive.",
-      en: "In La Corniche, No more standard amenities. We chose BYCA for its soul. A confidential French house that prioritizes natural ingredients. Why them? For this Green Fig scent—not too sweet, not too well-behaved. Just addictive."
-    }
+    endDate: "2026-03-01", 
+    image: "/images/popup-sun26.jpg", // Pense à remplacer le fichier image dans ton dossier !
+    // MODIF ICI 👇 : On met SUN26 dans le lien
+    link: "https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR?code=SUN26",
   },
 
   corniche: {
@@ -175,20 +173,22 @@ export default function PageUltimeV15() {
 
   // --- POPUP LOGIC ---
   useEffect(() => {
-    const now = new Date();
-    const limit = new Date(CONFIG.popup.endDate);
-    const hasSeen = localStorage.getItem("popup_byca_seen");
+  const now = new Date();
+  const limit = new Date(CONFIG.popup.endDate);
+  // On change le nom ici 👇
+  const hasSeen = localStorage.getItem("popup_soleil_seen");
 
-    if (now < limit && !hasSeen) {
-      const timer = setTimeout(() => setShowPopup(true), 2000); 
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  if (now < limit && !hasSeen) {
+    const timer = setTimeout(() => setShowPopup(true), 2000); 
+    return () => clearTimeout(timer);
+  }
+}, []);
 
   const closePopup = () => {
-    setShowPopup(false);
-    localStorage.setItem("popup_byca_seen", "true");
-  };
+  setShowPopup(false);
+  // Et ici aussi 👇
+  localStorage.setItem("popup_soleil_seen", "true");
+};
 
   const getFlexClass = (id: "corniche" | "voiles" | "villa") => {
     if (hoveredSection === null) return "md:flex-1";
@@ -290,7 +290,7 @@ export default function PageUltimeV15() {
         )}
       </AnimatePresence>
 
-      {/* --- POPUP BYCA --- */}
+   {/* --- POPUP FEVRIER (VERSION BILINGUE) --- */}
       <AnimatePresence>
         {showPopup && (
           <motion.div 
@@ -298,22 +298,47 @@ export default function PageUltimeV15() {
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
           >
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-3xl w-full flex flex-col md:flex-row relative"
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-4xl w-full flex flex-col relative mx-4"
             >
-              <button onClick={closePopup} className="absolute top-4 right-4 z-20 p-2 bg-white/50 hover:bg-white rounded-full transition-colors">
-                <X className="w-5 h-5 text-slate-900" />
+              {/* Croix de fermeture */}
+              <button onClick={closePopup} className="absolute top-3 right-3 z-30 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors backdrop-blur-sm">
+                <X className="w-5 h-5" />
               </button>
-              <div className="relative w-full md:w-1/2 h-64 md:h-auto bg-slate-100">
-                <Image src={CONFIG.popup.image} alt="Byca" fill className="object-cover"/>
-              </div>
-              <div className="flex-1 p-8 md:p-12 flex flex-col justify-center text-center md:text-left">
-                <span className="text-xs font-bold tracking-widest text-slate-400 uppercase mb-2">Nouveau Partenariat</span>
-                <h3 className="font-serif text-3xl md:text-4xl text-slate-900 mb-4">{CONFIG.popup.title[lang]}</h3>
-                <p className="text-slate-600 mb-8 leading-relaxed text-sm md:text-base">{CONFIG.popup.text[lang]}</p>
-                <button onClick={closePopup} className="bg-slate-900 text-white px-6 py-3 rounded-full font-medium text-sm hover:bg-slate-800 transition-colors w-full md:w-fit">
-                  {lang === 'fr' ? "Découvrir" : "Discover"}
-                </button>
+
+              {/* L'IMAGE (Cliquable) */}
+              <a href={CONFIG.popup.link} target="_blank" className="relative w-full aspect-video bg-slate-100 group overflow-hidden">
+                <Image 
+                    src={CONFIG.popup.image} 
+                    alt="Offre Soleil" 
+                    fill 
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+              </a>
+
+              {/* BARRE DU BAS (TRADUITE) */}
+              <div className="p-4 md:p-6 bg-white flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100">
+                <span className="text-sm text-slate-500 hidden md:block italic">
+                    {lang === 'fr' 
+                      ? "Offre valable uniquement en Février 2026." 
+                      : "Offer valid only in February 2026."}
+                </span>
+                
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <button onClick={closePopup} className="hidden md:block text-slate-400 text-sm hover:text-slate-600 underline">
+                        {lang === 'fr' ? "Non merci" : "No thanks"}
+                    </button>
+                    <a 
+                      href={CONFIG.popup.link} 
+                      target="_blank"
+                      onClick={closePopup}
+                      className="flex-1 md:flex-none bg-blue-700 text-white px-8 py-3 rounded-full font-bold text-sm md:text-base hover:bg-blue-800 hover:scale-105 transition-all shadow-lg text-center"
+                    >
+                      {lang === 'fr' ? "J'en profite (140€)" : "Book Now (140€)"}
+                    </a>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -391,13 +416,26 @@ export default function PageUltimeV15() {
                     mobileExpandLeft ? "max-h-[500px] opacity-100 mt-4" : "max-h-0 opacity-0 overflow-hidden mt-0",
                     "md:max-h-full md:mt-0 md:transform md:translate-y-4 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-y-0"
                 )}>
-                    {/* TAGS FEATURES */}
+                    {/* TAGS FEATURES + BOUTON SOLEIL CORRIGÉ */}
                     <div className="flex flex-wrap gap-2">
                         {CONFIG.corniche.features[lang].map((feature, i) => (
                             <span key={i} className="px-3 py-1 rounded-md border border-white/30 bg-white/10 backdrop-blur-md text-white text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-sm">
                             {feature}
                             </span>
                         ))}
+                        
+                        {/* BOUTON CORRIGÉ 👇 */}
+                        <button 
+                            onClick={(e) => {
+                                e.preventDefault();     // Bloque le lien de la carte
+                                e.stopPropagation();    // Bloque la propagation
+                                setShowPopup(true);     // Ouvre le popup
+                            }}
+                            // AJOUTS IMPORTANTS ICI : relative, z-50 et pointer-events-auto
+                            className="relative z-50 pointer-events-auto px-3 py-1 rounded-md border border-amber-300/60 bg-amber-500/20 hover:bg-amber-500/40 backdrop-blur-md text-amber-200 transition-colors text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-sm flex items-center gap-1"
+                        >
+                            ☀️ {lang === 'fr' ? "Offre Février" : "Feb Offer"}
+                        </button>
                     </div>
 
                     <p className="text-sm md:text-base leading-relaxed text-white font-medium drop-shadow-md max-w-md">
@@ -633,11 +671,11 @@ export default function PageUltimeV15() {
       {/* --- FOOTER --- */}
       <footer className="bg-[#FDFCF8] pt-10 pb-6 px-6 border-t border-slate-100">
         <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-xs">
-            <div className="flex gap-6">
-                <span className="opacity-50">© {new Date().getFullYear()} HTBM</span>
-                <Link href="#" className="hover:text-slate-900">Mentions Légales</Link>
-                <a href={`mailto:${CONFIG.corniche.email}`} className="hover:text-slate-900">Contact</a>
-            </div>
+            <div className="flex flex-col md:flex-row gap-4 md:gap-8">
+    <a href="/mentions" className="hover:text-slate-900">Mentions Légales</a>
+    <a href="mailto:contact-corniche@htbm.fr" className="hover:text-slate-900">contact-corniche@htbm.fr</a>
+    <a href="tel:0494413512" className="hover:text-slate-900 font-bold">04 94 41 35 12</a>
+</div>
             <div className="font-serif italic opacity-50">
                 Designed in Toulon.
             </div>
