@@ -424,18 +424,6 @@ export default function PageUltimeV15() {
                             </span>
                         ))}
                         
-                        {/* BOUTON CORRIGÉ 👇 */}
-                        <button 
-                            onClick={(e) => {
-                                e.preventDefault();     // Bloque le lien de la carte
-                                e.stopPropagation();    // Bloque la propagation
-                                setShowPopup(true);     // Ouvre le popup
-                            }}
-                            // AJOUTS IMPORTANTS ICI : relative, z-50 et pointer-events-auto
-                            className="relative z-50 pointer-events-auto px-3 py-1 rounded-md border border-amber-300/60 bg-amber-500/20 hover:bg-amber-500/40 backdrop-blur-md text-amber-200 transition-colors text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-sm flex items-center gap-1"
-                        >
-                            ☀️ {lang === 'fr' ? "Offre Février" : "Feb Offer"}
-                        </button>
                     </div>
 
                     <p className="text-sm md:text-base leading-relaxed text-white font-medium drop-shadow-md max-w-md">
