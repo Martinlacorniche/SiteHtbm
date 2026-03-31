@@ -126,10 +126,7 @@ function renderContent(slug: string, config: TileConfig, weather: WeatherState, 
       return <p className="text-slate-600 text-sm leading-relaxed">{config.description ?? "Restauration légère disponible à la réception."}</p>;
     case "curiosites":
       return (
-        <div className="text-sm space-y-2">
-          <p className="text-slate-600 leading-relaxed">{config.description ?? "SUP, vélos, masques, jeux de société…"}</p>
-          {config.note_prix && <p className="text-[#C6A972] font-semibold text-xs uppercase tracking-widest">{config.note_prix}</p>}
-        </div>
+        <p className="text-slate-600 text-sm leading-relaxed">{config.description ?? "SUP, vélos, masques, jeux de société…"}</p>
       );
     case "byca":
       return (
@@ -173,6 +170,7 @@ const DEFAULT_TILES: DbTile[] = [
 export default function WifiPage() {
   const [weather, setWeather] = useState<WeatherState>({ air: null, sea: null, code: null });
   const [tiles, setTiles] = useState<DbTile[]>(DEFAULT_TILES);
+  const [annonce, setAnnonce] = useState<DbTile | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [lang, setLang] = useState<Lang>("fr");
   const reduced = useReducedMotion();
@@ -188,7 +186,14 @@ export default function WifiPage() {
       .select("*")
       .eq("visible", true)
       .order("ordre")
-      .then(({ data }) => { if (data && data.length > 0) setTiles(data); });
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const ann = data.find(t => t.slug === "annonce") ?? null;
+          setAnnonce(ann);
+          const regular = data.filter(t => t.slug !== "annonce");
+          if (regular.length > 0) setTiles(regular);
+        }
+      });
   }, []);
 
   const toggle = (id: string) => setOpenId(prev => (prev === id ? null : id));
@@ -245,6 +250,16 @@ export default function WifiPage() {
             )}
           </div>
         </motion.header>
+
+        {/* ── ANNONCE ── */}
+        {annonce && (
+          <div className={`w-full max-w-sm mb-4 rounded-2xl border px-4 py-3 flex items-start gap-3 ${annonce.config?.type === "urgent" ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"}`}>
+            <span className="text-xl shrink-0 mt-0.5">{annonce.config?.type === "urgent" ? "⚠️" : "ℹ️"}</span>
+            <p className={`text-sm leading-relaxed ${annonce.config?.type === "urgent" ? "text-red-700" : "text-blue-700"}`} style={{ fontFamily: "var(--font-sans)" }}>
+              {annonce.config?.message}
+            </p>
+          </div>
+        )}
 
         {/* ── GRILLE ── */}
         <motion.div layout className="w-full max-w-sm grid grid-cols-2 gap-3">
