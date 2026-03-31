@@ -57,13 +57,6 @@ export default function MenuPage() {
           <h1 className="text-[2rem] font-semibold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-serif)" }}>
             Menu du jour
           </h1>
-          {(prixPlat || prixDessert || prixMenu) && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {prixPlat && <PrixBadge label="Plat" prix={prixPlat} />}
-              {prixDessert && <PrixBadge label="Dessert" prix={prixDessert} />}
-              {prixMenu && <PrixBadge label="Menu complet" prix={prixMenu} highlight />}
-            </div>
-          )}
           <p className="text-sm text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
             {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
           </p>
@@ -105,6 +98,23 @@ export default function MenuPage() {
             </>
           )}
 
+          {/* Tarifs */}
+          {(prixPlat || prixDessert || prixMenu) && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+                <span className="text-base">🏷️</span>
+                <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
+                  Tarifs
+                </span>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {prixPlat && <PrixRow label="Plat seul" prix={prixPlat} />}
+                {prixDessert && <PrixRow label="Dessert" prix={prixDessert} />}
+                {prixMenu && <PrixRow label="Menu complet" prix={prixMenu} highlight />}
+              </div>
+            </div>
+          )}
+
           <p className="text-center text-xs text-slate-400 py-2" style={{ fontFamily: "var(--font-sans)" }}>{NOTE}</p>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 text-center">
@@ -143,11 +153,13 @@ function MenuSection({ emoji, label, items }: { emoji: string; label: string; it
   );
 }
 
-function PrixBadge({ label, prix, highlight }: { label: string; prix: string; highlight?: boolean }) {
+function PrixRow({ label, prix, highlight }: { label: string; prix: string; highlight?: boolean }) {
   return (
-    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs ${highlight ? "bg-[#C6A972]/10 border-[#C6A972]/30 text-[#a8854e]" : "bg-slate-50 border-slate-200 text-slate-500"}`} style={{ fontFamily: "var(--font-sans)" }}>
-      <span>{label}</span>
-      <span className={`font-semibold ${highlight ? "text-[#C6A972]" : "text-slate-700"}`}>{prix}</span>
+    <div className={`flex items-center justify-between px-4 py-3 text-sm ${highlight ? "bg-[#C6A972]/5" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
+      <span className={highlight ? "font-semibold text-slate-800" : "text-slate-500"}>{label}</span>
+      <span className={`font-semibold ${highlight ? "text-[#C6A972]" : "text-slate-800"}`}>
+        {prix.includes("€") ? prix : `${prix} €`}
+      </span>
     </div>
   );
 }

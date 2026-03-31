@@ -90,20 +90,9 @@ export default function CuriositesPage() {
                         {item.emoji ?? "📦"}
                       </div>
                     )}
-                    {/* Badge dispo */}
-                    {!item.dispo && (
-                      <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                        <span className="text-[10px] font-semibold text-slate-500 bg-white/80 px-2 py-0.5 rounded-full border border-slate-200">Indisponible</span>
-                      </div>
-                    )}
                   </div>
                   <div className="px-3 py-2.5" style={{ fontFamily: "var(--font-sans)" }}>
                     <p className="font-semibold text-sm text-slate-800 leading-tight">{item.nom}</p>
-                    <span className={`inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${
-                      item.gratuit ? "bg-[#C6A972]/12 text-[#a8854e]" : "bg-slate-100 text-slate-500"
-                    }`}>
-                      {item.gratuit ? "Gratuit" : "10 € / rés."}
-                    </span>
                   </div>
                 </div>
               ))

@@ -40,9 +40,38 @@ type DbTile = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// Traductions UI (le contenu des tuiles reste en FR)
+// ─────────────────────────────────────────────────────────────
+const T = {
+  fr: {
+    welcome: "Bienvenue chez vous",
+    location: "Toulon · Mourillon",
+    connected: "WiFi connecté",
+    book: "Réserver un séjour",
+    visit: "Visiter notre site",
+    viewPage: "Voir la page",
+    seaTemp: "Température mer",
+    mapLink: "Voir sur la carte",
+    weekend: "C'est le weekend — une heure de plus ☕",
+  },
+  en: {
+    welcome: "Welcome home",
+    location: "Toulon · Mourillon",
+    connected: "WiFi connected",
+    book: "Book a stay",
+    visit: "Visit our website",
+    viewPage: "View page",
+    seaTemp: "Sea temperature",
+    mapLink: "View on map",
+    weekend: "It's the weekend — one extra hour ☕",
+  },
+} as const;
+type Lang = keyof typeof T;
+
+// ─────────────────────────────────────────────────────────────
 // Rendu du contenu par slug — utilise les valeurs de config (DB)
 // ─────────────────────────────────────────────────────────────
-function renderContent(slug: string, config: TileConfig, weather: WeatherState): React.ReactNode {
+function renderContent(slug: string, config: TileConfig, weather: WeatherState, t: typeof T[Lang]): React.ReactNode {
   switch (slug) {
     case "reception":
       return (
@@ -57,7 +86,7 @@ function renderContent(slug: string, config: TileConfig, weather: WeatherState):
           <Row label="Lundi – Vendredi" value={config.semaine ?? "6h30 – 10h00"} />
           <Row label="Samedi & Dimanche" value={config.weekend ?? "7h00 – 10h30"} sep />
           <Row label="Tarif" value={config.prix ?? "20 € / pers."} />
-          {we && <p className="text-slate-400 text-xs pt-1">C&apos;est le weekend — une heure de plus ☕</p>}
+          {we && <p className="text-slate-400 text-xs pt-1">{t.weekend}</p>}
         </div>
       );
     }
@@ -69,15 +98,30 @@ function renderContent(slug: string, config: TileConfig, weather: WeatherState):
           {config.note && <p className="text-slate-400 text-xs">{config.note}</p>}
         </div>
       );
-    case "plage":
+    case "plage": {
+      const beaches = [
+        { nom: config.plage1_nom ?? "Plage du Mourillon",  url: config.plage1_url ?? "https://maps.google.com/?q=Plage+du+Mourillon,Toulon" },
+        { nom: config.plage2_nom ?? "Plage de la Mitre",   url: config.plage2_url ?? "https://maps.google.com/?q=Plage+de+la+Mitre,Toulon" },
+        { nom: config.plage3_nom ?? "Plage du Lido",       url: config.plage3_url ?? "https://maps.google.com/?q=Plage+du+Lido,Toulon" },
+      ];
       return (
         <div className="text-sm space-y-3">
           <p className="text-slate-600 leading-relaxed">{config.description ?? "Les plages du Mourillon sont à 2 minutes à pied."}</p>
           {weather.sea !== null && (
-            <Row label="Température de la mer" value={`${Math.round(weather.sea)}°C ${weatherEmoji(weather.code)}`} sep />
+            <Row label={`🌊 ${t.seaTemp}`} value={`${Math.round(weather.sea)}°C`} sep />
           )}
+          <div className="space-y-1.5 pt-1">
+            {beaches.map(b => (
+              <a key={b.nom} href={b.url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-between gap-2 text-[#004e7c] hover:text-[#009dc4] transition group">
+                <span className="font-medium">{b.nom}</span>
+                <span className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-[#009dc4] shrink-0">{t.mapLink} →</span>
+              </a>
+            ))}
+          </div>
         </div>
       );
+    }
     case "menu":
       return <p className="text-slate-600 text-sm leading-relaxed">{config.description ?? "Restauration légère disponible à la réception."}</p>;
     case "curiosites":
@@ -94,7 +138,9 @@ function renderContent(slug: string, config: TileConfig, weather: WeatherState):
         </p>
       );
     default:
-      return null;
+      return config.texte
+        ? <p className="text-slate-600 text-sm leading-relaxed">{config.texte}</p>
+        : null;
   }
 }
 
@@ -128,9 +174,13 @@ export default function WifiPage() {
   const [weather, setWeather] = useState<WeatherState>({ air: null, sea: null, code: null });
   const [tiles, setTiles] = useState<DbTile[]>(DEFAULT_TILES);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [lang, setLang] = useState<Lang>("fr");
   const reduced = useReducedMotion();
+  const t = T[lang];
 
   useEffect(() => {
+    const browser = navigator.language.toLowerCase();
+    if (browser.startsWith("en")) setLang("en");
     fetch("/api/meteo").then(r => r.json()).then(setWeather).catch(() => {});
 
     supabase
@@ -161,14 +211,21 @@ export default function WifiPage() {
             Best Western Plus La Corniche
           </p>
           <h1 className="text-[2rem] font-semibold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-serif)" }}>
-            Bienvenue chez vous
+            {t.welcome}
           </h1>
           <p className="text-sm text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
-            Toulon · Mourillon
+            {t.location}
           </p>
           <div className="flex items-center justify-center gap-3 mb-5">
             <div className="h-px w-8 bg-[#C6A972]/50" />
-            <span className="text-[#C6A972]/70 text-[10px]">✦</span>
+            {/* Toggle langue */}
+            <button
+              onClick={() => setLang(l => l === "fr" ? "en" : "fr")}
+              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
+              style={{ fontFamily: "var(--font-sans)" }}
+            >
+              {lang === "fr" ? "EN" : "FR"}
+            </button>
             <div className="h-px w-8 bg-[#C6A972]/50" />
           </div>
           <div className="flex items-center justify-center gap-4 flex-wrap">
@@ -178,7 +235,7 @@ export default function WifiPage() {
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
               </span>
               <Wifi size={11} className="text-slate-400" />
-              <span className="text-[11px] text-slate-400 tracking-wide">WiFi connecté</span>
+              <span className="text-[11px] text-slate-400 tracking-wide">{t.connected}</span>
             </span>
             {weather.air !== null && (
               <span className="text-[11px] text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
@@ -273,7 +330,7 @@ export default function WifiPage() {
                         className="overflow-hidden bg-white rounded-b-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
                       >
                         <div className="px-5 py-5">
-                          {renderContent(tile.slug, tile.config, weather)}
+                          {renderContent(tile.slug, tile.config, weather, t)}
                           {href && (
                             <Link
                               href={href}
@@ -281,7 +338,7 @@ export default function WifiPage() {
                               style={{ fontFamily: "var(--font-sans)" }}
                               onClick={() => setOpenId(null)}
                             >
-                              Voir la page <ArrowRight size={12} />
+                              {t.viewPage} <ArrowRight size={12} />
                             </Link>
                           )}
                         </div>
@@ -303,17 +360,17 @@ export default function WifiPage() {
           <a
             href="https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR"
             target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-semibold text-sm text-white active:scale-95 transition-transform"
-            style={{ fontFamily: "var(--font-sans)", background: "linear-gradient(135deg, #C6A972, #a8854e)" }}
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-semibold text-sm text-slate-900 bg-white border border-slate-200 shadow-sm active:scale-95 transition-transform"
+            style={{ fontFamily: "var(--font-sans)" }}
           >
-            Réserver un séjour <ArrowRight size={14} />
+            {t.book} <ArrowRight size={14} />
           </a>
           <a
             href="/"
             className="block w-full text-center py-3 rounded-2xl text-sm text-slate-400 border border-slate-200 hover:bg-slate-50 transition"
             style={{ fontFamily: "var(--font-sans)" }}
           >
-            Visiter notre site
+            {t.visit}
           </a>
         </motion.div>
 
