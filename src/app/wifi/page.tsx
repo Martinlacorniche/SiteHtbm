@@ -199,7 +199,7 @@ export default function WifiPage() {
   const toggle = (id: string) => setOpenId(prev => (prev === id ? null : id));
 
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8]`}>
+    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
         {/* ── HEADER ── */}

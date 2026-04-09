@@ -6,7 +6,7 @@ export default function WifiLayout({ children }: { children: React.ReactNode }) 
         {children}
       </div>
 
-      {/* ── DESKTOP : photo plein écran + contenu à droite ── */}
+      {/* ── DESKTOP : photo en fond très clair + contenu centré ── */}
       <div className="hidden md:block relative min-h-screen">
 
         {/* Photo plein écran */}
@@ -19,14 +19,11 @@ export default function WifiLayout({ children }: { children: React.ReactNode }) 
           }}
         />
 
-        {/* Overlay sombre */}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.55) 100%)" }} />
+        {/* Overlay très clair pour atténuer la photo */}
+        <div className="absolute inset-0" style={{ background: "rgba(253,252,248,0.65)" }} />
 
-        {/* Panneau droit — contenu scrollable */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-1/2 overflow-y-auto"
-          style={{ background: "#FDFCF8" }}
-        >
+        {/* Contenu centré scrollable */}
+        <div className="relative z-10 overflow-y-auto min-h-screen">
           {children}
         </div>
 
