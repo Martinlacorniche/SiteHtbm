@@ -115,7 +115,7 @@ export default function CuriositesPage() {
                     {/* Vignette cliquable */}
                     <motion.div
                       layout
-                      className={`relative overflow-hidden cursor-pointer select-none ${isOpen ? "h-48 rounded-t-[20px]" : "aspect-square rounded-[20px]"} ${!item.dispo ? "opacity-60" : ""}`}
+                      className={`relative overflow-hidden cursor-pointer select-none ${isOpen ? "h-48 rounded-t-[20px]" : "aspect-square rounded-[20px]"}`}
                       style={{ boxShadow: "0 2px 14px rgba(0,0,0,0.10)" }}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => toggle(item.id)}
@@ -132,13 +132,6 @@ export default function CuriositesPage() {
                       {/* Overlay gradient */}
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/5 to-black/50" />
 
-                      {/* Badge dispo */}
-                      <div className="absolute top-3 right-3">
-                        {item.dispo
-                          ? <span className="text-[10px] font-semibold bg-emerald-500 text-white rounded-full px-2 py-0.5">Dispo</span>
-                          : <span className="text-[10px] font-semibold bg-black/40 text-white rounded-full px-2 py-0.5">Indispo</span>
-                        }
-                      </div>
 
                       {/* Bouton fermer */}
                       <AnimatePresence>
