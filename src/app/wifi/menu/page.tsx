@@ -23,9 +23,8 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
     Promise.all([
-      supabase.from("wifi_menu").select("*").eq("date", today).eq("actif", true).order("ordre"),
+      supabase.from("wifi_menu").select("*").eq("actif", true).order("ordre"),
       supabase.from("wifi_tiles").select("config").eq("slug", "menu").single(),
     ]).then(([{ data: items }, { data: tile }]) => {
       if (items) {
