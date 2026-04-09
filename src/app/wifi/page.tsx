@@ -178,7 +178,7 @@ export default function WifiPage() {
 
   useEffect(() => {
     const browser = navigator.language.toLowerCase();
-    if (browser.startsWith("en")) setLang("en");
+    if (!browser.startsWith("fr")) setLang("en");
     fetch("/api/meteo").then(r => r.json()).then(setWeather).catch(() => {});
 
     supabase

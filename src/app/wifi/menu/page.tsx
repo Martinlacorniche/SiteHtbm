@@ -45,7 +45,6 @@ export default function MenuPage() {
     <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8]`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
-        {/* ── HEADER ── */}
         <div className="w-full max-w-sm mb-8">
           <Link href="/wifi" className="inline-flex items-center gap-1.5 text-slate-400 text-sm mb-6 hover:text-slate-700 transition" style={{ fontFamily: "var(--font-sans)" }}>
             <ArrowLeft size={15} /> Retour
@@ -66,7 +65,6 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* ── CONTENU ── */}
         <div className="w-full max-w-sm space-y-3">
           {loading ? (
             Array.from({ length: 2 }).map((_, i) => (
@@ -80,24 +78,12 @@ export default function MenuPage() {
             </div>
           ) : (
             <>
-              {/* Bases */}
-              {bases.length > 0 && (
-                <MenuSection emoji="🍽️" label="Choisissez votre base" items={bases} />
-              )}
-
-              {/* Garnitures */}
-              {garnitures.length > 0 && (
-                <MenuSection emoji="🥗" label="Et votre garniture" items={garnitures} />
-              )}
-
-              {/* Desserts */}
-              {desserts.length > 0 && (
-                <MenuSection emoji="🍮" label="Desserts" items={desserts} />
-              )}
+              {bases.length > 0 && <MenuSection emoji="🍽️" label="Choisissez votre base" items={bases} />}
+              {garnitures.length > 0 && <MenuSection emoji="🥗" label="Et votre garniture" items={garnitures} />}
+              {desserts.length > 0 && <MenuSection emoji="🍮" label="Desserts" items={desserts} />}
             </>
           )}
 
-          {/* Tarifs */}
           {(prixPlat || prixDessert || prixMenu) && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
@@ -136,9 +122,7 @@ function MenuSection({ emoji, label, items }: { emoji: string; label: string; it
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
         <span className="text-base">{emoji}</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
-          {label}
-        </span>
+        <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>{label}</span>
       </div>
       <ul className="divide-y divide-slate-50">
         {items.map(item => (
