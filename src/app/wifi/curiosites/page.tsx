@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Playfair_Display, Inter } from "next/font/google";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
@@ -47,6 +48,7 @@ function formatDuree(h: number) {
 export default function CuriositesPage() {
   const [items, setItems] = useState<CurioItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.from("wifi_curiosites").select("*").order("ordre")
@@ -56,10 +58,13 @@ export default function CuriositesPage() {
       });
   }, []);
 
+  const toggle = (id: string) => setOpenId(prev => prev === id ? null : id);
+
   return (
     <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8]`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
+        {/* ── HEADER ── */}
         <div className="w-full max-w-sm mb-6">
           <Link href="/wifi" className="inline-flex items-center gap-1.5 text-slate-400 text-sm mb-6 hover:text-slate-700 transition" style={{ fontFamily: "var(--font-sans)" }}>
             <ArrowLeft size={15} /> Retour
@@ -75,70 +80,134 @@ export default function CuriositesPage() {
           </p>
         </div>
 
+        {/* ── EXPLAINER ── */}
         <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-5 space-y-2.5" style={{ fontFamily: "var(--font-sans)" }}>
           <div className="flex items-start gap-2.5 text-sm text-slate-600">
-            <span className="shrink-0 text-base">✅</span>
-            <span><strong>Gratuit</strong> si l&apos;objet est disponible — demandez à la réception.</span>
+            <span className="shrink-0">✅</span>
+            <span><strong>Gratuit</strong> si disponible — demandez à la réception.</span>
           </div>
           <div className="flex items-start gap-2.5 text-sm text-slate-600">
-            <span className="shrink-0 text-base">🔒</span>
-            <span>Envie de le <strong>réserver à l&apos;avance</strong> ? C&apos;est possible — le prix est indiqué sur chaque objet.</span>
+            <span className="shrink-0">🔒</span>
+            <span>Envie de le <strong>réserver</strong> ? Le prix est indiqué sur chaque objet.</span>
           </div>
           <div className="flex items-start gap-2.5 text-sm text-slate-600">
-            <span className="shrink-0 text-base">🙏</span>
-            <span>On vous fait confiance — retournez l&apos;objet en bon état 🙌</span>
+            <span className="shrink-0">🙏</span>
+            <span>On vous fait confiance — retournez-le en bon état 🙌</span>
           </div>
         </div>
 
-        <div className="w-full max-w-sm space-y-3">
+        {/* ── GRILLE ── */}
+        <motion.div layout className="w-full max-w-sm grid grid-cols-2 gap-3">
           {loading
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="rounded-2xl bg-slate-100 h-40 animate-pulse" />
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-2xl bg-slate-100 aspect-square animate-pulse" />
               ))
-            : items.map(item => (
-                <div key={item.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${item.dispo ? "border-slate-100" : "border-slate-100 opacity-60"}`}>
-                  <div className="flex gap-4 p-4">
-                    <div className="w-20 h-20 rounded-xl bg-[#f9f5ef] flex items-center justify-center shrink-0 overflow-hidden">
+            : items.map(item => {
+                const isOpen = openId === item.id;
+                return (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    className={isOpen ? "col-span-2" : "col-span-1"}
+                    style={{ borderRadius: 20 }}
+                    transition={{ layout: { type: "spring", stiffness: 360, damping: 32 } }}
+                  >
+                    {/* Vignette cliquable */}
+                    <motion.div
+                      layout
+                      className={`relative overflow-hidden cursor-pointer select-none ${isOpen ? "h-48 rounded-t-[20px]" : "aspect-square rounded-[20px]"} ${!item.dispo ? "opacity-60" : ""}`}
+                      style={{ boxShadow: "0 2px 14px rgba(0,0,0,0.10)" }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => toggle(item.id)}
+                    >
+                      {/* Image ou emoji */}
                       {item.image_url ? (
-                        <Image src={item.image_url} alt={item.nom} width={80} height={80} className="object-cover w-full h-full" />
+                        <Image src={item.image_url} alt={item.nom} fill className="object-cover" sizes="(max-width:640px) 50vw,200px" />
                       ) : (
-                        <span className="text-3xl">{item.emoji ?? "📦"}</span>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-slate-900 text-sm leading-tight" style={{ fontFamily: "var(--font-serif)" }}>{item.nom}</p>
-                        <span className={`shrink-0 text-[10px] font-semibold rounded-full px-2 py-0.5 ${item.dispo ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
-                          {item.dispo ? "Dispo" : "Indispo"}
-                        </span>
-                      </div>
-
-                      {(item.tags ?? []).length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {(item.tags ?? []).map(tag => (
-                            <span key={tag} className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${tagColor(tag)}`}>{tag}</span>
-                          ))}
+                        <div className="absolute inset-0 bg-[#f9f5ef] flex items-center justify-center text-5xl">
+                          {item.emoji ?? "📦"}
                         </div>
                       )}
 
-                      {item.description && (
-                        <p className="text-xs text-slate-600 mt-2 leading-relaxed" style={{ fontFamily: "var(--font-sans)" }}>{item.description}</p>
-                      )}
+                      {/* Overlay gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/5 to-black/50" />
 
-                      <div className="flex items-center gap-3 mt-2.5 text-xs text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
-                        <span className="flex items-center gap-1"><Clock size={11} />{formatDuree(item.duree_heures)}</span>
-                        {item.prix_reservation > 0 && (
-                          <span className="text-[#C6A972] font-medium">Résa : {item.prix_reservation} €</span>
-                        )}
+                      {/* Badge dispo */}
+                      <div className="absolute top-3 right-3">
+                        {item.dispo
+                          ? <span className="text-[10px] font-semibold bg-emerald-500 text-white rounded-full px-2 py-0.5">Dispo</span>
+                          : <span className="text-[10px] font-semibold bg-black/40 text-white rounded-full px-2 py-0.5">Indispo</span>
+                        }
                       </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-          }
-        </div>
 
+                      {/* Bouton fermer */}
+                      <AnimatePresence>
+                        {isOpen && (
+                          <motion.button
+                            initial={{ opacity: 0, scale: 0.7 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.7 }}
+                            className="absolute top-3 left-3 bg-black/30 backdrop-blur-sm text-white rounded-full p-1.5"
+                            onClick={e => { e.stopPropagation(); setOpenId(null); }}
+                          >
+                            <X size={13} />
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Nom en bas */}
+                      <div className="absolute bottom-3 left-3 right-3">
+                        <p className="font-semibold text-white text-sm leading-tight drop-shadow-md" style={{ fontFamily: "var(--font-sans)" }}>
+                          {item.nom}
+                        </p>
+                      </div>
+                    </motion.div>
+
+                    {/* Détails expandés */}
+                    <AnimatePresence>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden bg-white rounded-b-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
+                        >
+                          <div className="px-5 py-4 space-y-3">
+                            {/* Tags */}
+                            {(item.tags ?? []).length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {(item.tags ?? []).map(tag => (
+                                  <span key={tag} className={`text-[10px] font-medium rounded-full px-2.5 py-0.5 ${tagColor(tag)}`}>{tag}</span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Description */}
+                            {item.description && (
+                              <p className="text-sm text-slate-600 leading-relaxed" style={{ fontFamily: "var(--font-sans)" }}>
+                                {item.description}
+                              </p>
+                            )}
+
+                            {/* Durée + prix */}
+                            <div className="flex items-center gap-4 text-xs text-slate-400 pt-1" style={{ fontFamily: "var(--font-sans)" }}>
+                              <span className="flex items-center gap-1.5"><Clock size={12} />{formatDuree(item.duree_heures)}</span>
+                              {item.prix_reservation > 0 && (
+                                <span className="text-[#C6A972] font-semibold">Résa : {item.prix_reservation} €</span>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })
+          }
+        </motion.div>
+
+        {/* ── CTA ── */}
         <div className="w-full max-w-sm mt-5 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-center">
           <p className="font-semibold text-slate-900 text-sm" style={{ fontFamily: "var(--font-serif)" }}>Ça vous tente ?</p>
           <p className="text-xs text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>Passez à la réception — on est là 24h/24.</p>
