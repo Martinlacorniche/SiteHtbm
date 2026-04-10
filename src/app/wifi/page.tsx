@@ -208,11 +208,11 @@ export default function WifiPage() {
 
   return (
     <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
-      <div className="flex flex-col items-center px-4 pt-10 pb-12">
+      <div className="flex flex-col items-center px-4 md:px-10 pt-10 pb-12">
 
         {/* ── HEADER ── */}
         <motion.header
-          className="w-full max-w-sm text-center mb-8"
+          className="w-full max-w-sm md:max-w-4xl text-center mb-8 md:mb-10"
           initial={reduced ? false : { opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
@@ -267,18 +267,19 @@ export default function WifiPage() {
                 onClick={() => setAnnonce(null)}
               />
 
-              {/* Carte */}
+              {/* Nuage */}
               <motion.div
-                className="relative z-10 w-full max-w-[320px] rounded-[28px] bg-white overflow-hidden"
-                style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.08)" }}
+                className="relative z-10 w-full max-w-[320px] bg-white overflow-hidden"
+                style={{
+                  borderRadius: "52% 48% 38% 42% / 58% 55% 42% 40%",
+                  boxShadow: "0 20px 60px rgba(180,200,230,0.5), 0 8px 30px rgba(0,0,0,0.10)",
+                }}
                 initial={{ opacity: 0, scale: 0.88, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.94 }}
                 transition={{ type: "spring", stiffness: 420, damping: 30 }}
               >
-                {/* Corps */}
-                <div className="px-6 pt-7 pb-6 text-center">
-                  {/* Label type */}
+                <div className="px-8 pt-10 pb-8 text-center">
                   <p
                     className="text-[10px] font-semibold uppercase tracking-[0.18em] mb-3"
                     style={{
@@ -289,34 +290,29 @@ export default function WifiPage() {
                     {annonce.config?.type === "urgent" ? "Urgent" : "Hôtel · Info"}
                   </p>
                   <p
-                    className="text-slate-900 text-[15px] leading-[1.6] font-medium"
+                    className="text-slate-900 text-[15px] leading-[1.6] font-medium mb-6"
                     style={{ fontFamily: "var(--font-sans)" }}
                   >
                     {annonce.config?.message}
                   </p>
+                  <button
+                    onClick={() => setAnnonce(null)}
+                    className="px-8 py-2.5 rounded-full text-[13px] font-semibold transition-colors bg-slate-100 hover:bg-slate-200 active:bg-slate-300"
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      color: annonce.config?.type === "urgent" ? "#dc2626" : "#004e7c",
+                    }}
+                  >
+                    OK
+                  </button>
                 </div>
-
-                {/* Séparateur */}
-                <div className="h-px bg-slate-100" />
-
-                {/* Action */}
-                <button
-                  onClick={() => setAnnonce(null)}
-                  className="w-full py-4 text-[15px] font-semibold transition-colors hover:bg-slate-50 active:bg-slate-100"
-                  style={{
-                    fontFamily: "var(--font-sans)",
-                    color: annonce.config?.type === "urgent" ? "#dc2626" : "#004e7c",
-                  }}
-                >
-                  OK
-                </button>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* ── GRILLE ── */}
-        <motion.div layout className="w-full max-w-sm grid grid-cols-2 gap-3">
+        <motion.div layout className="w-full max-w-sm md:max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {tiles.map((tile, i) => {
               const isOpen = openId === tile.id;
               const href = HREFS[tile.slug];
@@ -326,7 +322,7 @@ export default function WifiPage() {
                 <motion.div
                   key={tile.id}
                   layout
-                  className={isOpen ? "col-span-2" : "col-span-1"}
+                  className={isOpen ? "col-span-2 md:col-span-2" : "col-span-1"}
                   style={{ borderRadius: 20 }}
                   initial={reduced ? false : { opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -339,7 +335,7 @@ export default function WifiPage() {
                   {/* Vignette */}
                   <motion.div
                     layout
-                    className={`relative overflow-hidden cursor-pointer select-none ${isOpen ? "h-44 rounded-t-[20px]" : "aspect-square rounded-[20px]"}`}
+                    className={`relative overflow-hidden cursor-pointer select-none ${isOpen ? "h-44 md:h-40 rounded-t-[20px]" : "aspect-square md:aspect-[4/3] rounded-[20px]"}`}
                     style={{ boxShadow: "0 2px 14px rgba(0,0,0,0.10)" }}
                     whileTap={{ scale: 0.97 }}
                     onClick={() => toggle(tile.id)}
@@ -421,7 +417,7 @@ export default function WifiPage() {
 
         {/* ── CTA ── */}
         <motion.div
-          className="w-full max-w-sm mt-8 space-y-2.5"
+          className="w-full max-w-sm md:max-w-4xl mt-8 flex flex-col md:flex-row md:items-center gap-2.5"
           initial={reduced ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.45 }}
@@ -429,7 +425,7 @@ export default function WifiPage() {
           <a
             href="https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR"
             target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-semibold text-sm text-slate-900 bg-white border border-slate-200 shadow-sm active:scale-95 transition-transform"
+            className="flex items-center justify-center gap-2 w-full md:flex-1 py-3.5 rounded-2xl font-semibold text-sm text-slate-900 bg-white border border-slate-200 shadow-sm active:scale-95 transition-transform"
             style={{ fontFamily: "var(--font-sans)" }}
           >
             {t.book} <ArrowRight size={14} />

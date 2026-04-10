@@ -48,7 +48,7 @@ export default function MenuPage() {
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
         {/* Header centré */}
-        <div className="w-full max-w-sm mb-8 text-center">
+        <div className="w-full max-w-sm md:max-w-4xl mb-8 text-center">
           <Link
             href="/wifi"
             className="inline-flex items-center gap-1.5 text-slate-400 text-sm mb-6 hover:text-slate-700 transition"
@@ -72,11 +72,13 @@ export default function MenuPage() {
           </div>
         </div>
 
-        <div className="w-full max-w-sm space-y-3">
+        <div className="w-full max-w-sm md:max-w-4xl space-y-3">
           {loading ? (
-            Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-100 h-32 animate-pulse" />
-            ))
+            <div className="flex flex-col md:flex-row gap-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-slate-100 h-32 animate-pulse md:flex-1" />
+              ))}
+            </div>
           ) : !hasPlat && desserts.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
               <p className="text-slate-400 text-sm" style={{ fontFamily: "var(--font-sans)" }}>
@@ -84,71 +86,81 @@ export default function MenuPage() {
               </p>
             </div>
           ) : (
-            <>
-              {/* Plat du jour — base + garniture dans une seule carte */}
+            <div className="flex flex-col gap-3 md:gap-4">
+
+              {/* Ligne 1 : Plat + Desserts côte à côte sur desktop */}
+              <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
+
+              {/* Plat du jour — base + garniture */}
               {hasPlat && (
-                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
-                  {/* Titre carte */}
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100 md:flex-[2]">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
                     <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
                       Plat du jour
                     </span>
                   </div>
 
-                  {/* Bases */}
-                  {bases.length > 0 && (
-                    <div>
-                      <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-widest text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
-                        Au choix
-                      </p>
-                      <ul>
-                        {bases.map((item, idx) => (
-                          <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                            <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
-                            {idx < bases.length - 1 && (
-                              <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  {/* Mobile : empilé / Desktop : base gauche + garniture droite */}
+                  <div className="flex flex-col md:flex-row md:items-stretch">
 
-                  {/* Séparateur base → garniture */}
-                  {bases.length > 0 && garnitures.length > 0 && (
-                    <div className="flex items-center gap-3 px-4 py-2">
-                      <div className="h-px flex-1 bg-slate-100" />
-                      <span className="text-[10px] text-slate-300 font-medium" style={{ fontFamily: "var(--font-sans)" }}>accompagné de</span>
-                      <div className="h-px flex-1 bg-slate-100" />
-                    </div>
-                  )}
-
-                  {/* Garnitures */}
-                  {garnitures.length > 0 && (
-                    <div>
-                      {bases.length === 0 && (
-                        <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-widest text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
-                          Garniture au choix
+                    {bases.length > 0 && (
+                      <div className="md:flex-1 md:self-start py-2">
+                        <p className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-widest text-slate-400 text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                          Au choix
                         </p>
-                      )}
-                      <ul className="pb-2">
-                        {garnitures.map((item, idx) => (
-                          <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                            <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
-                            {idx < garnitures.length - 1 && (
-                              <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                        <ul>
+                          {bases.map((item, idx) => (
+                            <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                              <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
+                              {idx < bases.length - 1 && (
+                                <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Séparateur : tiret sur mobile, "+" centré sur desktop */}
+                    {bases.length > 0 && garnitures.length > 0 && (
+                      <>
+                        <div className="md:hidden flex items-center gap-3 px-4 py-2">
+                          <div className="h-px flex-1 bg-slate-100" />
+                          <span className="text-[10px] text-slate-300 font-medium" style={{ fontFamily: "var(--font-sans)" }}>accompagné de</span>
+                          <div className="h-px flex-1 bg-slate-100" />
+                        </div>
+                        <div className="hidden md:flex flex-col items-center justify-center px-3">
+                          <div className="w-px flex-1 bg-slate-100" />
+                          <span className="text-3xl font-light text-slate-300 py-2">+</span>
+                          <div className="w-px flex-1 bg-slate-100" />
+                        </div>
+                      </>
+                    )}
+
+                    {garnitures.length > 0 && (
+                      <div className="md:flex-1 md:self-start py-2">
+                        <p className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-widest text-slate-400 text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                          {bases.length === 0 ? "Garniture au choix" : "Accompagnement"}
+                        </p>
+                        <ul className="pb-2">
+                          {garnitures.map((item, idx) => (
+                            <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                              <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
+                              {idx < garnitures.length - 1 && (
+                                <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* Desserts */}
               {desserts.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100 md:flex-1">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
                     <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
                       Desserts
@@ -166,22 +178,25 @@ export default function MenuPage() {
                   </ul>
                 </div>
               )}
-            </>
-          )}
 
-          {/* Tarifs */}
-          {(prixPlat || prixDessert || prixMenu) && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 text-center">
-                <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
-                  Tarifs
-                </span>
-              </div>
-              <div className="divide-y divide-slate-50">
-                {prixPlat && <PrixRow label="Plat seul" prix={prixPlat} />}
-                {prixDessert && <PrixRow label="Dessert" prix={prixDessert} />}
-                {prixMenu && <PrixRow label="Menu complet" prix={prixMenu} highlight />}
-              </div>
+              </div>{/* fin ligne 1 */}
+
+              {/* Ligne 2 : Tarifs pleine largeur */}
+              {(prixPlat || prixDessert || prixMenu) && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 text-center">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
+                      Tarifs
+                    </span>
+                  </div>
+                  <div className="md:flex md:divide-x md:divide-slate-50">
+                    {prixPlat && <PrixRow label="Plat seul" prix={prixPlat} />}
+                    {prixDessert && <PrixRow label="Dessert" prix={prixDessert} />}
+                    {prixMenu && <PrixRow label="Menu complet" prix={prixMenu} highlight />}
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -208,7 +223,7 @@ export default function MenuPage() {
 
 function PrixRow({ label, prix, highlight }: { label: string; prix: string; highlight?: boolean }) {
   return (
-    <div className={`flex items-center justify-between px-4 py-3 text-sm ${highlight ? "bg-[#C6A972]/5" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
+    <div className={`flex items-center justify-between px-4 py-3 text-sm md:flex-1 md:flex-col md:gap-1 md:text-center ${highlight ? "bg-[#C6A972]/5" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
       <span className={highlight ? "font-semibold text-slate-800" : "text-slate-500"}>{label}</span>
       <span className={`font-semibold ${highlight ? "text-[#C6A972]" : "text-slate-800"}`}>
         {prix.includes("€") ? prix : `${prix} €`}
