@@ -177,7 +177,8 @@ const DEFAULT_TILES: DbTile[] = [
 // ─────────────────────────────────────────────────────────────
 export default function WifiPage() {
   const [weather, setWeather] = useState<WeatherState>({ air: null, sea: null, code: null });
-  const [tiles, setTiles] = useState<DbTile[]>(DEFAULT_TILES);
+  const [tiles, setTiles] = useState<DbTile[]>([]);
+  const [tilesReady, setTilesReady] = useState(false);
   const [annonce, setAnnonce] = useState<DbTile | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [lang, setLang] = useState<Lang>("fr");
@@ -199,8 +200,11 @@ export default function WifiPage() {
           const ann = data.find(t => t.slug === "annonce") ?? null;
           setAnnonce(ann);
           const regular = data.filter(t => t.slug !== "annonce");
-          if (regular.length > 0) setTiles(regular);
+          setTiles(regular.length > 0 ? regular : DEFAULT_TILES);
+        } else {
+          setTiles(DEFAULT_TILES);
         }
+        setTilesReady(true);
       });
   }, []);
 
@@ -313,7 +317,11 @@ export default function WifiPage() {
 
         {/* ── GRILLE ── */}
         <motion.div layout className="w-full max-w-sm md:max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {tiles.map((tile, i) => {
+          {!tilesReady
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="aspect-square md:aspect-[4/3] rounded-[20px] bg-slate-100 animate-pulse" />
+              ))
+            : tiles.map((tile, i) => {
               const isOpen = openId === tile.id;
               const href = HREFS[tile.slug];
               const fallback = FALLBACK_GRADIENTS[tile.slug] ?? "linear-gradient(145deg,#004e7c,#009dc4)";
