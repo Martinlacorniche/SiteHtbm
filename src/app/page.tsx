@@ -375,7 +375,7 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("corniche")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-            <Link href={CONFIG.corniche.bookingUrl} target="_blank" className="absolute inset-0 z-10" aria-label="Book Corniche" />
+            <Link href="/wifi" className="absolute inset-0 z-10" aria-label="L'Horizon – WiFi" />
             
             <div className="absolute inset-0 pointer-events-none">
                 <Image src={CONFIG.corniche.image} alt="Corniche" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>

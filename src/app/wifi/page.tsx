@@ -242,14 +242,6 @@ export default function WifiPage() {
             <div className="h-px w-8 bg-[#C6A972]/50" />
           </div>
           <div className="flex items-center justify-center gap-4 flex-wrap">
-            <span className="flex items-center gap-1.5" style={{ fontFamily: "var(--font-sans)" }}>
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
-              </span>
-              <Wifi size={11} className="text-slate-400" />
-              <span className="text-[11px] text-slate-400 tracking-wide">{t.connected}</span>
-            </span>
             {weather.air !== null && (
               <span className="text-[11px] text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
                 {weatherEmoji(weather.code)} {Math.round(weather.air)}°C
@@ -441,13 +433,6 @@ export default function WifiPage() {
             style={{ fontFamily: "var(--font-sans)" }}
           >
             {t.book} <ArrowRight size={14} />
-          </a>
-          <a
-            href="/"
-            className="block w-full text-center py-3 rounded-2xl text-sm text-slate-400 border border-slate-200 hover:bg-slate-50 transition"
-            style={{ fontFamily: "var(--font-sans)" }}
-          >
-            {t.visit}
           </a>
         </motion.div>
 
