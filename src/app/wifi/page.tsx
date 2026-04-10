@@ -128,6 +128,12 @@ function renderContent(slug: string, config: TileConfig, weather: WeatherState, 
       return (
         <p className="text-slate-600 text-sm leading-relaxed">{config.description ?? "SUP, vélos, masques, jeux de société…"}</p>
       );
+    case "bar":
+      return (
+        <p className="text-slate-600 text-sm leading-relaxed">
+          {config.description ?? "Softs, bières, vins et cocktails à la réception."}
+        </p>
+      );
     case "byca":
       return (
         <p className="text-slate-600 text-sm leading-relaxed">
@@ -141,7 +147,7 @@ function renderContent(slug: string, config: TileConfig, weather: WeatherState, 
   }
 }
 
-const HREFS: Record<string, string> = { menu: "/wifi/menu", curiosites: "/wifi/curiosites" };
+const HREFS: Record<string, string> = { menu: "/wifi/menu", curiosites: "/wifi/curiosites", bar: "/wifi/bar" };
 
 const FALLBACK_GRADIENTS: Record<string, string> = {
   reception:  "linear-gradient(145deg, #004e7c, #0077b6)",
@@ -151,6 +157,7 @@ const FALLBACK_GRADIENTS: Record<string, string> = {
   menu:       "linear-gradient(145deg, #a33000, #f4a261)",
   curiosites: "linear-gradient(145deg, #40015c, #c77dff)",
   byca:       "linear-gradient(145deg, #1c2e20, #81b29a)",
+  bar:        "linear-gradient(145deg, #1a0030, #6b21a8)",
 };
 
 // Tuiles par défaut si la DB est vide ou inaccessible
@@ -162,6 +169,7 @@ const DEFAULT_TILES: DbTile[] = [
   { id: "menu",       slug: "menu",       emoji: "🍽️", title: "Menu du jour",    tagline: "Restauration légère",    image_url: null, visible: true, ordre: 4, config: { description: "Restauration légère disponible à la réception." } },
   { id: "curiosites", slug: "curiosites", emoji: "🎒", title: "Curiosités",      tagline: "Gratuit si dispo",       image_url: null, visible: true, ordre: 5, config: { description: "SUP, vélos, masques, jeux de société…", note_prix: "Gratuit si disponible · 10 € pour réserver" } },
   { id: "byca",       slug: "byca",       emoji: "🌿", title: "Soins Byca",      tagline: "Cosmétiques artisanaux", image_url: null, visible: true, ordre: 6, config: { description: "Cosmétiques artisanaux disponibles à la réception.", produits: ["Huile de figue", "Crème hydratante", "Savon artisanal", "Sérum visage"] } },
+  { id: "bar",        slug: "bar",        emoji: "🍹", title: "Bar",              tagline: "Cocktails & boissons",   image_url: null, visible: true, ordre: 7, config: { description: "Softs, bières, vins et cocktails à la réception." } },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -251,15 +259,69 @@ export default function WifiPage() {
           </div>
         </motion.header>
 
-        {/* ── ANNONCE ── */}
-        {annonce && (
-          <div className={`w-full max-w-sm mb-4 rounded-2xl border px-4 py-3 flex items-start gap-3 ${annonce.config?.type === "urgent" ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"}`}>
-            <span className="text-xl shrink-0 mt-0.5">{annonce.config?.type === "urgent" ? "⚠️" : "ℹ️"}</span>
-            <p className={`text-sm leading-relaxed ${annonce.config?.type === "urgent" ? "text-red-700" : "text-blue-700"}`} style={{ fontFamily: "var(--font-sans)" }}>
-              {annonce.config?.message}
-            </p>
-          </div>
-        )}
+        {/* ── ANNONCE (popup) ── */}
+        <AnimatePresence>
+          {annonce && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center px-5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-md"
+                onClick={() => setAnnonce(null)}
+              />
+
+              {/* Carte */}
+              <motion.div
+                className="relative z-10 w-full max-w-[320px] rounded-[28px] bg-white overflow-hidden"
+                style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.08)" }}
+                initial={{ opacity: 0, scale: 0.88, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.94 }}
+                transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              >
+                {/* Corps */}
+                <div className="px-6 pt-7 pb-6 text-center">
+                  {/* Label type */}
+                  <p
+                    className="text-[10px] font-semibold uppercase tracking-[0.18em] mb-3"
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      color: annonce.config?.type === "urgent" ? "#dc2626" : "#9CA3AF",
+                    }}
+                  >
+                    {annonce.config?.type === "urgent" ? "Urgent" : "Hôtel · Info"}
+                  </p>
+                  <p
+                    className="text-slate-900 text-[15px] leading-[1.6] font-medium"
+                    style={{ fontFamily: "var(--font-sans)" }}
+                  >
+                    {annonce.config?.message}
+                  </p>
+                </div>
+
+                {/* Séparateur */}
+                <div className="h-px bg-slate-100" />
+
+                {/* Action */}
+                <button
+                  onClick={() => setAnnonce(null)}
+                  className="w-full py-4 text-[15px] font-semibold transition-colors hover:bg-slate-50 active:bg-slate-100"
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    color: annonce.config?.type === "urgent" ? "#dc2626" : "#004e7c",
+                  }}
+                >
+                  OK
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── GRILLE ── */}
         <motion.div layout className="w-full max-w-sm grid grid-cols-2 gap-3">

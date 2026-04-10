@@ -41,12 +41,19 @@ export default function MenuPage() {
     });
   }, []);
 
+  const hasPlat = bases.length > 0 || garnitures.length > 0;
+
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8]`}>
+    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
-        <div className="w-full max-w-sm mb-8">
-          <Link href="/wifi" className="inline-flex items-center gap-1.5 text-slate-400 text-sm mb-6 hover:text-slate-700 transition" style={{ fontFamily: "var(--font-sans)" }}>
+        {/* Header centré */}
+        <div className="w-full max-w-sm mb-8 text-center">
+          <Link
+            href="/wifi"
+            className="inline-flex items-center gap-1.5 text-slate-400 text-sm mb-6 hover:text-slate-700 transition"
+            style={{ fontFamily: "var(--font-sans)" }}
+          >
             <ArrowLeft size={15} /> Retour
           </Link>
           <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-2" style={{ fontFamily: "var(--font-sans)" }}>
@@ -58,7 +65,7 @@ export default function MenuPage() {
           <p className="text-sm text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
             {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-[#C6A972]/50" />
             <span className="text-[#C6A972]/70 text-[10px]">✦</span>
             <div className="h-px w-8 bg-[#C6A972]/50" />
@@ -70,7 +77,7 @@ export default function MenuPage() {
             Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-slate-100 h-32 animate-pulse" />
             ))
-          ) : bases.length === 0 && garnitures.length === 0 && desserts.length === 0 ? (
+          ) : !hasPlat && desserts.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
               <p className="text-slate-400 text-sm" style={{ fontFamily: "var(--font-sans)" }}>
                 Aucun menu publié pour aujourd&apos;hui.
@@ -78,16 +85,94 @@ export default function MenuPage() {
             </div>
           ) : (
             <>
-              {bases.length > 0 && <MenuSection emoji="🍽️" label="Choisissez votre base" items={bases} />}
-              {garnitures.length > 0 && <MenuSection emoji="🥗" label="Et votre garniture" items={garnitures} />}
-              {desserts.length > 0 && <MenuSection emoji="🍮" label="Desserts" items={desserts} />}
+              {/* Plat du jour — base + garniture dans une seule carte */}
+              {hasPlat && (
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+                  {/* Titre carte */}
+                  <div className="px-4 py-3 border-b border-slate-100 text-center">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
+                      Plat du jour
+                    </span>
+                  </div>
+
+                  {/* Bases */}
+                  {bases.length > 0 && (
+                    <div>
+                      <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-widest text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
+                        Au choix
+                      </p>
+                      <ul>
+                        {bases.map((item, idx) => (
+                          <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                            <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
+                            {idx < bases.length - 1 && (
+                              <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Séparateur base → garniture */}
+                  {bases.length > 0 && garnitures.length > 0 && (
+                    <div className="flex items-center gap-3 px-4 py-2">
+                      <div className="h-px flex-1 bg-slate-100" />
+                      <span className="text-[10px] text-slate-300 font-medium" style={{ fontFamily: "var(--font-sans)" }}>accompagné de</span>
+                      <div className="h-px flex-1 bg-slate-100" />
+                    </div>
+                  )}
+
+                  {/* Garnitures */}
+                  {garnitures.length > 0 && (
+                    <div>
+                      {bases.length === 0 && (
+                        <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-widest text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
+                          Garniture au choix
+                        </p>
+                      )}
+                      <ul className="pb-2">
+                        {garnitures.map((item, idx) => (
+                          <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                            <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
+                            {idx < garnitures.length - 1 && (
+                              <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Desserts */}
+              {desserts.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+                  <div className="px-4 py-3 border-b border-slate-100 text-center">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
+                      Desserts
+                    </span>
+                  </div>
+                  <ul>
+                    {desserts.map((item, idx) => (
+                      <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                        <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
+                        {idx < desserts.length - 1 && (
+                          <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </>
           )}
 
+          {/* Tarifs */}
           {(prixPlat || prixDessert || prixMenu) && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-                <span className="text-base">🏷️</span>
+              <div className="px-4 py-3 border-b border-slate-100 text-center">
                 <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
                   Tarifs
                 </span>
@@ -107,31 +192,16 @@ export default function MenuPage() {
             <p className="text-xs text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
               Passez à la réception — on s&apos;occupe du reste.
             </p>
-            <Link href="/wifi" className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition" style={{ fontFamily: "var(--font-sans)" }}>
+            <Link
+              href="/wifi"
+              className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition"
+              style={{ fontFamily: "var(--font-sans)" }}
+            >
               Retour à l&apos;accueil
             </Link>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function MenuSection({ emoji, label, items }: { emoji: string; label: string; items: MenuItem[] }) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-        <span className="text-base">{emoji}</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>{label}</span>
-      </div>
-      <ul className="divide-y divide-slate-50">
-        {items.map(item => (
-          <li key={item.id} className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700" style={{ fontFamily: "var(--font-sans)" }}>
-            <span className="h-1 w-1 rounded-full bg-[#C6A972]/60 shrink-0" />
-            {item.nom}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
