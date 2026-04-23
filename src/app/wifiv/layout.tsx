@@ -8,7 +8,7 @@ export default function WifiVLayout({ children }: { children: React.ReactNode })
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: "url('/images/voiles.jpg')",
+            backgroundImage: "url('/images/pagewifi.jpg')",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
