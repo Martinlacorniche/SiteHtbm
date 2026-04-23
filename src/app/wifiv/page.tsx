@@ -208,10 +208,10 @@ export default function WifiVPage() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2 }}
               >
-                <p className="text-xs font-black tracking-[0.15em] uppercase text-[#C6A972] mb-2" style={{ fontFamily: "var(--font-sans)" }}>
+                <p className="text-xs font-black tracking-[0.15em] uppercase text-[#C6A972] mb-2 text-center" style={{ fontFamily: "var(--font-sans)" }}>
                   {t.concept_title}
                 </p>
-                <p className="text-sm text-slate-600 leading-relaxed" style={{ fontFamily: "var(--font-sans)" }}>
+                <p className="text-sm text-slate-600 leading-relaxed text-center" style={{ fontFamily: "var(--font-sans)" }}>
                   {t.concept}
                 </p>
               </motion.div>
