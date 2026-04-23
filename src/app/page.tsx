@@ -758,7 +758,7 @@ export default function PageUltimeV15() {
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="bg-slate-900 px-8 pt-8 pb-6">
+              <div className="bg-slate-900 px-8 pt-8 pb-6 text-center">
                 <button onClick={() => setShowCoworkModal(false)} className="absolute top-5 right-5 text-slate-500 hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
@@ -776,13 +776,13 @@ export default function PageUltimeV15() {
                   '🕘 Ouvert 9h – 18h, 7j/7',
                   '🎁 1 journée offerte tous les 10 passages',
                 ].map(item => (
-                  <div key={item} className="text-sm text-slate-600">{item}</div>
+                  <div key={item} className="text-sm text-slate-600 text-center">{item}</div>
                 ))}
               </div>
 
               {/* Tarifs */}
               <div className="px-8 py-5 border-b border-slate-100">
-                <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3">Tarifs TTC</p>
+                <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3 text-center">Tarifs TTC</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: 'Heure', price: '6 €' },
@@ -790,7 +790,7 @@ export default function PageUltimeV15() {
                     { label: 'Journée', price: '18 €' },
                     { label: 'Mensuel', price: '200 €' },
                   ].map(t => (
-                    <div key={t.label} className="bg-slate-50 rounded-xl px-4 py-3">
+                    <div key={t.label} className="bg-slate-50 rounded-xl px-4 py-3 text-center">
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{t.label}</p>
                       <p className="font-black text-slate-900 text-lg">{t.price}</p>
                     </div>
@@ -807,6 +807,7 @@ export default function PageUltimeV15() {
                   <Phone className="w-4 h-4" style={{color:'#fff'}} /> 04 94 41 35 12
                 </a>
                 <p className="text-center text-[11px] text-slate-400 mt-3">Pas de réservation — venez directement.</p>
+                <p className="text-center text-[11px] text-slate-400 mt-1">Promis, on sera des collègues sympas 😊</p>
               </div>
             </motion.div>
           </motion.div>
