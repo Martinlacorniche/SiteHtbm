@@ -20,8 +20,8 @@ export default function BarPage() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("wifi_bar").select("*").eq("actif", true).order("ordre"),
-      supabase.from("wifi_tiles").select("config").eq("slug", "bar").single(),
+      supabase.from("wifi_bar").select("*").eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32").eq("actif", true).order("ordre"),
+      supabase.from("wifi_tiles").select("config").eq("slug", "bar").eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32").single(),
     ]).then(([{ data: barData }, { data: tileData }]) => {
       if (barData) {
         setItems(barData);

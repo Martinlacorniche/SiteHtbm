@@ -193,6 +193,7 @@ export default function WifiPage() {
     supabase
       .from("wifi_tiles")
       .select("*")
+      .eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32")
       .eq("visible", true)
       .order("ordre")
       .then(({ data }) => {

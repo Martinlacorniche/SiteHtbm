@@ -24,8 +24,8 @@ export default function MenuPage() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("wifi_menu").select("*").eq("actif", true).order("ordre"),
-      supabase.from("wifi_tiles").select("config").eq("slug", "menu").single(),
+      supabase.from("wifi_menu").select("*").eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32").eq("actif", true).order("ordre"),
+      supabase.from("wifi_tiles").select("config").eq("slug", "menu").eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32").single(),
     ]).then(([{ data: items }, { data: tile }]) => {
       if (items) {
         setBases(items.filter((i: MenuItem) => i.categorie === "base"));
