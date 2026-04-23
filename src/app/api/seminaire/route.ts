@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
 
   const validDates = (dates as string[]).filter(Boolean);
 
-  await resend.emails.send({
+  const { data: emailData, error: emailError } = await resend.emails.send({
     from: 'BW+ La Corniche <onboarding@resend.dev>',
     to: process.env.ALERT_EMAIL!,
     subject: `🔔 Nouvelle demande · ${(types as string[]).join(', ')} — ${nom}`,
@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
       </div>
     `,
   });
+
+  if (emailError) console.error('Resend error:', emailError);
+  else console.log('Email sent:', emailData?.id);
 
   return NextResponse.json({ ok: true });
 }
