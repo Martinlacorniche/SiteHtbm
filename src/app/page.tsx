@@ -177,7 +177,7 @@ export default function PageUltimeV15() {
       validDates.length > 1 ? `Dates multiples : ${validDates.join(', ')}` : null,
     ].filter(Boolean).join('\n');
 
-    await supabase.from('suivi_commercial').insert([{
+    const { error: dbError } = await supabase.from('suivi_commercial').insert([{
       hotel_id: 'f9d59e56-9a2f-433e-bcf4-f9753f105f32',
       nom_client: seminarData.nom,
       societe: seminarData.societe || null,
@@ -192,11 +192,18 @@ export default function PageUltimeV15() {
       created_at: new Date().toISOString(),
     }]);
 
+    if (dbError) {
+      console.error('Supabase error:', dbError.message);
+      alert('Erreur : ' + dbError.message);
+      setSeminarSending(false);
+      return;
+    }
+
     fetch('/api/seminaire', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(seminarData),
-    });
+    }).catch(e => console.error('Email error:', e));
 
     setSeminarSending(false);
     setSeminarSent(true);
