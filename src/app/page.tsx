@@ -872,8 +872,7 @@ export default function PageUltimeV15() {
               <AnimatePresence mode="wait">
                 {seminarStep === 0 && (
                   <motion.div key="s0" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.22 }}>
-                    <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3">Séminaire · BW+ La Corniche</p>
-                    <h3 className="font-serif text-3xl text-slate-900 mb-8 leading-tight">Vous êtes&nbsp;?</h3>
+                    <h3 className="font-serif text-3xl text-slate-900 mb-8 leading-tight text-center">Vous êtes&nbsp;?</h3>
                     <div className="space-y-5">
                       <input
                         autoFocus
@@ -905,9 +904,8 @@ export default function PageUltimeV15() {
 
                 {seminarStep === 1 && (
                   <motion.div key="s1" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.22 }}>
-                    <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3">Séminaire · BW+ La Corniche</p>
-                    <h3 className="font-serif text-3xl text-slate-900 mb-1 leading-tight">Comment vous<br/>joindre&nbsp;?</h3>
-                    <p className="text-sm text-slate-400 mb-8 italic">Promis, pas de newsletter, pas de harcèlement&nbsp;:)</p>
+                    <h3 className="font-serif text-3xl text-slate-900 mb-1 leading-tight text-center">Comment vous<br/>joindre&nbsp;?</h3>
+                    <p className="text-sm text-slate-400 mb-8 italic text-center">Promis, pas de newsletter, pas de harcèlement&nbsp;😊</p>
                     <div className="space-y-5">
                       <input
                         autoFocus
@@ -944,8 +942,7 @@ export default function PageUltimeV15() {
 
                 {seminarStep === 2 && (
                   <motion.div key="s2" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.22 }}>
-                    <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3">Séminaire · BW+ La Corniche</p>
-                    <h3 className="font-serif text-3xl text-slate-900 mb-6 leading-tight">Votre projet</h3>
+                    <h3 className="font-serif text-3xl text-slate-900 mb-6 leading-tight text-center">Votre projet</h3>
 
                     <div className="space-y-6 overflow-y-auto max-h-[55vh] pr-1">
                       {/* Type d'événement */}
