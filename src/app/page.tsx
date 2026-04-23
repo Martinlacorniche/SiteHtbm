@@ -199,11 +199,17 @@ export default function PageUltimeV15() {
       return;
     }
 
-    fetch('/api/seminaire', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(seminarData),
-    }).catch(e => console.error('Email error:', e));
+    try {
+      const res = await fetch('/api/seminaire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seminarData),
+      });
+      const json = await res.json();
+      console.log('Email route response:', res.status, json);
+    } catch (e) {
+      console.error('Email fetch error:', e);
+    }
 
     setSeminarSending(false);
     setSeminarSent(true);
