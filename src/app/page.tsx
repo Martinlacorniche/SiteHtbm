@@ -123,7 +123,6 @@ const CONFIG = {
   },
 
   pro: {
-    cowork: "https://mywo.fr/etablissements/mywo-toulon",
     image: "/images/business.jpg",
   },
   socials: {
@@ -145,6 +144,9 @@ export default function PageUltimeV15() {
 
   // --- POPUP STATE ---
   const [showPopup, setShowPopup] = useState(false);
+
+  // --- COWORK MODAL ---
+  const [showCoworkModal, setShowCoworkModal] = useState(false);
 
   // --- SEMINAIRE FORM ---
   const [showSeminarForm, setShowSeminarForm] = useState(false);
@@ -715,9 +717,9 @@ export default function PageUltimeV15() {
                          <button onClick={openSeminarForm} className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
                             {t.seminar} <ArrowRight className="w-4 h-4 opacity-50 group-hover/btn:translate-x-1 transition-transform"/>
                         </button>
-                        <a href={CONFIG.pro.cowork} target="_blank" className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
+                        <button onClick={() => setShowCoworkModal(true)} className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
                             {t.cowork} <ArrowRight className="w-4 h-4 opacity-50 group-hover/btn:translate-x-1 transition-transform"/>
-                        </a>
+                        </button>
                       </div>
                   </div>
 
@@ -738,6 +740,77 @@ export default function PageUltimeV15() {
             </div>
         </div>
       </footer>
+
+      {/* ── MODAL COWORKING ── */}
+      <AnimatePresence>
+        {showCoworkModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] bg-black/75 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setShowCoworkModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 32, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.97 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="bg-white rounded-3xl max-w-sm w-full relative overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-slate-900 px-8 pt-8 pb-6">
+                <button onClick={() => setShowCoworkModal(false)} className="absolute top-5 right-5 text-slate-500 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+                <p className="text-[10px] font-black tracking-[0.2em] text-slate-500 uppercase mb-2">Coworking · BW+ La Corniche</p>
+                <h3 className="font-serif text-2xl text-white leading-tight">Face à la mer.<br/>Sans réservation.</h3>
+              </div>
+
+              {/* Atouts */}
+              <div className="px-8 py-6 space-y-2.5 border-b border-slate-100">
+                {[
+                  '🌊 Vue mer depuis votre poste de travail',
+                  '🛋️ Multi-espaces selon votre humeur',
+                  '☕ Soft & grignotage inclus dans le tarif',
+                  '📶 Wifi haut débit · Imprimante à dispo',
+                  '🕘 Ouvert 9h – 18h, du lundi au samedi',
+                ].map(item => (
+                  <div key={item} className="flex items-start gap-2.5 text-sm text-slate-600">{item}</div>
+                ))}
+              </div>
+
+              {/* Tarifs */}
+              <div className="px-8 py-5 border-b border-slate-100">
+                <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3">Tarifs TTC</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: 'Heure', price: '6 €' },
+                    { label: 'Demi-journée', price: '12 €' },
+                    { label: 'Journée', price: '18 €' },
+                    { label: 'Mensuel', price: '200 €' },
+                  ].map(t => (
+                    <div key={t.label} className="bg-slate-50 rounded-xl px-4 py-3">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{t.label}</p>
+                      <p className="font-black text-slate-900 text-lg">{t.price}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="px-8 py-5">
+                <a
+                  href="tel:0494413512"
+                  className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <Phone className="w-4 h-4" /> 04 94 41 35 12
+                </a>
+                <p className="text-center text-[11px] text-slate-400 mt-3">Pas de réservation nécessaire — venez directement.</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── FORMULAIRE SÉMINAIRE ── */}
     <AnimatePresence>
