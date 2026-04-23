@@ -758,12 +758,12 @@ export default function PageUltimeV15() {
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="bg-slate-900 px-8 pt-8 pb-6 text-center">
-                <button onClick={() => setShowCoworkModal(false)} className="absolute top-5 right-5 text-slate-500 hover:text-white transition-colors">
+              <div className="px-8 pt-8 pb-6 text-center border-b border-slate-100">
+                <button onClick={() => setShowCoworkModal(false)} className="absolute top-5 right-5 text-slate-300 hover:text-slate-700 transition-colors">
                   <X className="w-5 h-5" />
                 </button>
-                <p className="text-[10px] font-black tracking-[0.2em] text-slate-500 uppercase mb-2">Coworking · BW+ La Corniche</p>
-                <h3 className="font-serif text-2xl text-white leading-tight">Face à la mer.<br/>Sans réservation.</h3>
+                <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-2">Coworking · BW+ La Corniche</p>
+                <h3 className="font-serif text-2xl text-slate-900 leading-tight">Face à la mer.<br/>Sans réservation.</h3>
               </div>
 
               {/* Atouts */}
