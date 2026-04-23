@@ -108,12 +108,30 @@ function renderContent(slug: string, config: TileConfig): React.ReactNode {
 
 const HREFS: Record<string, string> = { rooftop: "/wifiv/rooftop" };
 
+const T = {
+  fr: {
+    welcome: "Bienvenue chez vous",
+    location: "Toulon · Mourillon",
+    concept_title: "Un hôtel pensé autrement.",
+    concept: "Les Voiles est un petit hôtel de charme — confort soigné et mer à deux pas, au prix le plus juste. Pour tenir cet engagement, nous avons fait le choix de ne pas maintenir une réception 24h/24. Il y aura toujours quelqu'un de disponible en cas d'urgence, mais nous vivons l'hospitalité différemment : moins de personnel en bas, plus de présence en haut — le rooftop, les moments, votre séjour.",
+  },
+  en: {
+    welcome: "Welcome home",
+    location: "Toulon · Mourillon",
+    concept_title: "A different kind of hotel.",
+    concept: "Les Voiles is a small boutique hotel — thoughtful comfort and the sea just steps away, at the fairest price. To keep that promise, we've chosen not to staff the front desk around the clock. Someone is always reachable in an emergency, but we experience hospitality differently: less presence downstairs, more upstairs — the rooftop, the moments, your stay.",
+  },
+} as const;
+type Lang = keyof typeof T;
+
 export default function WifiVPage() {
   const reduced = useReducedMotion();
+  const [lang, setLang] = useState<Lang>("fr");
   const [tiles, setTiles] = useState<DbTile[]>([]);
   const [tilesReady, setTilesReady] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<DbTile | null>(null);
+  const t = T[lang];
 
   useEffect(() => {
     supabase
@@ -142,7 +160,7 @@ export default function WifiVPage() {
 
         {/* Header */}
         <motion.header
-          className="w-full max-w-sm md:max-w-4xl text-center mb-8 md:mb-10"
+          className="w-full max-w-sm md:max-w-4xl text-center mb-6"
           initial={reduced ? false : { opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
@@ -154,17 +172,52 @@ export default function WifiVPage() {
             Les Voiles · Toulon
           </p>
           <h1 className="text-[2rem] font-semibold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-serif)" }}>
-            Bienvenue chez vous
+            {t.welcome}
           </h1>
           <p className="text-sm text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
-            Toulon · Mourillon
+            {t.location}
           </p>
-          <div className="flex items-center justify-center gap-3 mb-5">
+          <div className="flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-[#C6A972]/50" />
-            <span className="text-[#C6A972]/70 text-[10px]">✦</span>
+            <button
+              onClick={() => setLang(l => l === "fr" ? "en" : "fr")}
+              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
+              style={{ fontFamily: "var(--font-sans)" }}
+            >
+              {lang === "fr" ? "EN" : "FR"}
+            </button>
             <div className="h-px w-8 bg-[#C6A972]/50" />
           </div>
         </motion.header>
+
+        {/* Bulle concept */}
+        <motion.div
+          className="w-full max-w-sm md:max-w-2xl mb-8"
+          initial={reduced ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
+        >
+          <div className="relative bg-white rounded-3xl px-6 py-5 shadow-[0_2px_20px_rgba(0,0,0,0.06)] border border-slate-100">
+            {/* Petite oreille de bulle */}
+            <div className="absolute -top-2 left-8 w-4 h-4 bg-white border-l border-t border-slate-100 rotate-45" />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={lang}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+              >
+                <p className="text-xs font-black tracking-[0.15em] uppercase text-[#C6A972] mb-2" style={{ fontFamily: "var(--font-sans)" }}>
+                  {t.concept_title}
+                </p>
+                <p className="text-sm text-slate-600 leading-relaxed" style={{ fontFamily: "var(--font-sans)" }}>
+                  {t.concept}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </motion.div>
 
         {/* Annonce popup */}
         <AnimatePresence>
