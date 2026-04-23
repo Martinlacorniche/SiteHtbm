@@ -774,6 +774,7 @@ export default function PageUltimeV15() {
                   '☕ Soft & grignotage inclus dans le tarif',
                   '📶 Wifi haut débit · Imprimante à dispo',
                   '🕘 Ouvert 9h – 18h, 7j/7',
+                  '🎁 1 journée offerte tous les 10 passages',
                 ].map(item => (
                   <div key={item} className="text-sm text-slate-600">{item}</div>
                 ))}
