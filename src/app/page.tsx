@@ -773,9 +773,9 @@ export default function PageUltimeV15() {
                   '🛋️ Multi-espaces selon votre humeur',
                   '☕ Soft & grignotage inclus dans le tarif',
                   '📶 Wifi haut débit · Imprimante à dispo',
-                  '🕘 Ouvert 9h – 18h, du lundi au samedi',
+                  '🕘 Ouvert 9h – 18h, 7j/7',
                 ].map(item => (
-                  <div key={item} className="flex items-start gap-2.5 text-sm text-slate-600">{item}</div>
+                  <div key={item} className="text-sm text-slate-600">{item}</div>
                 ))}
               </div>
 
@@ -801,11 +801,11 @@ export default function PageUltimeV15() {
               <div className="px-8 py-5">
                 <a
                   href="tel:0494413512"
-                  className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-amber-400 hover:bg-amber-500 text-white py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
                 >
-                  <Phone className="w-4 h-4" /> 04 94 41 35 12
+                  <Phone className="w-4 h-4 text-white" /> 04 94 41 35 12
                 </a>
-                <p className="text-center text-[11px] text-slate-400 mt-3">Pas de réservation nécessaire — venez directement.</p>
+                <p className="text-center text-[11px] text-slate-400 mt-3">Pas de réservation — venez directement.</p>
               </div>
             </motion.div>
           </motion.div>
