@@ -802,9 +802,9 @@ export default function PageUltimeV15() {
               <div className="px-8 py-5">
                 <a
                   href="tel:0494413512"
-                  className="w-full bg-amber-400 hover:bg-amber-500 text-white py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-slate-900 hover:bg-slate-700 py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2" style={{color:'#fff'}}
                 >
-                  <Phone className="w-4 h-4 text-white" /> 04 94 41 35 12
+                  <Phone className="w-4 h-4" style={{color:'#fff'}} /> 04 94 41 35 12
                 </a>
                 <p className="text-center text-[11px] text-slate-400 mt-3">Pas de réservation — venez directement.</p>
               </div>
