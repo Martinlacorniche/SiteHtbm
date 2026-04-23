@@ -7,7 +7,8 @@ import Script from "next/script";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, MapPin, Star, Wind, Thermometer, Menu, X, Instagram, Facebook, Phone, Building2, Mail, FileText, Home, Plus, Minus } from "lucide-react";
 import { Playfair_Display, Inter } from 'next/font/google';
-import { cn } from "@/lib/utils"; 
+import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 // --- TYPOGRAPHIE ---
 const serif = Playfair_Display({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-serif' });
@@ -122,7 +123,6 @@ const CONFIG = {
   },
 
   pro: {
-    seminaire: "https://bw-plus-la-corniche.backyou.app/fr/c/request#__step_request_0",
     cowork: "https://mywo.fr/etablissements/mywo-toulon",
     image: "/images/business.jpg",
   },
@@ -145,6 +145,35 @@ export default function PageUltimeV15() {
 
   // --- POPUP STATE ---
   const [showPopup, setShowPopup] = useState(false);
+
+  // --- SEMINAIRE FORM ---
+  const [showSeminarForm, setShowSeminarForm] = useState(false);
+  const [seminarStep, setSeminarStep] = useState(0);
+  const [seminarData, setSeminarData] = useState({ nom: '', societe: '', email: '', telephone: '', types: [] as string[], pax: '', budget: '', dates: [''], notes: '' });
+  const [seminarSending, setSeminarSending] = useState(false);
+  const [seminarSent, setSeminarSent] = useState(false);
+
+  const openSeminarForm = () => {
+    setSeminarStep(0);
+    setSeminarData({ nom: '', societe: '', email: '', telephone: '', types: [], pax: '', budget: '', dates: [''], notes: '' });
+    setSeminarSent(false);
+    setSeminarSending(false);
+    setShowSeminarForm(true);
+  };
+
+  const toggleSeminarType = (t: string) =>
+    setSeminarData(p => ({ ...p, types: p.types.includes(t) ? p.types.filter(x => x !== t) : [...p.types, t] }));
+
+  const handleSeminarSubmit = async () => {
+    setSeminarSending(true);
+    await fetch('/api/seminaire', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(seminarData),
+    });
+    setSeminarSending(false);
+    setSeminarSent(true);
+  };
   
   // --- MOBILE EXPAND STATE ---
   const [mobileExpandLeft, setMobileExpandLeft] = useState(false);
@@ -278,9 +307,9 @@ export default function PageUltimeV15() {
               </Link>
               <div className="h-px w-24 bg-white/20 mx-auto my-4"/>
               <div className="flex flex-col gap-3 font-sans text-lg md:text-xl font-light opacity-80">
-                  <a href={CONFIG.pro.seminaire} target="_blank" className="hover:text-white flex items-center justify-center gap-2">
+                  <button onClick={() => { setMenuOpen(false); openSeminarForm(); }} className="hover:text-white flex items-center justify-center gap-2">
                       <Building2 className="w-5 h-5"/> {t.menu_pro}
-                  </a>
+                  </button>
                   <a href={`mailto:${CONFIG.corniche.email}`} className="hover:text-white flex items-center justify-center gap-2">
                       <Mail className="w-5 h-5"/> {t.menu_contact}
                   </a>
@@ -643,9 +672,9 @@ export default function PageUltimeV15() {
                       </div>
                       
                       <div className="flex flex-col sm:flex-row gap-4 w-full pt-4 border-t border-slate-100">
-                         <a href={CONFIG.pro.seminaire} target="_blank" className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
+                         <button onClick={openSeminarForm} className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
                             {t.seminar} <ArrowRight className="w-4 h-4 opacity-50 group-hover/btn:translate-x-1 transition-transform"/>
-                        </a>
+                        </button>
                         <a href={CONFIG.pro.cowork} target="_blank" className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
                             {t.cowork} <ArrowRight className="w-4 h-4 opacity-50 group-hover/btn:translate-x-1 transition-transform"/>
                         </a>
@@ -669,6 +698,272 @@ export default function PageUltimeV15() {
             </div>
         </div>
       </footer>
+
+      {/* ── FORMULAIRE SÉMINAIRE ── */}
+    <AnimatePresence>
+      {showSeminarForm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[300] bg-black/75 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setShowSeminarForm(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 32, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.97 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            className="bg-white rounded-3xl p-10 max-w-md w-full relative overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Fermer */}
+            <button
+              onClick={() => setShowSeminarForm(false)}
+              className="absolute top-6 right-6 text-slate-300 hover:text-slate-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Barre de progression */}
+            {!seminarSent && (
+              <div className="flex gap-1.5 mb-10">
+                {[0, 1, 2].map(i => (
+                  <motion.div
+                    key={i}
+                    className="h-0.5 flex-1 rounded-full"
+                    animate={{ backgroundColor: i <= seminarStep ? '#0f172a' : '#e2e8f0' }}
+                    transition={{ duration: 0.3 }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {seminarSent ? (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center py-6"
+              >
+                <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-5">
+                  <svg className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="font-serif text-2xl text-slate-900 mb-2">Demande envoyée</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">Nous revenons vers vous rapidement<br/>pour construire votre séminaire.</p>
+              </motion.div>
+            ) : (
+              <AnimatePresence mode="wait">
+                {seminarStep === 0 && (
+                  <motion.div key="s0" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.22 }}>
+                    <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3">Séminaire · BW+ La Corniche</p>
+                    <h3 className="font-serif text-3xl text-slate-900 mb-8 leading-tight">Vous êtes&nbsp;?</h3>
+                    <div className="space-y-5">
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Votre nom *"
+                        value={seminarData.nom}
+                        onChange={e => setSeminarData(p => ({ ...p, nom: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && seminarData.nom.trim() && setSeminarStep(1)}
+                        className="w-full border-b border-slate-200 pb-3 text-base focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-300 bg-transparent"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Société (optionnel)"
+                        value={seminarData.societe}
+                        onChange={e => setSeminarData(p => ({ ...p, societe: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && seminarData.nom.trim() && setSeminarStep(1)}
+                        className="w-full border-b border-slate-200 pb-3 text-base focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-300 bg-transparent"
+                      />
+                    </div>
+                    <button
+                      disabled={!seminarData.nom.trim()}
+                      onClick={() => setSeminarStep(1)}
+                      className="mt-10 w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm disabled:opacity-20 hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      Continuer <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                )}
+
+                {seminarStep === 1 && (
+                  <motion.div key="s1" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.22 }}>
+                    <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3">Séminaire · BW+ La Corniche</p>
+                    <h3 className="font-serif text-3xl text-slate-900 mb-1 leading-tight">Comment vous<br/>joindre&nbsp;?</h3>
+                    <p className="text-sm text-slate-400 mb-8 italic">Promis, pas de newsletter, pas de harcèlement&nbsp;:)</p>
+                    <div className="space-y-5">
+                      <input
+                        autoFocus
+                        type="email"
+                        placeholder="Email *"
+                        value={seminarData.email}
+                        onChange={e => setSeminarData(p => ({ ...p, email: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && seminarData.email.trim() && setSeminarStep(2)}
+                        className="w-full border-b border-slate-200 pb-3 text-base focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-300 bg-transparent"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Téléphone (optionnel)"
+                        value={seminarData.telephone}
+                        onChange={e => setSeminarData(p => ({ ...p, telephone: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && seminarData.email.trim() && setSeminarStep(2)}
+                        className="w-full border-b border-slate-200 pb-3 text-base focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-300 bg-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-3 mt-10">
+                      <button onClick={() => setSeminarStep(0)} className="px-5 py-3.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-400 hover:bg-slate-50 transition-colors">
+                        ←
+                      </button>
+                      <button
+                        disabled={!seminarData.email.trim()}
+                        onClick={() => setSeminarStep(2)}
+                        className="flex-1 bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm disabled:opacity-20 hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                      >
+                        Continuer <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {seminarStep === 2 && (
+                  <motion.div key="s2" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.22 }}>
+                    <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-3">Séminaire · BW+ La Corniche</p>
+                    <h3 className="font-serif text-3xl text-slate-900 mb-6 leading-tight">Votre projet</h3>
+
+                    <div className="space-y-6 overflow-y-auto max-h-[55vh] pr-1">
+                      {/* Type d'événement */}
+                      <div>
+                        <p className="text-[10px] font-black tracking-[0.15em] text-slate-400 uppercase mb-2.5">Type d'événement</p>
+                        <div className="flex flex-wrap gap-2">
+                          {['Location de salle sèche', 'Journée d\'étude', 'Event', 'Mariage', 'Soirée cocktail', 'Location de chambres'].map(type => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => toggleSeminarType(type)}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                seminarData.types.includes(type)
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                              }`}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Nombre de personnes */}
+                      <div>
+                        <p className="text-[10px] font-black tracking-[0.15em] text-slate-400 uppercase mb-2.5">Nombre de personnes</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {['< 10', '10 – 30', '30 – 60', '60+'].map(p => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setSeminarData(prev => ({ ...prev, pax: prev.pax === p ? '' : p }))}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                seminarData.pax === p
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                              }`}
+                            >
+                              {p}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Budget */}
+                      <div>
+                        <p className="text-[10px] font-black tracking-[0.15em] text-slate-400 uppercase mb-2.5">Budget indicatif</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {['< 5 000 €', '5 – 15 000 €', '15 – 30 000 €', '30 000 € +'].map(b => (
+                            <button
+                              key={b}
+                              type="button"
+                              onClick={() => setSeminarData(prev => ({ ...prev, budget: prev.budget === b ? '' : b }))}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                seminarData.budget === b
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                              }`}
+                            >
+                              {b}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Dates */}
+                      <div>
+                        <p className="text-[10px] font-black tracking-[0.15em] text-slate-400 uppercase mb-2.5">Date(s)</p>
+                        <div className="space-y-2">
+                          {seminarData.dates.map((d, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <input
+                                type="date"
+                                value={d}
+                                onChange={e => {
+                                  const next = [...seminarData.dates];
+                                  next[i] = e.target.value;
+                                  setSeminarData(p => ({ ...p, dates: next }));
+                                }}
+                                className="flex-1 border-b border-slate-200 pb-2 text-sm focus:outline-none focus:border-slate-900 transition-colors bg-transparent text-slate-600"
+                              />
+                              {seminarData.dates.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSeminarData(p => ({ ...p, dates: p.dates.filter((_, j) => j !== i) }))}
+                                  className="text-slate-300 hover:text-red-400 transition-colors text-lg leading-none"
+                                >×</button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setSeminarData(p => ({ ...p, dates: [...p.dates, ''] }))}
+                            className="text-[11px] font-bold text-slate-400 hover:text-slate-700 transition-colors flex items-center gap-1 mt-1"
+                          >
+                            <Plus className="w-3 h-3" /> Ajouter une date
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Notes libres */}
+                      <div>
+                        <p className="text-[10px] font-black tracking-[0.15em] text-slate-400 uppercase mb-2.5">Précisions (optionnel)</p>
+                        <textarea
+                          placeholder="Racontez-nous votre séjour idéal :)"
+                          value={seminarData.notes}
+                          onChange={e => setSeminarData(p => ({ ...p, notes: e.target.value }))}
+                          rows={2}
+                          className="w-full border-b border-slate-200 pb-2 text-sm focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-300 bg-transparent resize-none leading-relaxed"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                      <button onClick={() => setSeminarStep(1)} className="px-5 py-3.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-400 hover:bg-slate-50 transition-colors">
+                        ←
+                      </button>
+                      <button
+                        disabled={seminarData.types.length === 0 || seminarSending}
+                        onClick={handleSeminarSubmit}
+                        className="flex-1 bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm disabled:opacity-20 hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                      >
+                        {seminarSending ? 'Envoi…' : 'Envoyer la demande'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
     </div>
   );
 }
