@@ -1,44 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-
-const supabase = createClient(
-  'https://drdlcohzfjdogyquglcs.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyZGxjb2h6Zmpkb2d5cXVnbGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NDk1NDYsImV4cCI6MjA2NTEyNTU0Nn0.uPRYdTX9F0ccSdCTcUta7UyzahcPCZeFmoxIpuKamME'
-);
 
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const body = await req.json();
-  const { nom, societe, email, telephone, types, pax, budget, dates, notes } = body;
+  const { nom, societe, email, telephone, types, pax, budget, dates, notes } = await req.json();
 
   const validDates = (dates as string[]).filter(Boolean);
-  const titre = [
-    (types as string[]).join(' + '),
-    pax ? `${pax} pers.` : null,
-    budget ? `Budget : ${budget}` : null,
-  ].filter(Boolean).join(' · ');
-  const commentaires = [
-    notes || null,
-    validDates.length > 1 ? `Dates multiples : ${validDates.join(', ')}` : null,
-  ].filter(Boolean).join('\n');
-
-  const { error } = await supabase.from('suivi_commercial').insert([{
-    hotel_id: 'f9d59e56-9a2f-433e-bcf4-f9753f105f32',
-    nom_client: nom,
-    societe: societe || null,
-    email,
-    telephone: telephone || null,
-    titre_demande: titre || 'Demande site web',
-    commentaires: commentaires || null,
-    date_evenement: validDates[0] || null,
-    date_relance: new Date().toISOString().split('T')[0],
-    statut: 'Nouveau',
-    source: 'Site web',
-    created_at: new Date().toISOString(),
-  }]);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await resend.emails.send({
     from: 'BW+ La Corniche <onboarding@resend.dev>',

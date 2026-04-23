@@ -166,11 +166,38 @@ export default function PageUltimeV15() {
 
   const handleSeminarSubmit = async () => {
     setSeminarSending(true);
-    await fetch('/api/seminaire', {
+    const validDates = seminarData.dates.filter(Boolean);
+    const titre = [
+      seminarData.types.join(' + '),
+      seminarData.pax ? `${seminarData.pax} pers.` : null,
+      seminarData.budget ? `Budget : ${seminarData.budget}` : null,
+    ].filter(Boolean).join(' · ');
+    const commentaires = [
+      seminarData.notes || null,
+      validDates.length > 1 ? `Dates multiples : ${validDates.join(', ')}` : null,
+    ].filter(Boolean).join('\n');
+
+    await supabase.from('suivi_commercial').insert([{
+      hotel_id: 'f9d59e56-9a2f-433e-bcf4-f9753f105f32',
+      nom_client: seminarData.nom,
+      societe: seminarData.societe || null,
+      email: seminarData.email,
+      telephone: seminarData.telephone || null,
+      titre_demande: titre || 'Demande site web',
+      commentaires: commentaires || null,
+      date_evenement: validDates[0] || null,
+      date_relance: new Date().toISOString().split('T')[0],
+      statut: 'Nouveau',
+      source: 'Site web',
+      created_at: new Date().toISOString(),
+    }]);
+
+    fetch('/api/seminaire', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(seminarData),
     });
+
     setSeminarSending(false);
     setSeminarSent(true);
   };
