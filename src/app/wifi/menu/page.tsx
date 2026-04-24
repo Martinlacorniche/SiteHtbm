@@ -9,11 +9,66 @@ import { supabase } from "@/lib/supabase";
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
-type MenuItem = { id: string; categorie: "base" | "garniture" | "dessert"; nom: string; actif: boolean; ordre: number };
+type MenuItem = {
+  id: string;
+  categorie: "base" | "garniture" | "dessert";
+  nom: string;
+  nom_en: string | null;
+  actif: boolean;
+  ordre: number;
+};
 
-const NOTE = "Commande à passer avant 19h à la réception.";
+type Lang = "fr" | "en";
+
+const T = {
+  fr: {
+    back: "Retour",
+    hotel: "Best Western Plus La Corniche",
+    title: "Menu du jour",
+    empty: "Aucun menu publié pour aujourd'hui.",
+    plat: "Plat du jour",
+    chooseBase: "Au choix",
+    withSide: "accompagné de",
+    sideOnly: "Garniture au choix",
+    sideWith: "Accompagnement",
+    or: "ou",
+    desserts: "Desserts",
+    prices: "Tarifs",
+    platAlone: "Plat seul",
+    dessertAlone: "Dessert",
+    fullMenu: "Menu complet",
+    note: "Commande à passer avant 19h à la réception.",
+    cta_title: "Ça vous dit ?",
+    cta_desc: "Passez à la réception — on s'occupe du reste.",
+    cta_home: "Retour à l'accueil",
+    dateLocale: "fr-FR",
+  },
+  en: {
+    back: "Back",
+    hotel: "Best Western Plus La Corniche",
+    title: "Daily menu",
+    empty: "No menu published for today.",
+    plat: "Main course",
+    chooseBase: "Choose one",
+    withSide: "served with",
+    sideOnly: "Side choice",
+    sideWith: "Side",
+    or: "or",
+    desserts: "Desserts",
+    prices: "Prices",
+    platAlone: "Main only",
+    dessertAlone: "Dessert",
+    fullMenu: "Full menu",
+    note: "Order before 7 PM at the front desk.",
+    cta_title: "Tempted?",
+    cta_desc: "Come to the front desk — we'll handle the rest.",
+    cta_home: "Back to home",
+    dateLocale: "en-US",
+  },
+} as const;
 
 export default function MenuPage() {
+  const [lang, setLang] = useState<Lang>("fr");
   const [bases, setBases] = useState<MenuItem[]>([]);
   const [garnitures, setGarnitures] = useState<MenuItem[]>([]);
   const [desserts, setDesserts] = useState<MenuItem[]>([]);
@@ -21,8 +76,13 @@ export default function MenuPage() {
   const [prixDessert, setPrixDessert] = useState<string | null>(null);
   const [prixMenu, setPrixMenu] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const t = T[lang];
 
   useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("wifi-lang") : null;
+    if (saved === "en" || saved === "fr") setLang(saved);
+    else if (typeof navigator !== "undefined" && !navigator.language.toLowerCase().startsWith("fr")) setLang("en");
+
     Promise.all([
       supabase.from("wifi_menu").select("*").eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32").eq("actif", true).order("ordre"),
       supabase.from("wifi_tiles").select("config").eq("slug", "menu").eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32").single(),
@@ -41,33 +101,45 @@ export default function MenuPage() {
     });
   }, []);
 
+  const toggleLang = () => {
+    const next: Lang = lang === "fr" ? "en" : "fr";
+    setLang(next);
+    if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
+  };
+
+  const nom = (i: MenuItem) => (lang === "en" && i.nom_en) || i.nom;
   const hasPlat = bases.length > 0 || garnitures.length > 0;
 
   return (
     <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
-        {/* Header centré */}
         <div className="w-full max-w-sm md:max-w-4xl mb-8 text-center">
           <Link
             href="/wifi"
             className="inline-flex items-center gap-1.5 text-slate-400 text-sm mb-6 hover:text-slate-700 transition"
             style={{ fontFamily: "var(--font-sans)" }}
           >
-            <ArrowLeft size={15} /> Retour
+            <ArrowLeft size={15} /> {t.back}
           </Link>
           <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-2" style={{ fontFamily: "var(--font-sans)" }}>
-            Best Western Plus La Corniche
+            {t.hotel}
           </p>
           <h1 className="text-[2rem] font-semibold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-serif)" }}>
-            Menu du jour
+            {t.title}
           </h1>
           <p className="text-sm text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
-            {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+            {new Date().toLocaleDateString(t.dateLocale, { weekday: "long", day: "numeric", month: "long" })}
           </p>
           <div className="flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-[#C6A972]/50" />
-            <span className="text-[#C6A972]/70 text-[10px]">✦</span>
+            <button
+              onClick={toggleLang}
+              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
+              style={{ fontFamily: "var(--font-sans)" }}
+            >
+              {lang === "fr" ? "EN" : "FR"}
+            </button>
             <div className="h-px w-8 bg-[#C6A972]/50" />
           </div>
         </div>
@@ -82,38 +154,35 @@ export default function MenuPage() {
           ) : !hasPlat && desserts.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
               <p className="text-slate-400 text-sm" style={{ fontFamily: "var(--font-sans)" }}>
-                Aucun menu publié pour aujourd&apos;hui.
+                {t.empty}
               </p>
             </div>
           ) : (
             <div className="flex flex-col gap-3 md:gap-4">
 
-              {/* Ligne 1 : Plat + Desserts côte à côte sur desktop */}
               <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
 
-              {/* Plat du jour — base + garniture */}
               {hasPlat && (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100 md:flex-[2]">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
                     <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
-                      Plat du jour
+                      {t.plat}
                     </span>
                   </div>
 
-                  {/* Mobile : empilé / Desktop : base gauche + garniture droite */}
                   <div className="flex flex-col md:flex-row md:items-stretch">
 
                     {bases.length > 0 && (
                       <div className="md:flex-1 md:self-start py-2">
                         <p className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-widest text-slate-400 text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                          Au choix
+                          {t.chooseBase}
                         </p>
                         <ul>
                           {bases.map((item, idx) => (
                             <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                              <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
+                              <span className="block py-2.5 text-sm text-slate-700">{nom(item)}</span>
                               {idx < bases.length - 1 && (
-                                <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
+                                <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">{t.or}</span>
                               )}
                             </li>
                           ))}
@@ -121,12 +190,11 @@ export default function MenuPage() {
                       </div>
                     )}
 
-                    {/* Séparateur : tiret sur mobile, "+" centré sur desktop */}
                     {bases.length > 0 && garnitures.length > 0 && (
                       <>
                         <div className="md:hidden flex items-center gap-3 px-4 py-2">
                           <div className="h-px flex-1 bg-slate-100" />
-                          <span className="text-[10px] text-slate-300 font-medium" style={{ fontFamily: "var(--font-sans)" }}>accompagné de</span>
+                          <span className="text-[10px] text-slate-300 font-medium" style={{ fontFamily: "var(--font-sans)" }}>{t.withSide}</span>
                           <div className="h-px flex-1 bg-slate-100" />
                         </div>
                         <div className="hidden md:flex flex-col items-center justify-center px-3">
@@ -140,14 +208,14 @@ export default function MenuPage() {
                     {garnitures.length > 0 && (
                       <div className="md:flex-1 md:self-start py-2">
                         <p className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-widest text-slate-400 text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                          {bases.length === 0 ? "Garniture au choix" : "Accompagnement"}
+                          {bases.length === 0 ? t.sideOnly : t.sideWith}
                         </p>
                         <ul className="pb-2">
                           {garnitures.map((item, idx) => (
                             <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                              <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
+                              <span className="block py-2.5 text-sm text-slate-700">{nom(item)}</span>
                               {idx < garnitures.length - 1 && (
-                                <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
+                                <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">{t.or}</span>
                               )}
                             </li>
                           ))}
@@ -158,20 +226,19 @@ export default function MenuPage() {
                 </div>
               )}
 
-              {/* Desserts */}
               {desserts.length > 0 && (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100 md:flex-1">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
                     <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
-                      Desserts
+                      {t.desserts}
                     </span>
                   </div>
                   <ul>
                     {desserts.map((item, idx) => (
                       <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                        <span className="block py-2.5 text-sm text-slate-700">{item.nom}</span>
+                        <span className="block py-2.5 text-sm text-slate-700">{nom(item)}</span>
                         {idx < desserts.length - 1 && (
-                          <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">ou</span>
+                          <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">{t.or}</span>
                         )}
                       </li>
                     ))}
@@ -179,20 +246,19 @@ export default function MenuPage() {
                 </div>
               )}
 
-              </div>{/* fin ligne 1 */}
+              </div>
 
-              {/* Ligne 2 : Tarifs pleine largeur */}
               {(prixPlat || prixDessert || prixMenu) && (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
                     <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
-                      Tarifs
+                      {t.prices}
                     </span>
                   </div>
                   <div className="md:flex md:divide-x md:divide-slate-50">
-                    {prixPlat && <PrixRow label="Plat seul" prix={prixPlat} />}
-                    {prixDessert && <PrixRow label="Dessert" prix={prixDessert} />}
-                    {prixMenu && <PrixRow label="Menu complet" prix={prixMenu} highlight />}
+                    {prixPlat && <PrixRow label={t.platAlone} prix={prixPlat} />}
+                    {prixDessert && <PrixRow label={t.dessertAlone} prix={prixDessert} />}
+                    {prixMenu && <PrixRow label={t.fullMenu} prix={prixMenu} highlight />}
                   </div>
                 </div>
               )}
@@ -200,19 +266,19 @@ export default function MenuPage() {
             </div>
           )}
 
-          <p className="text-center text-xs text-slate-400 py-2" style={{ fontFamily: "var(--font-sans)" }}>{NOTE}</p>
+          <p className="text-center text-xs text-slate-400 py-2" style={{ fontFamily: "var(--font-sans)" }}>{t.note}</p>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 text-center">
-            <p className="font-semibold text-slate-900 text-sm" style={{ fontFamily: "var(--font-serif)" }}>Ça vous dit ?</p>
+            <p className="font-semibold text-slate-900 text-sm" style={{ fontFamily: "var(--font-serif)" }}>{t.cta_title}</p>
             <p className="text-xs text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
-              Passez à la réception — on s&apos;occupe du reste.
+              {t.cta_desc}
             </p>
             <Link
               href="/wifi"
               className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition"
               style={{ fontFamily: "var(--font-sans)" }}
             >
-              Retour à l&apos;accueil
+              {t.cta_home}
             </Link>
           </div>
         </div>

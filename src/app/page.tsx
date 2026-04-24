@@ -28,7 +28,7 @@ const CONFIG = {
       cowork: "Espace Coworking",
       menu_pro: "Espace Pro",
       menu_contact: "Contact",
-      winter_closure: "Fermeture Hivernale",
+      reopening_may1: "Réouverture ce 1er Mai",
       villa_push: "Disponible en Villa (Privatisation)",
       pro_title: "Professionnels",
       pro_desc: "Un cadre inspirant pour vos équipes. Séminaires, journées d'étude ou coworking face à la mer."
@@ -42,7 +42,7 @@ const CONFIG = {
       cowork: "Coworking Space",
       menu_pro: "Business",
       menu_contact: "Contact",
-      winter_closure: "Winter Closure",
+      reopening_may1: "Reopening May 1st",
       villa_push: "Available as Villa (Private Rental)",
       pro_title: "Business & Events",
       pro_desc: "An inspiring setting for your teams. Seminars, study days or coworking facing the sea."
@@ -84,7 +84,6 @@ const CONFIG = {
     shortTitle: "Le Refuge", 
     tagline: { fr: "L'intimité sur la colline", en: "Intimacy on the hill" },
     stars: 3,
-    isClosed: true, 
     features: {
       fr: ["Accès Plage", "Rooftop & Vue", "Petit-Déj Inclus"],
       en: ["Beach Access", "Rooftop & View", "Breakfast Included"]
@@ -525,7 +524,7 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("voiles")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-           <Link href={CONFIG.voiles.bookingUrl} target="_blank" className="absolute inset-0 z-10" aria-label="Book Voiles" />
+           <Link href="/wifiv" className="absolute inset-0 z-10" aria-label="Découvrir Les Voiles" />
            
            <div className="absolute inset-0 pointer-events-none">
              <Image src={CONFIG.voiles.image} alt="Voiles" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
@@ -558,10 +557,10 @@ export default function PageUltimeV15() {
               <h2 className="font-serif text-5xl md:text-7xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.voiles.shortTitle}</h2>
               <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium drop-shadow-lg mb-4">{CONFIG.voiles.tagline[lang]}</p>
 
-              {CONFIG.voiles.isClosed && (
+              {new Date() < new Date("2026-05-01") && (
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white text-[10px] font-medium uppercase tracking-widest shadow-sm">
-                       <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse"/>
-                       {t.winter_closure}
+                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"/>
+                       {t.reopening_may1}
                   </div>
               )}
             </div>

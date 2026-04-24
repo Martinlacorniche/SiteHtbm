@@ -40,9 +40,27 @@ type DbTile = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Traductions UI (le contenu des tuiles reste en FR)
+// Traductions (FR + EN)
 // ─────────────────────────────────────────────────────────────
-const T = {
+type Translations = {
+  welcome: string;
+  location: string;
+  connected: string;
+  book: string;
+  visit: string;
+  viewPage: string;
+  seaTemp: string;
+  mapLink: string;
+  weekend: string;
+  urgent: string;
+  info: string;
+  ok: string;
+  tiles: Record<string, { title: string; tagline: string }>;
+  rows: Record<string, string>;
+  defaults: Record<string, Record<string, string>>;
+};
+
+const T: Record<"fr" | "en", Translations> = {
   fr: {
     welcome: "Bienvenue chez vous",
     location: "Toulon · Mourillon",
@@ -53,6 +71,36 @@ const T = {
     seaTemp: "Température mer",
     mapLink: "Voir sur la carte",
     weekend: "C'est le weekend — une heure de plus ☕",
+    urgent: "Urgent",
+    info: "Hôtel · Info",
+    ok: "OK",
+    tiles: {
+      reception:  { title: "Réception",      tagline: "24h / 24" },
+      pdj:        { title: "Petit-déjeuner", tagline: "Buffet inclus" },
+      checkout:   { title: "Check-out",      tagline: "Avant 12h" },
+      plage:      { title: "La plage",       tagline: "2 min à pied" },
+      menu:       { title: "Menu du jour",   tagline: "Restauration légère" },
+      curiosites: { title: "Curiosités",     tagline: "Gratuit si dispo" },
+      byca:       { title: "Soins Byca",     tagline: "Cosmétiques artisanaux" },
+      bar:        { title: "Bar",            tagline: "Cocktails & boissons" },
+    },
+    rows: {
+      weekdays: "Lundi – Vendredi",
+      weekend: "Samedi & Dimanche",
+      price: "Tarif",
+      checkout_std: "Départ standard",
+      late: "Late check-out",
+    },
+    defaults: {
+      reception: { message: "On est là 24h/24 — pour n'importe quelle question ou problème, venez nous voir à la réception." },
+      pdj:       { semaine: "6h30 – 10h00", weekend: "7h00 – 10h30", prix: "20 € / pers." },
+      checkout:  { standard: "avant 12h", late: "jusqu'à 15h · 30 €", note: "Sur demande à la réception, sous réserve de disponibilité." },
+      plage:     { description: "Les plages du Mourillon sont à 2 minutes à pied. Accès direct depuis l'hôtel.", plage1_nom: "Plage du Mourillon", plage2_nom: "Plage de la Mitre", plage3_nom: "Plage du Lido" },
+      menu:      { description: "Restauration légère disponible à la réception." },
+      curiosites:{ description: "SUP, vélos, masques, jeux de société…", note_prix: "Gratuit si disponible · 10 € pour réserver" },
+      byca:      { description: "Cosmétiques artisanaux disponibles à la réception." },
+      bar:       { description: "Softs, bières, vins et cocktails à la réception." },
+    },
   },
   en: {
     welcome: "Welcome home",
@@ -64,28 +112,84 @@ const T = {
     seaTemp: "Sea temperature",
     mapLink: "View on map",
     weekend: "It's the weekend — one extra hour ☕",
+    urgent: "Urgent",
+    info: "Hotel · Info",
+    ok: "OK",
+    tiles: {
+      reception:  { title: "Front desk",     tagline: "24/7" },
+      pdj:        { title: "Breakfast",      tagline: "Buffet included" },
+      checkout:   { title: "Check-out",      tagline: "Before 12:00" },
+      plage:      { title: "The beach",      tagline: "2 min walk" },
+      menu:       { title: "Daily menu",     tagline: "Light dining" },
+      curiosites: { title: "Curiosities",    tagline: "Free if available" },
+      byca:       { title: "Byca care",      tagline: "Artisanal cosmetics" },
+      bar:        { title: "Bar",            tagline: "Cocktails & drinks" },
+    },
+    rows: {
+      weekdays: "Monday – Friday",
+      weekend: "Saturday & Sunday",
+      price: "Price",
+      checkout_std: "Standard departure",
+      late: "Late check-out",
+    },
+    defaults: {
+      reception: { message: "We're here 24/7 — for any question or issue, come see us at the front desk." },
+      pdj:       { semaine: "6:30 – 10:00", weekend: "7:00 – 10:30", prix: "€20 / person" },
+      checkout:  { standard: "before 12:00", late: "until 15:00 · €30", note: "On request at the front desk, subject to availability." },
+      plage:     { description: "The Mourillon beaches are a 2-minute walk away. Direct access from the hotel.", plage1_nom: "Mourillon Beach", plage2_nom: "La Mitre Beach", plage3_nom: "Lido Beach" },
+      menu:      { description: "Light dining available at the front desk." },
+      curiosites:{ description: "SUP, bikes, masks, board games…", note_prix: "Free if available · €10 to reserve" },
+      byca:      { description: "Artisanal cosmetics available at the front desk." },
+      bar:       { description: "Soft drinks, beers, wines and cocktails at the front desk." },
+    },
   },
-} as const;
+};
 type Lang = keyof typeof T;
+
+function cfgVal(config: TileConfig | undefined, lang: Lang, slug: string, key: string): string | undefined {
+  const en = config?.en as Record<string, string> | undefined;
+  if (lang === "en" && en?.[key]) return en[key];
+  if (config?.[key]) return config[key];
+  return T[lang].defaults?.[slug]?.[key];
+}
+
+function tileTitle(tile: DbTile, lang: Lang): string {
+  const en = tile.config?.en as Record<string, string> | undefined;
+  if (lang === "en" && en?.title) return en.title;
+  if (tile.title) return tile.title;
+  return T[lang].tiles?.[tile.slug]?.title ?? tile.slug;
+}
+
+function tileTagline(tile: DbTile, lang: Lang): string {
+  const en = tile.config?.en as Record<string, string> | undefined;
+  if (lang === "en" && en?.tagline) return en.tagline;
+  if (tile.tagline) return tile.tagline;
+  return T[lang].tiles?.[tile.slug]?.tagline ?? "";
+}
 
 // ─────────────────────────────────────────────────────────────
 // Rendu du contenu par slug — utilise les valeurs de config (DB)
 // ─────────────────────────────────────────────────────────────
-function renderContent(slug: string, config: TileConfig, weather: WeatherState, t: typeof T[Lang]): React.ReactNode {
+function renderContent(tile: DbTile, weather: WeatherState, lang: Lang): React.ReactNode {
+  const { slug, config } = tile;
+  const t = T[lang];
+  const enCfg = config?.en as Record<string, string> | undefined;
+  const pickTexte = () => (lang === "en" && enCfg?.texte) || config?.texte;
+
   switch (slug) {
     case "reception":
       return (
         <p className="text-slate-600 text-sm leading-relaxed">
-          {config.message ?? "On est là 24h/24 — venez nous voir à la réception."}
+          {cfgVal(config, lang, slug, "message")}
         </p>
       );
     case "pdj": {
       const we = [0, 6].includes(new Date().getDay());
       return (
         <div className="text-sm space-y-3">
-          <Row label="Lundi – Vendredi" value={config.semaine ?? "6h30 – 10h00"} />
-          <Row label="Samedi & Dimanche" value={config.weekend ?? "7h00 – 10h30"} sep />
-          <Row label="Tarif" value={config.prix ?? "20 € / pers."} />
+          <Row label={t.rows.weekdays} value={cfgVal(config, lang, slug, "semaine") ?? ""} />
+          <Row label={t.rows.weekend} value={cfgVal(config, lang, slug, "weekend") ?? ""} sep />
+          <Row label={t.rows.price} value={cfgVal(config, lang, slug, "prix") ?? ""} />
           {we && <p className="text-slate-400 text-xs pt-1">{t.weekend}</p>}
         </div>
       );
@@ -93,20 +197,20 @@ function renderContent(slug: string, config: TileConfig, weather: WeatherState, 
     case "checkout":
       return (
         <div className="text-sm space-y-3">
-          <Row label="Départ standard" value={config.standard ?? "avant 12h"} />
-          <Row label="Late check-out" value={config.late ?? "jusqu'à 15h · 30 €"} sep />
-          {config.note && <p className="text-slate-400 text-xs">{config.note}</p>}
+          <Row label={t.rows.checkout_std} value={cfgVal(config, lang, slug, "standard") ?? ""} />
+          <Row label={t.rows.late} value={cfgVal(config, lang, slug, "late") ?? ""} sep />
+          {cfgVal(config, lang, slug, "note") && <p className="text-slate-400 text-xs">{cfgVal(config, lang, slug, "note")}</p>}
         </div>
       );
     case "plage": {
       const beaches = [
-        { nom: config.plage1_nom ?? "Plage du Mourillon",  url: config.plage1_url ?? "https://maps.google.com/?q=Plage+du+Mourillon,Toulon" },
-        { nom: config.plage2_nom ?? "Plage de la Mitre",   url: config.plage2_url ?? "https://maps.google.com/?q=Plage+de+la+Mitre,Toulon" },
-        { nom: config.plage3_nom ?? "Plage du Lido",       url: config.plage3_url ?? "https://maps.google.com/?q=Plage+du+Lido,Toulon" },
+        { nom: cfgVal(config, lang, slug, "plage1_nom") ?? "", url: config?.plage1_url ?? "https://maps.google.com/?q=Plage+du+Mourillon,Toulon" },
+        { nom: cfgVal(config, lang, slug, "plage2_nom") ?? "", url: config?.plage2_url ?? "https://maps.google.com/?q=Plage+de+la+Mitre,Toulon" },
+        { nom: cfgVal(config, lang, slug, "plage3_nom") ?? "", url: config?.plage3_url ?? "https://maps.google.com/?q=Plage+du+Lido,Toulon" },
       ];
       return (
         <div className="text-sm space-y-3">
-          <p className="text-slate-600 leading-relaxed">{config.description ?? "Les plages du Mourillon sont à 2 minutes à pied."}</p>
+          <p className="text-slate-600 leading-relaxed">{cfgVal(config, lang, slug, "description")}</p>
           {weather.sea !== null && (
             <Row label={`🌊 ${t.seaTemp}`} value={`${Math.round(weather.sea)}°C`} sep />
           )}
@@ -123,27 +227,29 @@ function renderContent(slug: string, config: TileConfig, weather: WeatherState, 
       );
     }
     case "menu":
-      return <p className="text-slate-600 text-sm leading-relaxed">{config.description ?? "Restauration légère disponible à la réception."}</p>;
+      return <p className="text-slate-600 text-sm leading-relaxed">{cfgVal(config, lang, slug, "description")}</p>;
     case "curiosites":
       return (
-        <p className="text-slate-600 text-sm leading-relaxed">{config.description ?? "SUP, vélos, masques, jeux de société…"}</p>
+        <p className="text-slate-600 text-sm leading-relaxed">{cfgVal(config, lang, slug, "description")}</p>
       );
     case "bar":
       return (
         <p className="text-slate-600 text-sm leading-relaxed">
-          {config.description ?? "Softs, bières, vins et cocktails à la réception."}
+          {cfgVal(config, lang, slug, "description")}
         </p>
       );
     case "byca":
       return (
         <p className="text-slate-600 text-sm leading-relaxed">
-          {config.description ?? "Cosmétiques artisanaux disponibles à la réception."}
+          {cfgVal(config, lang, slug, "description")}
         </p>
       );
-    default:
-      return config.texte
-        ? <p className="text-slate-600 text-sm leading-relaxed">{config.texte}</p>
+    default: {
+      const texte = pickTexte();
+      return texte
+        ? <p className="text-slate-600 text-sm leading-relaxed">{texte}</p>
         : null;
+    }
   }
 }
 
@@ -160,16 +266,16 @@ const FALLBACK_GRADIENTS: Record<string, string> = {
   bar:        "linear-gradient(145deg, #1a0030, #6b21a8)",
 };
 
-// Tuiles par défaut si la DB est vide ou inaccessible
+// Tuiles par défaut si la DB est vide ou inaccessible (titres/contenus résolus via T[lang])
 const DEFAULT_TILES: DbTile[] = [
-  { id: "reception",  slug: "reception",  emoji: "📞", title: "Réception",       tagline: "24h / 24",              image_url: null, visible: true, ordre: 0, config: { message: "On est là 24h/24 — pour n'importe quelle question ou problème, venez nous voir à la réception." } },
-  { id: "pdj",        slug: "pdj",        emoji: "☕", title: "Petit-déjeuner",  tagline: "Buffet inclus",          image_url: null, visible: true, ordre: 1, config: { semaine: "6h30 – 10h00", weekend: "7h00 – 10h30", prix: "20 € / pers." } },
-  { id: "checkout",   slug: "checkout",   emoji: "🔑", title: "Check-out",       tagline: "Avant 12h",              image_url: null, visible: true, ordre: 2, config: { standard: "avant 12h", late: "jusqu'à 15h · 30 €", note: "Sur demande à la réception, sous réserve de disponibilité." } },
-  { id: "plage",      slug: "plage",      emoji: "🏖️", title: "La plage",        tagline: "2 min à pied",           image_url: null, visible: true, ordre: 3, config: { description: "Les plages du Mourillon sont à 2 minutes à pied. Accès direct depuis l'hôtel." } },
-  { id: "menu",       slug: "menu",       emoji: "🍽️", title: "Menu du jour",    tagline: "Restauration légère",    image_url: null, visible: true, ordre: 4, config: { description: "Restauration légère disponible à la réception." } },
-  { id: "curiosites", slug: "curiosites", emoji: "🎒", title: "Curiosités",      tagline: "Gratuit si dispo",       image_url: null, visible: true, ordre: 5, config: { description: "SUP, vélos, masques, jeux de société…", note_prix: "Gratuit si disponible · 10 € pour réserver" } },
-  { id: "byca",       slug: "byca",       emoji: "🌿", title: "Soins Byca",      tagline: "Cosmétiques artisanaux", image_url: null, visible: true, ordre: 6, config: { description: "Cosmétiques artisanaux disponibles à la réception.", produits: ["Huile de figue", "Crème hydratante", "Savon artisanal", "Sérum visage"] } },
-  { id: "bar",        slug: "bar",        emoji: "🍹", title: "Bar",              tagline: "Cocktails & boissons",   image_url: null, visible: true, ordre: 7, config: { description: "Softs, bières, vins et cocktails à la réception." } },
+  { id: "reception",  slug: "reception",  emoji: "📞", title: "", tagline: "", image_url: null, visible: true, ordre: 0, config: {} },
+  { id: "pdj",        slug: "pdj",        emoji: "☕", title: "", tagline: "", image_url: null, visible: true, ordre: 1, config: {} },
+  { id: "checkout",   slug: "checkout",   emoji: "🔑", title: "", tagline: "", image_url: null, visible: true, ordre: 2, config: {} },
+  { id: "plage",      slug: "plage",      emoji: "🏖️", title: "", tagline: "", image_url: null, visible: true, ordre: 3, config: {} },
+  { id: "menu",       slug: "menu",       emoji: "🍽️", title: "", tagline: "", image_url: null, visible: true, ordre: 4, config: {} },
+  { id: "curiosites", slug: "curiosites", emoji: "🎒", title: "", tagline: "", image_url: null, visible: true, ordre: 5, config: {} },
+  { id: "byca",       slug: "byca",       emoji: "🌿", title: "", tagline: "", image_url: null, visible: true, ordre: 6, config: {} },
+  { id: "bar",        slug: "bar",        emoji: "🍹", title: "", tagline: "", image_url: null, visible: true, ordre: 7, config: {} },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -186,8 +292,9 @@ export default function WifiPage() {
   const t = T[lang];
 
   useEffect(() => {
-    const browser = navigator.language.toLowerCase();
-    if (!browser.startsWith("fr")) setLang("en");
+    const saved = typeof window !== "undefined" ? localStorage.getItem("wifi-lang") : null;
+    if (saved === "en" || saved === "fr") setLang(saved);
+    else if (!navigator.language.toLowerCase().startsWith("fr")) setLang("en");
     fetch("/api/meteo").then(r => r.json()).then(setWeather).catch(() => {});
 
     supabase
@@ -238,7 +345,11 @@ export default function WifiPage() {
             <div className="h-px w-8 bg-[#C6A972]/50" />
             {/* Toggle langue */}
             <button
-              onClick={() => setLang(l => l === "fr" ? "en" : "fr")}
+              onClick={() => setLang(l => {
+                const next = l === "fr" ? "en" : "fr";
+                if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
+                return next;
+              })}
               className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
@@ -292,13 +403,13 @@ export default function WifiPage() {
                       color: annonce.config?.type === "urgent" ? "#dc2626" : "#9CA3AF",
                     }}
                   >
-                    {annonce.config?.type === "urgent" ? "Urgent" : "Hôtel · Info"}
+                    {annonce.config?.type === "urgent" ? t.urgent : t.info}
                   </p>
                   <p
                     className="text-slate-900 text-[15px] leading-[1.6] font-medium mb-6"
                     style={{ fontFamily: "var(--font-sans)" }}
                   >
-                    {annonce.config?.message}
+                    {(lang === "en" && annonce.config?.en?.message) || annonce.config?.message}
                   </p>
                   <button
                     onClick={() => setAnnonce(null)}
@@ -308,7 +419,7 @@ export default function WifiPage() {
                       color: annonce.config?.type === "urgent" ? "#dc2626" : "#004e7c",
                     }}
                   >
-                    OK
+                    {t.ok}
                   </button>
                 </div>
               </motion.div>
@@ -350,7 +461,7 @@ export default function WifiPage() {
                     onClick={() => toggle(tile.id)}
                   >
                     {tile.image_url ? (
-                      <Image src={tile.image_url} alt={tile.title} fill className="object-cover transition-transform duration-700 hover:scale-105" sizes="(max-width:640px) 50vw,200px" />
+                      <Image src={tile.image_url} alt={tileTitle(tile, lang)} fill className="object-cover transition-transform duration-700 hover:scale-105" sizes="(max-width:640px) 50vw,200px" />
                     ) : (
                       <div className="absolute inset-0" style={{ background: fallback }} />
                     )}
@@ -376,7 +487,7 @@ export default function WifiPage() {
 
                     <div className="absolute bottom-3.5 left-3.5 right-3.5">
                       <p className="font-semibold text-white text-sm leading-tight drop-shadow-md" style={{ fontFamily: "var(--font-sans)" }}>
-                        {tile.title}
+                        {tileTitle(tile, lang)}
                       </p>
                       <AnimatePresence>
                         {!isOpen && (
@@ -386,7 +497,7 @@ export default function WifiPage() {
                             className="text-white/60 text-[10px] mt-0.5"
                             style={{ fontFamily: "var(--font-sans)" }}
                           >
-                            {tile.tagline}
+                            {tileTagline(tile, lang)}
                           </motion.p>
                         )}
                       </AnimatePresence>
@@ -404,7 +515,7 @@ export default function WifiPage() {
                         className="overflow-hidden bg-white rounded-b-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
                       >
                         <div className="px-5 py-5">
-                          {renderContent(tile.slug, tile.config, weather, t)}
+                          {renderContent(tile, weather, lang)}
                           {href && (
                             <Link
                               href={href}

@@ -10,15 +10,54 @@ import { supabase } from "@/lib/supabase";
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
-type BarItem = { id: string; categorie: string; nom: string; description: string | null; prix: string; actif: boolean; ordre: number; quantite: number | null; local: boolean };
+type BarItem = {
+  id: string; categorie: string;
+  nom: string; nom_en: string | null;
+  description: string | null; description_en: string | null;
+  prix: string; actif: boolean; ordre: number; quantite: number | null; local: boolean;
+};
+
+type Lang = "fr" | "en";
+
+const T = {
+  fr: {
+    back: "Retour",
+    hotel: "Best Western Plus La Corniche",
+    title: "Bar",
+    subtitle: "Commande à passer à la réception",
+    empty: "La carte n'est pas encore disponible.",
+    cta_title: "Ça vous tente ?",
+    cta_desc: "Passez à la réception — on s'occupe du reste.",
+    cta_home: "Retour à l'accueil",
+    local: "local",
+  },
+  en: {
+    back: "Back",
+    hotel: "Best Western Plus La Corniche",
+    title: "Bar",
+    subtitle: "Order at the front desk",
+    empty: "The menu is not yet available.",
+    cta_title: "Tempted?",
+    cta_desc: "Come to the front desk — we'll handle the rest.",
+    cta_home: "Back to home",
+    local: "local",
+  },
+} as const;
 
 export default function BarPage() {
+  const [lang, setLang] = useState<Lang>("fr");
   const [items, setItems] = useState<BarItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [catEn, setCatEn] = useState<Record<string, string>>({});
   const [active, setActive] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const t = T[lang];
 
   useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("wifi-lang") : null;
+    if (saved === "en" || saved === "fr") setLang(saved);
+    else if (typeof navigator !== "undefined" && !navigator.language.toLowerCase().startsWith("fr")) setLang("en");
+
     Promise.all([
       supabase.from("wifi_bar").select("*").eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32").eq("actif", true).order("ordre"),
       supabase.from("wifi_tiles").select("config").eq("slug", "bar").eq("hotel_id", "f9d59e56-9a2f-433e-bcf4-f9753f105f32").single(),
@@ -36,9 +75,22 @@ export default function BarPage() {
         setCategories(orderedCats);
         if (orderedCats.length > 0) setActive(orderedCats[0]);
       }
+      if (tileData?.config?.en?.categories) {
+        setCatEn(tileData.config.en.categories as Record<string, string>);
+      }
       setLoading(false);
     });
   }, []);
+
+  const toggleLang = () => {
+    const next: Lang = lang === "fr" ? "en" : "fr";
+    setLang(next);
+    if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
+  };
+
+  const displayCat = (cat: string) => (lang === "en" && catEn[cat]) || cat;
+  const displayNom = (i: BarItem) => (lang === "en" && i.nom_en) || i.nom;
+  const displayDesc = (i: BarItem) => (lang === "en" && i.description_en) || i.description;
 
   const catItems = items.filter(i => i.categorie === active);
 
@@ -46,27 +98,32 @@ export default function BarPage() {
     <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
-        {/* Header centré */}
         <div className="w-full max-w-sm mb-8 text-center">
           <Link
             href="/wifi"
             className="inline-flex items-center gap-1.5 text-slate-400 text-sm mb-6 hover:text-slate-700 transition"
             style={{ fontFamily: "var(--font-sans)" }}
           >
-            <ArrowLeft size={15} /> Retour
+            <ArrowLeft size={15} /> {t.back}
           </Link>
           <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-2" style={{ fontFamily: "var(--font-sans)" }}>
-            Best Western Plus La Corniche
+            {t.hotel}
           </p>
           <h1 className="text-[2rem] font-semibold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-serif)" }}>
-            Bar
+            {t.title}
           </h1>
           <p className="text-sm text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
-            Commande à passer à la réception
+            {t.subtitle}
           </p>
           <div className="flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-[#C6A972]/50" />
-            <span className="text-[#C6A972]/70 text-[10px]">✦</span>
+            <button
+              onClick={toggleLang}
+              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
+              style={{ fontFamily: "var(--font-sans)" }}
+            >
+              {lang === "fr" ? "EN" : "FR"}
+            </button>
             <div className="h-px w-8 bg-[#C6A972]/50" />
           </div>
         </div>
@@ -81,12 +138,11 @@ export default function BarPage() {
           ) : categories.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
               <p className="text-slate-400 text-sm" style={{ fontFamily: "var(--font-sans)" }}>
-                La carte n&apos;est pas encore disponible.
+                {t.empty}
               </p>
             </div>
           ) : (
             <>
-              {/* Tabs */}
               <div className="flex flex-wrap justify-center gap-2 mb-5">
                 {categories.map(cat => (
                   <button
@@ -99,12 +155,11 @@ export default function BarPage() {
                     }`}
                     style={{ fontFamily: "var(--font-sans)" }}
                   >
-                    {cat}
+                    {displayCat(cat)}
                   </button>
                 ))}
               </div>
 
-              {/* Liste articles */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={active}
@@ -115,49 +170,51 @@ export default function BarPage() {
                   className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
                 >
                   <ul className="divide-y divide-slate-50">
-                    {catItems.map(item => (
-                      <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3.5" style={{ fontFamily: "var(--font-sans)" }}>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="h-1 w-1 rounded-full bg-[#C6A972]/60 shrink-0" />
-                            <span className="text-sm text-slate-700">{item.nom}</span>
-                            {item.local && (
-                              <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md shrink-0">
-                                🌿 local
-                              </span>
+                    {catItems.map(item => {
+                      const desc = displayDesc(item);
+                      return (
+                        <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3.5" style={{ fontFamily: "var(--font-sans)" }}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="h-1 w-1 rounded-full bg-[#C6A972]/60 shrink-0" />
+                              <span className="text-sm text-slate-700">{displayNom(item)}</span>
+                              {item.local && (
+                                <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md shrink-0">
+                                  🌿 {t.local}
+                                </span>
+                              )}
+                            </div>
+                            {(desc || item.quantite != null) && (
+                              <p className="pl-3 mt-0.5 text-[11px] italic text-slate-400 leading-relaxed">
+                                {desc}
+                                {desc && item.quantite != null && " · "}
+                                {item.quantite != null && <span className="text-slate-300">{item.quantite} cl</span>}
+                              </p>
                             )}
                           </div>
-                          {(item.description || item.quantite != null) && (
-                            <p className="pl-3 mt-0.5 text-[11px] italic text-slate-400 leading-relaxed">
-                              {item.description}
-                              {item.description && item.quantite != null && " · "}
-                              {item.quantite != null && <span className="text-slate-300">{item.quantite} cl</span>}
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-sm font-semibold tabular-nums text-slate-800 shrink-0 pt-0.5">
-                          {item.prix.includes("€") ? item.prix : `${item.prix} €`}
-                        </span>
-                      </li>
-                    ))}
+                          <span className="text-sm font-semibold tabular-nums text-slate-800 shrink-0 pt-0.5">
+                            {item.prix.includes("€") ? item.prix : `${item.prix} €`}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </motion.div>
               </AnimatePresence>
 
-              {/* CTA */}
               <div className="mt-4 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 text-center">
                 <p className="font-semibold text-slate-900 text-sm" style={{ fontFamily: "var(--font-serif)" }}>
-                  Ça vous tente ?
+                  {t.cta_title}
                 </p>
                 <p className="text-xs text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
-                  Passez à la réception — on s&apos;occupe du reste.
+                  {t.cta_desc}
                 </p>
                 <Link
                   href="/wifi"
                   className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition"
                   style={{ fontFamily: "var(--font-sans)" }}
                 >
-                  Retour à l&apos;accueil
+                  {t.cta_home}
                 </Link>
               </div>
             </>

@@ -14,14 +14,49 @@ const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 type CurioItem = {
   id: string;
   nom: string;
+  nom_en: string | null;
   emoji: string | null;
   image_url: string | null;
   dispo: boolean;
   description: string | null;
+  description_en: string | null;
   tags: string[];
   duree_heures: number;
   prix_reservation: number;
 };
+
+type Lang = "fr" | "en";
+
+const T = {
+  fr: {
+    back: "Retour",
+    hotel: "Best Western Plus La Corniche",
+    title: "Curiosités",
+    subtitle: "Des objets un peu rares à découvrir — parce que voyager, c'est aussi ça.",
+    explainerFree: ["Gratuit", " si disponible — demandez à la réception."] as const,
+    explainerResa: ["Envie de le ", "réserver", " ? Le prix est indiqué sur chaque objet."] as const,
+    explainerTrust: "On vous fait confiance — retournez-le en bon état 🙌",
+    resa: "Résa",
+    max: (h: number) => h < 24 ? `${h}h max` : (Math.floor(h/24) === 1 ? "1 nuit max" : `${Math.floor(h/24)} nuits max`),
+    cta_title: "Ça vous tente ?",
+    cta_desc: "Passez à la réception — on est là 24h/24.",
+    cta_home: "Retour à l'accueil",
+  },
+  en: {
+    back: "Back",
+    hotel: "Best Western Plus La Corniche",
+    title: "Curiosities",
+    subtitle: "Unusual little things to discover — because that's part of traveling too.",
+    explainerFree: ["Free", " if available — ask at the front desk."] as const,
+    explainerResa: ["Want to ", "reserve", " one? The price is shown on each item."] as const,
+    explainerTrust: "We trust you — please return it in good condition 🙌",
+    resa: "Reserve",
+    max: (h: number) => h < 24 ? `${h}h max` : (Math.floor(h/24) === 1 ? "1 night max" : `${Math.floor(h/24)} nights max`),
+    cta_title: "Tempted?",
+    cta_desc: "Come to the front desk — we're here 24/7.",
+    cta_home: "Back to home",
+  },
+} as const;
 
 const TAG_COLORS: Record<string, string> = {
   tech:        "bg-blue-50 text-blue-600",
@@ -39,18 +74,18 @@ function tagColor(tag: string) {
   return TAG_COLORS[tag.toLowerCase()] ?? "bg-slate-100 text-slate-500";
 }
 
-function formatDuree(h: number) {
-  if (h < 24) return `${h}h max`;
-  const d = Math.floor(h / 24);
-  return d === 1 ? "1 nuit max" : `${d} nuits max`;
-}
-
 export default function CuriositesPage() {
+  const [lang, setLang] = useState<Lang>("fr");
   const [items, setItems] = useState<CurioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
+  const t = T[lang];
 
   useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("wifi-lang") : null;
+    if (saved === "en" || saved === "fr") setLang(saved);
+    else if (typeof navigator !== "undefined" && !navigator.language.toLowerCase().startsWith("fr")) setLang("en");
+
     supabase.from("wifi_curiosites").select("*").order("ordre")
       .then(({ data }) => {
         if (data) setItems(data);
@@ -58,7 +93,15 @@ export default function CuriositesPage() {
       });
   }, []);
 
+  const toggleLang = () => {
+    const next: Lang = lang === "fr" ? "en" : "fr";
+    setLang(next);
+    if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
+  };
+
   const toggle = (id: string) => setOpenId(prev => prev === id ? null : id);
+  const nom = (i: CurioItem) => (lang === "en" && i.nom_en) || i.nom;
+  const desc = (i: CurioItem) => (lang === "en" && i.description_en) || i.description;
 
   return (
     <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8]`}>
@@ -67,16 +110,25 @@ export default function CuriositesPage() {
         {/* ── HEADER ── */}
         <div className="w-full max-w-sm mb-6">
           <Link href="/wifi" className="inline-flex items-center gap-1.5 text-slate-400 text-sm mb-6 hover:text-slate-700 transition" style={{ fontFamily: "var(--font-sans)" }}>
-            <ArrowLeft size={15} /> Retour
+            <ArrowLeft size={15} /> {t.back}
           </Link>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-2" style={{ fontFamily: "var(--font-sans)" }}>
-            Best Western Plus La Corniche
-          </p>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
+              {t.hotel}
+            </p>
+            <button
+              onClick={toggleLang}
+              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-2 py-0.5 border border-[#C6A972]/30 rounded-full shrink-0"
+              style={{ fontFamily: "var(--font-sans)" }}
+            >
+              {lang === "fr" ? "EN" : "FR"}
+            </button>
+          </div>
           <h1 className="text-[2rem] font-semibold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-serif)" }}>
-            Curiosités
+            {t.title}
           </h1>
           <p className="text-sm text-slate-500 mt-2" style={{ fontFamily: "var(--font-sans)" }}>
-            Des objets un peu rares à découvrir — parce que voyager, c&apos;est aussi ça.
+            {t.subtitle}
           </p>
         </div>
 
@@ -84,15 +136,15 @@ export default function CuriositesPage() {
         <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-5 space-y-2.5" style={{ fontFamily: "var(--font-sans)" }}>
           <div className="flex items-start gap-2.5 text-sm text-slate-600">
             <span className="shrink-0">✅</span>
-            <span><strong>Gratuit</strong> si disponible — demandez à la réception.</span>
+            <span><strong>{t.explainerFree[0]}</strong>{t.explainerFree[1]}</span>
           </div>
           <div className="flex items-start gap-2.5 text-sm text-slate-600">
             <span className="shrink-0">🔒</span>
-            <span>Envie de le <strong>réserver</strong> ? Le prix est indiqué sur chaque objet.</span>
+            <span>{t.explainerResa[0]}<strong>{t.explainerResa[1]}</strong>{t.explainerResa[2]}</span>
           </div>
           <div className="flex items-start gap-2.5 text-sm text-slate-600">
             <span className="shrink-0">🙏</span>
-            <span>On vous fait confiance — retournez-le en bon état 🙌</span>
+            <span>{t.explainerTrust}</span>
           </div>
         </div>
 
@@ -104,6 +156,7 @@ export default function CuriositesPage() {
               ))
             : items.map(item => {
                 const isOpen = openId === item.id;
+                const itemDesc = desc(item);
                 return (
                   <motion.div
                     key={item.id}
@@ -112,7 +165,6 @@ export default function CuriositesPage() {
                     style={{ borderRadius: 20 }}
                     transition={{ layout: { type: "spring", stiffness: 360, damping: 32 } }}
                   >
-                    {/* Vignette cliquable */}
                     <motion.div
                       layout
                       className={`relative overflow-hidden cursor-pointer select-none ${isOpen ? "h-48 rounded-t-[20px]" : "aspect-square rounded-[20px]"}`}
@@ -120,20 +172,16 @@ export default function CuriositesPage() {
                       whileTap={{ scale: 0.97 }}
                       onClick={() => toggle(item.id)}
                     >
-                      {/* Image ou emoji */}
                       {item.image_url ? (
-                        <Image src={item.image_url} alt={item.nom} fill className="object-cover" sizes="(max-width:640px) 50vw,200px" />
+                        <Image src={item.image_url} alt={nom(item)} fill className="object-cover" sizes="(max-width:640px) 50vw,200px" />
                       ) : (
                         <div className="absolute inset-0 bg-[#f9f5ef] flex items-center justify-center text-5xl">
                           {item.emoji ?? "📦"}
                         </div>
                       )}
 
-                      {/* Overlay gradient */}
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/5 to-black/50" />
 
-
-                      {/* Bouton fermer */}
                       <AnimatePresence>
                         {isOpen && (
                           <motion.button
@@ -148,15 +196,13 @@ export default function CuriositesPage() {
                         )}
                       </AnimatePresence>
 
-                      {/* Nom en bas */}
                       <div className="absolute bottom-3 left-3 right-3">
                         <p className="font-semibold text-white text-sm leading-tight drop-shadow-md" style={{ fontFamily: "var(--font-sans)" }}>
-                          {item.nom}
+                          {nom(item)}
                         </p>
                       </div>
                     </motion.div>
 
-                    {/* Détails expandés */}
                     <AnimatePresence>
                       {isOpen && (
                         <motion.div
@@ -167,7 +213,6 @@ export default function CuriositesPage() {
                           className="overflow-hidden bg-white rounded-b-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
                         >
                           <div className="px-5 py-4 space-y-3">
-                            {/* Tags */}
                             {(item.tags ?? []).length > 0 && (
                               <div className="flex flex-wrap gap-1.5">
                                 {(item.tags ?? []).map(tag => (
@@ -176,18 +221,16 @@ export default function CuriositesPage() {
                               </div>
                             )}
 
-                            {/* Description */}
-                            {item.description && (
+                            {itemDesc && (
                               <p className="text-sm text-slate-600 leading-relaxed" style={{ fontFamily: "var(--font-sans)" }}>
-                                {item.description}
+                                {itemDesc}
                               </p>
                             )}
 
-                            {/* Durée + prix */}
                             <div className="flex items-center gap-4 text-xs text-slate-400 pt-1" style={{ fontFamily: "var(--font-sans)" }}>
-                              <span className="flex items-center gap-1.5"><Clock size={12} />{formatDuree(item.duree_heures)}</span>
+                              <span className="flex items-center gap-1.5"><Clock size={12} />{t.max(item.duree_heures)}</span>
                               {item.prix_reservation > 0 && (
-                                <span className="text-[#C6A972] font-semibold">Résa : {item.prix_reservation} €</span>
+                                <span className="text-[#C6A972] font-semibold">{t.resa} : {item.prix_reservation} €</span>
                               )}
                             </div>
                           </div>
@@ -202,10 +245,10 @@ export default function CuriositesPage() {
 
         {/* ── CTA ── */}
         <div className="w-full max-w-sm mt-5 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-center">
-          <p className="font-semibold text-slate-900 text-sm" style={{ fontFamily: "var(--font-serif)" }}>Ça vous tente ?</p>
-          <p className="text-xs text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>Passez à la réception — on est là 24h/24.</p>
+          <p className="font-semibold text-slate-900 text-sm" style={{ fontFamily: "var(--font-serif)" }}>{t.cta_title}</p>
+          <p className="text-xs text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>{t.cta_desc}</p>
           <Link href="/wifi" className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition" style={{ fontFamily: "var(--font-sans)" }}>
-            Retour à l&apos;accueil
+            {t.cta_home}
           </Link>
         </div>
       </div>

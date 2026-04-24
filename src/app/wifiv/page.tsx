@@ -29,12 +29,12 @@ type DbTile = {
 };
 
 const DEFAULT_TILES: DbTile[] = [
-  { id: "pdj-v",      slug: "pdj",      emoji: "☕", title: "Petit-déjeuner",       tagline: "Buffet inclus",        image_url: null, visible: true, ordre: 0, config: { semaine: "7h00 – 10h00", weekend: "7h30 – 10h30" } },
-  { id: "checkin-v",  slug: "checkin",  emoji: "🔑", title: "Check-in",              tagline: "À partir de 15h",      image_url: null, visible: true, ordre: 1, config: { heure: "À partir de 15h", note: "Dépôt des bagages possible avant." } },
-  { id: "checkout-v", slug: "checkout", emoji: "🚪", title: "Check-out",             tagline: "Avant 11h",            image_url: null, visible: true, ordre: 2, config: { standard: "avant 11h", late: "jusqu'à 13h · 20 €", note: "Sur demande à la réception, sous réserve de disponibilité." } },
-  { id: "rooftop-v",  slug: "rooftop",  emoji: "🌅", title: "Rooftop",               tagline: "Bar & panorama",       image_url: null, visible: true, ordre: 3, config: { description: "Vue panoramique sur Toulon et la rade. Boissons & petite restauration." } },
-  { id: "urgences-v", slug: "urgences", emoji: "🆘", title: "Urgences",              tagline: "Réception 24h/24",     image_url: null, visible: true, ordre: 4, config: { message: "Contactez la réception immédiatement.", telephone: "" } },
-  { id: "regles-v",   slug: "regles",   emoji: "📋", title: "Règles de la maison",   tagline: "Pour votre séjour",    image_url: null, visible: true, ordre: 5, config: { texte: "Bienvenue aux Voiles ! Merci de respecter la tranquillité des autres clients et nos espaces communs." } },
+  { id: "pdj-v",      slug: "pdj",      emoji: "☕", title: "", tagline: "", image_url: null, visible: true, ordre: 0, config: {} },
+  { id: "checkin-v",  slug: "checkin",  emoji: "🔑", title: "", tagline: "", image_url: null, visible: true, ordre: 1, config: {} },
+  { id: "checkout-v", slug: "checkout", emoji: "🚪", title: "", tagline: "", image_url: null, visible: true, ordre: 2, config: {} },
+  { id: "rooftop-v",  slug: "rooftop",  emoji: "🌅", title: "", tagline: "", image_url: null, visible: true, ordre: 3, config: {} },
+  { id: "urgences-v", slug: "urgences", emoji: "🆘", title: "", tagline: "", image_url: null, visible: true, ordre: 4, config: {} },
+  { id: "regles-v",   slug: "regles",   emoji: "📋", title: "", tagline: "", image_url: null, visible: true, ordre: 5, config: {} },
 ];
 
 const FALLBACK_GRADIENTS: Record<string, string> = {
@@ -55,74 +55,174 @@ function Row({ label, value, sep }: { label: string; value: string; sep?: boolea
   );
 }
 
-function renderContent(slug: string, config: TileConfig): React.ReactNode {
+function renderContent(tile: DbTile, lang: Lang): React.ReactNode {
+  const { slug, config } = tile;
+  const t = T[lang];
+  const enCfg = config?.en as Record<string, string> | undefined;
+  const pickTexte = () => (lang === "en" && enCfg?.texte) || config?.texte;
+
   switch (slug) {
     case "pdj":
       return (
         <div className="text-sm space-y-3">
-          <Row label="Lundi – Vendredi" value={config.semaine ?? "7h00 – 10h00"} />
-          <Row label="Samedi & Dimanche" value={config.weekend ?? "7h30 – 10h30"} sep />
-          {config.prix && <Row label="Tarif" value={config.prix} sep />}
+          <Row label={t.rows.daily} value={cfgVal(config, lang, slug, "horaires") ?? ""} />
+          {cfgVal(config, lang, slug, "prix") && <Row label={t.rows.price} value={cfgVal(config, lang, slug, "prix")!} sep />}
         </div>
       );
     case "checkin":
       return (
         <div className="text-sm space-y-3">
-          <Row label="Arrivée" value={config.heure ?? "À partir de 15h"} />
-          {config.note && <p className="text-slate-400 text-xs pt-1">{config.note}</p>}
+          <Row label={t.rows.arrival} value={cfgVal(config, lang, slug, "heure") ?? ""} />
+          {cfgVal(config, lang, slug, "note") && <p className="text-slate-400 text-xs pt-1">{cfgVal(config, lang, slug, "note")}</p>}
         </div>
       );
     case "checkout":
       return (
         <div className="text-sm space-y-3">
-          <Row label="Départ standard" value={config.standard ?? "avant 11h"} />
-          <Row label="Late check-out" value={config.late ?? "jusqu'à 13h · 20 €"} sep />
-          {config.note && <p className="text-slate-400 text-xs">{config.note}</p>}
+          <Row label={t.rows.checkout_std} value={cfgVal(config, lang, slug, "standard") ?? ""} />
+          {cfgVal(config, lang, slug, "note") && <p className="text-slate-400 text-xs">{cfgVal(config, lang, slug, "note")}</p>}
         </div>
       );
     case "rooftop":
       return (
         <p className="text-slate-600 text-sm leading-relaxed">
-          {config.description ?? "Vue panoramique sur Toulon et la rade. Boissons & petite restauration."}
+          {cfgVal(config, lang, slug, "description")}
         </p>
       );
     case "urgences":
       return (
         <div className="text-sm space-y-3">
-          <p className="text-slate-600 leading-relaxed">{config.message ?? "Contactez la réception immédiatement."}</p>
-          {config.telephone && <Row label="Réception" value={config.telephone} sep />}
+          <p className="text-slate-600 leading-relaxed">{cfgVal(config, lang, slug, "message")}</p>
+          {config?.telephone && <Row label={t.rows.reception} value={config.telephone} sep />}
         </div>
       );
     case "regles":
       return (
         <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
-          {config.texte ?? "Bienvenue aux Voiles !"}
+          {cfgVal(config, lang, slug, "texte")}
         </p>
       );
-    default:
-      return config.texte
-        ? <p className="text-slate-600 text-sm leading-relaxed">{config.texte}</p>
+    default: {
+      const texte = pickTexte();
+      return texte
+        ? <p className="text-slate-600 text-sm leading-relaxed">{texte}</p>
         : null;
+    }
   }
 }
 
 const HREFS: Record<string, string> = { rooftop: "/wifiv/rooftop" };
 
-const T = {
+type Translations = {
+  welcome: string;
+  location: string;
+  concept_title: string;
+  concept: string;
+  tiles: Record<string, { title: string; tagline: string }>;
+  rows: Record<string, string>;
+  defaults: Record<string, Record<string, string>>;
+  seeMap: string;
+  urgent: string;
+  info: string;
+  ok: string;
+  book: string;
+  bookUrl: string;
+};
+
+const T: Record<"fr" | "en", Translations> = {
   fr: {
     welcome: "Bienvenue chez vous",
     location: "Toulon · Mourillon",
     concept_title: "Un hôtel pensé autrement.",
-    concept: "Les Voiles est un petit hôtel de charme — confort soigné et mer à deux pas, au prix le plus juste. Pour tenir cet engagement, nous avons fait le choix de ne pas maintenir une réception 24h/24. Il y aura toujours quelqu'un de disponible en cas d'urgence, mais nous vivons l'hospitalité différemment : moins de personnel en bas, plus de présence en haut — le rooftop, les moments, votre séjour.",
+    concept: "Les Voiles est un petit hôtel de charme — confort soigné et mer à deux pas, au prix le plus juste. Pour tenir cet engagement, nous avons fait le choix de ne pas maintenir une réception 24h/24. Il y aura toujours quelqu'un de disponible en cas d'urgence, mais nous vivons l'hospitalité différemment : moins de formalités à l'accueil, plus d'attention aux moments qui font un séjour — le rooftop, la vue, le temps retrouvé.",
+    tiles: {
+      pdj:      { title: "Petit-déjeuner",       tagline: "Buffet inclus" },
+      checkin:  { title: "Check-in",             tagline: "À partir de 15h" },
+      checkout: { title: "Check-out",            tagline: "Avant 11h" },
+      rooftop:  { title: "Rooftop",              tagline: "Bar & panorama" },
+      urgences: { title: "Urgences",             tagline: "Réception 24h/24" },
+      regles:   { title: "Règles de la maison",  tagline: "Pour votre séjour" },
+    },
+    rows: {
+      daily: "Tous les jours",
+      price: "Tarif",
+      arrival: "Arrivée",
+      checkout_std: "Départ standard",
+      reception: "Réception",
+    },
+    defaults: {
+      pdj:      { horaires: "7h00 – 10h00" },
+      checkin:  { heure: "À partir de 15h", note: "Dépôt des bagages possible avant." },
+      checkout: { standard: "avant 11h" },
+      rooftop:  { description: "Vue panoramique sur Toulon et la rade. Boissons & petite restauration." },
+      urgences: { message: "Contactez la réception immédiatement." },
+      regles:   { texte: "Bienvenue aux Voiles ! Merci de respecter la tranquillité des autres clients et nos espaces communs." },
+    },
+    seeMap: "Voir la carte",
+    urgent: "Urgent",
+    info: "Les Voiles · Info",
+    ok: "OK",
+    book: "Réserver un séjour",
+    bookUrl: "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR",
   },
   en: {
     welcome: "Welcome home",
     location: "Toulon · Mourillon",
     concept_title: "A different kind of hotel.",
-    concept: "Les Voiles is a small boutique hotel — thoughtful comfort and the sea just steps away, at the fairest price. To keep that promise, we've chosen not to staff the front desk around the clock. Someone is always reachable in an emergency, but we experience hospitality differently: less presence downstairs, more upstairs — the rooftop, the moments, your stay.",
+    concept: "Les Voiles is a small boutique hotel — thoughtful comfort and the sea just steps away, at the fairest price. To keep that promise, we've chosen not to staff the front desk around the clock. Someone is always reachable in an emergency, but we experience hospitality differently: fewer formalities at check-in, more attention to the moments that make a stay — the rooftop, the view, time rediscovered.",
+    tiles: {
+      pdj:      { title: "Breakfast",      tagline: "Buffet included" },
+      checkin:  { title: "Check-in",       tagline: "From 15:00" },
+      checkout: { title: "Check-out",      tagline: "Before 11:00" },
+      rooftop:  { title: "Rooftop",        tagline: "Bar & view" },
+      urgences: { title: "Emergencies",    tagline: "24/7 reception" },
+      regles:   { title: "House rules",    tagline: "For your stay" },
+    },
+    rows: {
+      daily: "Every day",
+      price: "Price",
+      arrival: "Arrival",
+      checkout_std: "Standard departure",
+      reception: "Reception",
+    },
+    defaults: {
+      pdj:      { horaires: "7:00 – 10:00" },
+      checkin:  { heure: "From 15:00", note: "Early luggage drop-off available." },
+      checkout: { standard: "before 11:00" },
+      rooftop:  { description: "Panoramic view over Toulon and the bay. Drinks & light fare." },
+      urgences: { message: "Contact the front desk immediately." },
+      regles:   { texte: "Welcome to Les Voiles! Please respect the peace of other guests and our shared spaces." },
+    },
+    seeMap: "See menu",
+    urgent: "Urgent",
+    info: "Les Voiles · Info",
+    ok: "OK",
+    book: "Book a stay",
+    bookUrl: "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/en-US",
   },
-} as const;
+};
 type Lang = keyof typeof T;
+
+function cfgVal(config: TileConfig | undefined, lang: Lang, slug: string, key: string): string | undefined {
+  const en = config?.en as Record<string, string> | undefined;
+  if (lang === "en" && en?.[key]) return en[key];
+  if (config?.[key]) return config[key];
+  return T[lang].defaults?.[slug]?.[key];
+}
+
+function tileTitle(tile: DbTile, lang: Lang): string {
+  const en = tile.config?.en as Record<string, string> | undefined;
+  if (lang === "en" && en?.title) return en.title;
+  if (tile.title) return tile.title;
+  return T[lang].tiles?.[tile.slug]?.title ?? tile.slug;
+}
+
+function tileTagline(tile: DbTile, lang: Lang): string {
+  const en = tile.config?.en as Record<string, string> | undefined;
+  if (lang === "en" && en?.tagline) return en.tagline;
+  if (tile.tagline) return tile.tagline;
+  return T[lang].tiles?.[tile.slug]?.tagline ?? "";
+}
 
 export default function WifiVPage() {
   const reduced = useReducedMotion();
@@ -134,6 +234,10 @@ export default function WifiVPage() {
   const t = T[lang];
 
   useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("wifi-lang") : null;
+    if (saved === "en" || saved === "fr") setLang(saved);
+    else if (typeof navigator !== "undefined" && !navigator.language.toLowerCase().startsWith("fr")) setLang("en");
+
     supabase
       .from("wifi_tiles")
       .select("*")
@@ -180,7 +284,11 @@ export default function WifiVPage() {
           <div className="flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-[#C6A972]/50" />
             <button
-              onClick={() => setLang(l => l === "fr" ? "en" : "fr")}
+              onClick={() => setLang(l => {
+                const next = l === "fr" ? "en" : "fr";
+                if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
+                return next;
+              })}
               className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
@@ -238,17 +346,17 @@ export default function WifiVPage() {
               >
                 <div className="px-8 pt-10 pb-8 text-center">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] mb-3" style={{ fontFamily: "var(--font-sans)", color: annonce.config?.type === "urgent" ? "#dc2626" : "#9CA3AF" }}>
-                    {annonce.config?.type === "urgent" ? "Urgent" : "Les Voiles · Info"}
+                    {annonce.config?.type === "urgent" ? t.urgent : t.info}
                   </p>
                   <p className="text-slate-900 text-[15px] leading-[1.6] font-medium mb-6" style={{ fontFamily: "var(--font-sans)" }}>
-                    {annonce.config?.message}
+                    {(lang === "en" && annonce.config?.en?.message) || annonce.config?.message}
                   </p>
                   <button
                     onClick={() => setAnnonce(null)}
                     className="px-8 py-2.5 rounded-full text-[13px] font-semibold transition-colors bg-slate-100 hover:bg-slate-200"
                     style={{ fontFamily: "var(--font-sans)", color: annonce.config?.type === "urgent" ? "#dc2626" : "#1a3a4a" }}
                   >
-                    OK
+                    {t.ok}
                   </button>
                 </div>
               </motion.div>
@@ -289,7 +397,7 @@ export default function WifiVPage() {
                     onClick={() => toggle(tile.id)}
                   >
                     {tile.image_url ? (
-                      <Image src={tile.image_url} alt={tile.title} fill className="object-cover transition-transform duration-700 hover:scale-105" sizes="(max-width:640px) 50vw,200px" />
+                      <Image src={tile.image_url} alt={tileTitle(tile, lang)} fill className="object-cover transition-transform duration-700 hover:scale-105" sizes="(max-width:640px) 50vw,200px" />
                     ) : (
                       <div className="absolute inset-0" style={{ background: fallback }} />
                     )}
@@ -313,7 +421,7 @@ export default function WifiVPage() {
 
                     <div className="absolute bottom-3.5 left-3.5 right-3.5">
                       <p className="font-semibold text-white text-sm leading-tight drop-shadow-md" style={{ fontFamily: "var(--font-sans)" }}>
-                        {tile.title}
+                        {tileTitle(tile, lang)}
                       </p>
                       <AnimatePresence>
                         {!isOpen && (
@@ -323,7 +431,7 @@ export default function WifiVPage() {
                             className="text-white/60 text-[10px] mt-0.5"
                             style={{ fontFamily: "var(--font-sans)" }}
                           >
-                            {tile.tagline}
+                            {tileTagline(tile, lang)}
                           </motion.p>
                         )}
                       </AnimatePresence>
@@ -340,7 +448,7 @@ export default function WifiVPage() {
                         className="overflow-hidden bg-white rounded-b-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
                       >
                         <div className="px-5 py-5">
-                          {renderContent(tile.slug, tile.config)}
+                          {renderContent(tile, lang)}
                           {href && (
                             <Link
                               href={href}
@@ -348,7 +456,7 @@ export default function WifiVPage() {
                               style={{ fontFamily: "var(--font-sans)" }}
                               onClick={() => setOpenId(null)}
                             >
-                              Voir la carte <ArrowRight size={12} />
+                              {t.seeMap} <ArrowRight size={12} />
                             </Link>
                           )}
                         </div>
@@ -358,6 +466,23 @@ export default function WifiVPage() {
                 </motion.div>
               );
             })}
+        </motion.div>
+
+        {/* ── CTA réservation ── */}
+        <motion.div
+          className="w-full max-w-sm md:max-w-4xl mt-8 flex flex-col md:flex-row md:items-center gap-2.5"
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.45 }}
+        >
+          <a
+            href={t.bookUrl}
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full md:flex-1 py-3.5 rounded-2xl font-semibold text-sm text-slate-900 bg-white border border-slate-200 shadow-sm active:scale-95 transition-transform"
+            style={{ fontFamily: "var(--font-sans)" }}
+          >
+            {t.book} <ArrowRight size={14} />
+          </a>
         </motion.div>
       </div>
     </div>
