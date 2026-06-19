@@ -12,3 +12,6 @@ public/media/
 # secrets & build
 .env.local
 tsconfig.tsbuildinfo
+
+# Local Netlify folder
+.netlify
