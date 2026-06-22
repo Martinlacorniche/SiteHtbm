@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getStripeForHotel } from "@/lib/stripe";
 
 // POST /api/groupe/[code]/reserve
 // Réserve une OU plusieurs chambres en une fois (booking_ref partagé).
@@ -38,7 +39,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const ids = rooms.map((r: { groupe_chambre_id: string }) => r.groupe_chambre_id);
   const { data: gcs } = await supabaseServer
     .from("groupe_chambres")
-    .select("id, groupe_id, room_units(numero, pax_max, twinable)")
+    .select("id, groupe_id, hotel_id, tarif_nuit, room_units(numero, pax_max, twinable)")
     .in("id", ids);
   const gcMap = new Map((gcs || []).map((x) => [x.id, x]));
 
@@ -61,7 +62,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     if (!up.error) sigPath = path;
   }
 
+  const obligatoire = !!g.paiement_obligatoire;
+  const nights = Math.max(1, Math.round((new Date(dd).getTime() - new Date(da).getTime()) / 86400000));
   const nowIso = new Date().toISOString();
+
   const insertRows = rooms.map((r: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number }) => {
     const gc = gcMap.get(r.groupe_chambre_id);
     const ru = one(gc!.room_units);
@@ -76,14 +80,62 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       date_arrivee: da, date_depart: dd,
       config_lit: lit, nb_personnes: Math.max(1, parseInt(String(r.nb_personnes)) || 1),
       signature_url: sigPath, cgv_acceptees_at: nowIso,
-      statut: "confirmee", derniere_action: "creation", vu_backoffice: false,
+      // Paiement obligatoire → la chambre est TENUE en attente jusqu'au paiement.
+      statut: obligatoire ? "en_attente_paiement" : "confirmee",
+      derniere_action: "creation", vu_backoffice: false,
     };
   });
 
-  const { error } = await supabaseServer.from("groupe_reservations").insert(insertRows);
+  const { data: inserted, error } = await supabaseServer
+    .from("groupe_reservations").insert(insertRows).select("id, groupe_chambre_id");
   if (error) {
     if (error.code === "23505") return NextResponse.json({ ok: false, error: "Une des chambres vient d'être réservée par quelqu'un d'autre." }, { status: 409 });
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  // ── PAIEMENT OBLIGATOIRE : une session Checkout PAR HÔTEL (comptes Stripe distincts) ──
+  if (obligatoire) {
+    const origin = req.headers.get("origin") || "http://localhost:3001";
+    type HG = { resaIds: string[]; lines: { name: string; amount: number }[]; total: number };
+    const byHotel = new Map<string, HG>();
+    for (const ins of inserted || []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const gc: any = gcMap.get(ins.groupe_chambre_id);
+      if (!gc) continue;
+      const ru = one(gc.room_units);
+      const amount = Math.round(Number(gc.tarif_nuit) * nights * 100); // cents
+      const h = byHotel.get(gc.hotel_id) || { resaIds: [], lines: [], total: 0 };
+      h.resaIds.push(ins.id);
+      h.lines.push({ name: `${g.nom} · Ch. ${ru?.numero ?? "?"} · ${nights} nuit(s)`, amount });
+      h.total += amount;
+      byHotel.set(gc.hotel_id, h);
+    }
+
+    const { data: hotelsData } = await supabaseServer.from("hotels").select("id, nom").in("id", [...byHotel.keys()]);
+    const hotelNom = new Map((hotelsData || []).map((x) => [x.id, x.nom]));
+
+    const paymentsOut: { hotel_id: string; hotelNom: string; amount: number; url: string }[] = [];
+    for (const [hotelId, h] of byHotel) {
+      const stripe = getStripeForHotel(hotelId);
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: h.lines.map((l) => ({ price_data: { currency: "eur", unit_amount: l.amount, product_data: { name: l.name } }, quantity: 1 })),
+        customer_email: email,
+        metadata: { type: "groupe_resa", groupe_id: g.id, hotel_id: hotelId, booking_ref: bookingRef },
+        success_url: `${origin}/groupe/${code}?r=${bookingRef}&paye=1`,
+        cancel_url: `${origin}/groupe/${code}`,
+        expires_at: Math.floor(Date.now() / 1000) + 31 * 60, // ~30 min de blocage
+      });
+      await supabaseServer.from("groupe_reservations").update({ stripe_checkout_id: session.id }).in("id", h.resaIds);
+      await supabaseServer.from("payments").insert({
+        hotel_id: hotelId, type: "groupe_resa", amount: h.total / 100, currency: "eur",
+        description: `${g.nom} — ${h.lines.length} chambre(s)`, client_nom: `${prenom || ""} ${nom}`.trim(),
+        email, status: "open", stripe_checkout_id: session.id, hosted_invoice_url: session.url,
+      });
+      paymentsOut.push({ hotel_id: hotelId, hotelNom: hotelNom.get(hotelId) || "Hôtel", amount: h.total / 100, url: session.url! });
+    }
+
+    return NextResponse.json({ ok: true, ref: bookingRef, requirePayment: true, payments: paymentsOut });
   }
 
   // Notification hôtel (best-effort ; domaine de test Resend → ALERT_EMAIL)
@@ -97,7 +149,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         return `<tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:600;">Ch. ${ru?.numero ?? "?"}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${lit}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${pax} pers.</td></tr>`;
       }).join("");
       await resend.emails.send({
-        from: "Groupes HTBM <onboarding@resend.dev>",
+        from: "BW+ La Corniche <paiement@send.hotel-corniche.com>",
         to: process.env.ALERT_EMAIL!,
         subject: `🛏️ Nouvelle réservation · ${g.nom} — ${prenom || ""} ${nom}`,
         html: `
@@ -118,8 +170,32 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
             </div>
           </div>`,
       });
+
+      // Confirmation au CLIENT
+      const origin = req.headers.get("origin") || "";
+      await resend.emails.send({
+        from: "BW+ La Corniche <paiement@send.hotel-corniche.com>",
+        to: email,
+        subject: `Votre réservation est confirmée · ${g.nom}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1e293b;">
+            <div style="background:#004e7c;padding:20px 28px;border-radius:12px 12px 0 0;">
+              <p style="margin:0;color:#C6A972;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">${g.nom}</p>
+              <h1 style="margin:6px 0 0;color:#fff;font-size:20px;">Réservation confirmée</h1>
+            </div>
+            <div style="background:#f8fafc;padding:22px 28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
+              <p style="margin:0 0 14px;">Bonjour ${prenom || nom}, votre réservation est confirmée. Voici le récapitulatif :</p>
+              <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
+                <tr><td style="padding:6px 0;color:#64748b;font-size:12px;width:110px;">Séjour</td><td style="padding:6px 0;font-weight:600;">${da} → ${dd}</td></tr>
+              </table>
+              <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">${roomRows}</table>
+              ${origin ? `<p style="margin:4px 0 0;text-align:center;"><a href="${origin}/groupe/${code}?r=${bookingRef}" style="background:#004e7c;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Voir / gérer ma réservation</a></p>` : ""}
+              <p style="margin:14px 0 0;color:#94a3b8;font-size:11px;text-align:center;">Votre code à 4 chiffres vous sera demandé pour modifier ou annuler.</p>
+            </div>
+          </div>`,
+      });
     }
   } catch (e) { console.error("Resend notif:", e); }
 
-  return NextResponse.json({ ok: true, ref: bookingRef });
+  return NextResponse.json({ ok: true, ref: bookingRef, requirePayment: false });
 }

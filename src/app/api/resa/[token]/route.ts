@@ -47,7 +47,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, statut, date_arrivee, date_depart, config_lit, nb_personnes, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url)")
+    .select("id, statut, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url)")
     .eq("booking_ref", ref);
 
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable" }, { status: 404 });
@@ -68,9 +68,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     };
   });
 
+  // Paiements restant à régler (chambres « en attente de paiement »).
+  const pendingCkout = [...new Set(rows.filter((r) => r.statut === "en_attente_paiement" && r.stripe_checkout_id).map((r) => r.stripe_checkout_id as string))];
+  let pendingPayments: { hotel_id: string; hotelNom: string; amount: number; url: string }[] = [];
+  if (pendingCkout.length) {
+    const { data: pays } = await supabaseServer.from("payments").select("hotel_id, amount, hosted_invoice_url, stripe_checkout_id").in("stripe_checkout_id", pendingCkout).eq("status", "open");
+    if (pays && pays.length) {
+      const { data: hs } = await supabaseServer.from("hotels").select("id, nom").in("id", [...new Set(pays.map((p) => p.hotel_id))]);
+      const hMap = new Map((hs || []).map((x) => [x.id, x.nom]));
+      pendingPayments = pays.filter((p) => p.hosted_invoice_url).map((p) => ({ hotel_id: p.hotel_id, hotelNom: hMap.get(p.hotel_id) || "Hôtel", amount: Number(p.amount), url: p.hosted_invoice_url as string }));
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     resas,
+    pendingPayments,
     groupe: {
       nom: g?.nom, code: g?.code_acces, date_arrivee: g?.date_arrivee, date_depart: g?.date_depart, date_limite: g?.date_limite,
       conditions_annulation: g?.conditions_annulation, cover_image_url: g?.cover_image_url,

@@ -78,6 +78,7 @@ function BookingView({ code }: { code: string }) {
   const [formOpen, setFormOpen] = useState(false);
   const [claim, setClaim] = useState<Room | null>(null);
   const [done, setDone] = useState<{ ref: string; pin: string } | null>(null);
+  const [pay, setPay] = useState<{ hotel_id: string; hotelNom: string; amount: number; url: string }[] | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,6 +123,7 @@ function BookingView({ code }: { code: string }) {
 
   if (loading) return <FullLoader />;
   if (error || !groupe) return <Centered title="Oups" text={error || "Ce lien ne correspond à aucun groupe."} />;
+  if (pay) return <PaymentScreen payments={pay} groupe={groupe} />;
   if (done) return <Confirmation code={code} refId={done.ref} pin={done.pin} groupe={groupe} />;
 
   const selectedRooms = rooms.filter(r => selected.has(r.id));
@@ -186,7 +188,8 @@ function BookingView({ code }: { code: string }) {
           <BookingForm code={code} groupe={groupe} rooms={selectedRooms}
             onClose={() => setFormOpen(false)}
             onConflict={() => { setFormOpen(false); setSelected(new Set()); load(); }}
-            onDone={(ref, pin) => { setFormOpen(false); setSelected(new Set()); setDone({ ref, pin }); }} />
+            onDone={(ref, pin) => { setFormOpen(false); setSelected(new Set()); setDone({ ref, pin }); }}
+            onPay={(payments) => { setFormOpen(false); setSelected(new Set()); setPay(payments); }} />
         )}
         {claim && (
           <ClaimModal code={code} room={claim} onClose={() => setClaim(null)}
@@ -253,9 +256,11 @@ function RoomBubble({ room, index, selected, planVisible, disabled, onClick }: {
 }
 
 // ---------- Formulaire (multi-chambres) ----------
-function BookingForm({ code, groupe, rooms, onClose, onDone, onConflict }: {
+function BookingForm({ code, groupe, rooms, onClose, onDone, onPay, onConflict }: {
   code: string; groupe: GroupeMeta; rooms: Room[];
-  onClose: () => void; onDone: (ref: string, pin: string) => void; onConflict: () => void;
+  onClose: () => void; onDone: (ref: string, pin: string) => void;
+  onPay: (payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]) => void;
+  onConflict: () => void;
 }) {
   const [nom, setNom] = useState(""); const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState(""); const [tel, setTel] = useState("");
@@ -295,7 +300,8 @@ function BookingForm({ code, groupe, rooms, onClose, onDone, onConflict }: {
       });
       const data = await res.json();
       if (!data.ok) { if (res.status === 409) { setErr(data.error); setTimeout(onConflict, 1600); return; } setErr(data.error || "Erreur."); return; }
-      onDone(data.ref, pin);
+      if (data.requirePayment && Array.isArray(data.payments) && data.payments.length) onPay(data.payments);
+      else onDone(data.ref, pin);
     } catch { setErr("Connexion impossible."); }
     finally { setSubmitting(false); }
   }
@@ -392,6 +398,36 @@ function ClaimModal({ code, room, onClose, onAccess }: { code: string; room: Roo
 }
 
 // ---------- Confirmation ----------
+// Paiement obligatoire : écran « finalisez votre paiement » (1 bouton par hôtel).
+function PaymentScreen({ payments, groupe }: { payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]; groupe: GroupeMeta }) {
+  const euro = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  const multi = payments.length > 1;
+  return (
+    <main className="min-h-screen flex items-center justify-center px-5">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-lg max-w-md w-full p-7 text-center">
+        <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{ background: "rgba(0,78,124,.08)", color: NAVY }}><Check className="w-7 h-7" /></div>
+        <h1 className="font-serif font-semibold text-2xl text-slate-800 mt-4">Plus qu'une étape</h1>
+        <p className="text-slate-500 text-sm mt-2">Votre réservation pour « {groupe.nom} » est en attente de paiement. Réglez pour la confirmer.</p>
+        {multi && <p className="text-[11px] text-slate-400 mt-1">Deux établissements = deux paiements distincts.</p>}
+        <div className="mt-5 space-y-2.5 text-left">
+          {payments.map((p) => (
+            <div key={p.hotel_id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+              <div className="min-w-0">
+                {multi && <div className="text-[11px] text-slate-400 truncate">{p.hotelNom}</div>}
+                <div className="text-2xl font-bold leading-none" style={{ color: NAVY }}>{euro(p.amount)}</div>
+              </div>
+              <a href={p.url} className="h-11 px-6 rounded-full font-semibold flex items-center shrink-0 hover:opacity-95 transition" style={{ background: NAVY, color: "#fff" }}>
+                Payer
+              </a>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-slate-400 mt-4">Paiement sécurisé par Stripe. Vos chambres sont tenues 30 minutes ; passé ce délai sans paiement, elles sont relibérées.</p>
+      </motion.div>
+    </main>
+  );
+}
+
 function Confirmation({ code, refId, pin, groupe }: { code: string; refId: string; pin: string; groupe: GroupeMeta }) {
   const [link, setLink] = useState(""); const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -438,6 +474,8 @@ function ManageView({ token }: { token: string }) {
   const [da, setDa] = useState(""); const [dd, setDd] = useState(""); const [lit, setLit] = useState<"double" | "twin">("double");
   const [pax, setPax] = useState(1);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; numero?: string } | null>(null);
+  const [pending, setPending] = useState<{ hotel_id: string; hotelNom: string; amount: number; url: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -445,7 +483,7 @@ function ManageView({ token }: { token: string }) {
       const res = await fetch(`/api/resa/${token}`);
       const d = await res.json();
       if (!d.ok) { setError(d.error || "Réservation introuvable"); return; }
-      setResas(d.resas); setGroupe(d.groupe);
+      setResas(d.resas); setGroupe(d.groupe); setPending(d.pendingPayments || []);
     } catch { setError("Connexion impossible."); } finally { setLoading(false); }
   }, [token]);
   useEffect(() => { load(); }, [load]);
@@ -468,12 +506,12 @@ function ManageView({ token }: { token: string }) {
       setEditingId(null); await load(); setMsg("Modifié ✓");
     } finally { setBusy(false); }
   }
-  async function cancel(id: string) {
-    if (!ensureCode()) return; if (!confirm("Annuler cette chambre ?")) return; setBusy(true); setMsg(null);
+  async function doCancel() {
+    if (!cancelTarget || !ensureCode()) return; setBusy(true); setMsg(null);
     try {
-      const res = await fetch(`/api/resa/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel", resa_id: id, code }) });
-      const d = await res.json(); if (!d.ok) { setMsg(d.error); if (typeof d.error === "string" && d.error.includes("Code")) { setCodeKnown(false); try { sessionStorage.removeItem(`pin_${token}`); } catch {} } return; }
-      await load();
+      const res = await fetch(`/api/resa/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel", resa_id: cancelTarget.id, code }) });
+      const d = await res.json(); if (!d.ok) { setMsg(d.error); if (typeof d.error === "string" && d.error.includes("Code")) { setCodeKnown(false); try { sessionStorage.removeItem(`pin_${token}`); } catch {} } setCancelTarget(null); return; }
+      setCancelTarget(null); await load();
     } finally { setBusy(false); }
   }
 
@@ -494,6 +532,24 @@ function ManageView({ token }: { token: string }) {
         )}
         {groupe.locked && <Banner>La date limite est passée. Pour toute modification, contactez l'hôtel.</Banner>}
 
+        {pending.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 border-2" style={{ borderColor: NAVY }}>
+            <p className="font-serif font-semibold text-slate-800">Finalisez votre paiement</p>
+            <p className="text-xs text-slate-500 mt-0.5 mb-3">Vos chambres sont tenues 30 minutes.{pending.length > 1 ? " Un paiement par établissement." : ""}</p>
+            <div className="space-y-2">
+              {pending.map((p) => (
+                <div key={p.hotel_id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                  <div className="min-w-0">
+                    {pending.length > 1 && <div className="text-[11px] text-slate-400 truncate">{p.hotelNom}</div>}
+                    <div className="text-xl font-bold leading-none" style={{ color: NAVY }}>{euro(p.amount)}</div>
+                  </div>
+                  <a href={p.url} className="h-10 px-5 rounded-full font-semibold flex items-center shrink-0" style={{ background: NAVY, color: "#fff" }}>Payer</a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3">
           {resas.map((r) => {
             const annulee = r.statut === "annulee";
@@ -507,7 +563,9 @@ function ManageView({ token }: { token: string }) {
                   </div>
                   {annulee
                     ? <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-600 border border-rose-200">Annulée</span>
-                    : <span className="text-sm font-semibold" style={{ color: NAVY }}>{euro(r.tarif)}<span className="text-[10px] text-slate-400 font-normal"> /nuit</span></span>}
+                    : r.statut === "en_attente_paiement"
+                      ? <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">En attente de paiement</span>
+                      : <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Confirmée</span>}
                 </div>
                 {!annulee && (
                   <div className="px-5 py-4 space-y-3">
@@ -516,10 +574,13 @@ function ManageView({ token }: { token: string }) {
                         <Row icon={<Calendar className="w-4 h-4" />} label="Séjour" value={`${fmt(r.date_arrivee)} → ${fmt(r.date_depart)}`} />
                         {r.twinable && <Row icon={<BedDouble className="w-4 h-4" />} label="Lits" value={r.config_lit === "twin" ? "2 lits" : "1 grand lit"} />}
                         <Row icon={<Users className="w-4 h-4" />} label="Personnes" value={String(r.nb_personnes)} />
-                        {!groupe.locked && (
+                        {r.statut === "en_attente_paiement" && (
+                          <p className="text-[11px] text-amber-600 pt-1">Réglez ci-dessus pour confirmer cette chambre.</p>
+                        )}
+                        {!groupe.locked && r.statut === "confirmee" && (
                           <div className="flex gap-2 pt-1">
                             <button onClick={() => startEdit(r)} className="flex-1 h-10 rounded-full text-white font-medium text-sm inline-flex items-center justify-center gap-1.5" style={{ background: NAVY }}><Pencil className="w-4 h-4" /> Modifier</button>
-                            <button onClick={() => cancel(r.id)} disabled={busy} className="h-10 px-4 rounded-full border border-rose-200 text-rose-600 font-medium text-sm inline-flex items-center justify-center gap-1.5"><Trash2 className="w-4 h-4" /> Annuler</button>
+                            <button onClick={() => { if (ensureCode()) setCancelTarget({ id: r.id, numero: r.numero }); }} disabled={busy} className="h-10 px-4 rounded-full border border-rose-200 text-rose-600 font-medium text-sm inline-flex items-center justify-center gap-1.5"><Trash2 className="w-4 h-4" /> Annuler</button>
                           </div>
                         )}
                       </>
@@ -557,6 +618,27 @@ function ManageView({ token }: { token: string }) {
         </div>
         {msg && <p className="text-sm text-center text-slate-500 mt-3">{msg}</p>}
       </div>
+
+      {/* Modale de confirmation d'annulation (remplace le confirm() natif) */}
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-5" style={{ background: "rgba(15,23,42,.45)" }}
+          onClick={(e) => { if (e.target === e.currentTarget && !busy) setCancelTarget(null); }}>
+          <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-xl max-w-sm w-full p-6 text-center">
+            <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center bg-rose-50 text-rose-600"><Trash2 className="w-6 h-6" /></div>
+            <h2 className="font-serif font-semibold text-xl text-slate-800 mt-3">Annuler cette chambre ?</h2>
+            <p className="text-sm text-slate-500 mt-1.5">Chambre <b>{cancelTarget.numero}</b> — cette action est définitive.</p>
+            {groupe.conditions_annulation && (
+              <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">{groupe.conditions_annulation}</p>
+            )}
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setCancelTarget(null)} disabled={busy} className="flex-1 h-11 rounded-full border border-slate-200 text-slate-600 font-medium text-sm">Retour</button>
+              <button onClick={doCancel} disabled={busy} className="flex-1 h-11 rounded-full text-white font-semibold text-sm inline-flex items-center justify-center gap-1.5" style={{ background: "#e11d48" }}>
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmer"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </main>
   );
 }
