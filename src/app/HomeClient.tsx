@@ -286,6 +286,7 @@ export default function PageUltimeV15() {
                 "currenciesAccepted": "EUR",
                 "address": { "@type": "PostalAddress", "streetAddress": "17 Littoral Frédéric Mistral", "addressLocality": "Toulon", "addressRegion": "Provence-Alpes-Côte d'Azur", "postalCode": "83000", "addressCountry": "FR" },
                 "hasMap": "https://maps.google.com/?q=17+Littoral+Frédéric+Mistral+83000+Toulon",
+                "geo": { "@type": "GeoCoordinates", "latitude": 43.1071245, "longitude": 5.9357019 },
                 "starRating": { "@type": "Rating", "ratingValue": "4" },
                 "amenityFeature": [
                   { "@type": "LocationFeatureSpecification", "name": "Wi-Fi gratuit (fibre)", "value": true },
@@ -313,6 +314,7 @@ export default function PageUltimeV15() {
                 "currenciesAccepted": "EUR",
                 "address": { "@type": "PostalAddress", "streetAddress": "124 rue Gubler", "addressLocality": "Toulon", "addressRegion": "Provence-Alpes-Côte d'Azur", "postalCode": "83000", "addressCountry": "FR" },
                 "hasMap": "https://maps.google.com/?q=124+rue+Gubler+83000+Toulon",
+                "geo": { "@type": "GeoCoordinates", "latitude": 43.1091085, "longitude": 5.9511278 },
                 "starRating": { "@type": "Rating", "ratingValue": "3" },
                 "amenityFeature": [
                   { "@type": "LocationFeatureSpecification", "name": "Wi-Fi gratuit (fibre)", "value": true },

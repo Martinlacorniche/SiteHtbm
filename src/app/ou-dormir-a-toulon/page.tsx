@@ -8,9 +8,46 @@ export const metadata: Metadata = {
     "Hôtel bord de mer, hôtel proche des plages du Mourillon, villa privatisable, séjour en couple, en famille ou pour le business : découvrez où dormir à Toulon selon votre type de voyage.",
 };
 
+const FAQ = [
+  {
+    q: "Où dormir à Toulon en bord de mer ?",
+    a: "Le Best Western Plus La Corniche (4★) est le seul hôtel de Toulon directement face à la rade, à environ 30 m du littoral, dans le quartier du Mourillon. Plusieurs chambres disposent d'un balcon avec vue mer.",
+  },
+  {
+    q: "Quel hôtel choisir près des plages du Mourillon ?",
+    a: "Deux options : le Best Western Plus La Corniche, face à la mer, et l'Hôtel Les Voiles (3★), un boutique-hôtel calme sur les hauteurs du Mourillon, à environ 300 m des plages.",
+  },
+  {
+    q: "Où loger en famille à Toulon ?",
+    a: "L'Hôtel Les Voiles est idéal pour les familles : environnement calme, proximité des plages du Mourillon et des activités nautiques. Pour les familles nombreuses, la Villa Les Voiles offre plusieurs chambres et une cuisine équipée.",
+  },
+  {
+    q: "Existe-t-il un hôtel privatisable à Toulon ?",
+    a: "Oui, la Villa Les Voiles permet de privatiser entièrement l'établissement (jusqu'à 16 chambres, rooftop avec vue mer, patio), de mi-octobre à mi-mai, à 300 m des plages du Mourillon.",
+  },
+  {
+    q: "Quel hôtel pour un séminaire ou un déplacement professionnel à Toulon ?",
+    a: "Le Best Western Plus La Corniche dispose d'une salle de séminaire et d'un cadre face à la rade. L'Hôtel Les Voiles, calme et équipé d'un Wi-Fi fibre, convient bien aux déplacements professionnels individuels.",
+  },
+];
+
 export default function Page() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 text-slate-800">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: FAQ.map((item) => ({
+              "@type": "Question",
+              name: item.q,
+              acceptedAnswer: { "@type": "Answer", text: item.a },
+            })),
+          }),
+        }}
+      />
       <article className="space-y-12">
 
         {/* HERO */}
