@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/en/mourillon-beach-hotels"),
   title: "Hotels Near Mourillon Beaches – Toulon",
   description:
     "Discover the best hotels near Toulon's Mourillon beaches: seafront 4-star La Corniche, and quiet hillside Hôtel Les Voiles.",

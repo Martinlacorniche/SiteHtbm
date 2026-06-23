@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/en/villa-les-voiles-toulon"),
   title: "Villa Les Voiles – Private Villa Rental in Toulon",
   description:
     "Private villa rental in Toulon, perfect for families, groups and long stays. Open spaces, multiple bedrooms and close to Mourillon beaches.",

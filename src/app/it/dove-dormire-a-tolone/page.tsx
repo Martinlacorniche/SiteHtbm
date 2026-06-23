@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/it/dove-dormire-a-tolone"),
   title: "Dove dormire a Tolone – Guida completa agli alloggi",
   description:
     "Guida dettagliata per scegliere dove dormire a Tolone: hotel sul mare, spiagge del Mourillon, villa privata, soggiorni di coppia, viaggi di lavoro e vacanze in famiglia.",

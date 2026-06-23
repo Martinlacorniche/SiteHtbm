@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/de/wo-in-toulon-ubernachten"),
   title: "Wo in Toulon übernachten? – Umfassender Unterkunftsführer",
   description:
     "Umfassender Guide, wo man in Toulon übernachten kann: Strandhotels, Mourillon-Strände, private Villa, Aufenthalte als Paar, Geschäftsreisen und Familienurlaub.",

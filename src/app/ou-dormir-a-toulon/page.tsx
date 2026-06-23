@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/ou-dormir-a-toulon"),
   title: "Où dormir à Toulon ? Guide complet selon votre séjour",
   description:
     "Hôtel bord de mer, hôtel proche des plages du Mourillon, villa privatisable, séjour en couple, en famille ou pour le business : découvrez où dormir à Toulon selon votre type de voyage.",

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 import Link from "next/link";
 
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/hotel-plage-mourillon"),
   title: "Hôtel proche des plages du Mourillon – Toulon",
   description:
     "Séjourner près des plages du Mourillon à Toulon : Best Western Plus La Corniche face à la mer et Hôtel Les Voiles sur les hauteurs du quartier.",

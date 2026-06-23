@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/en/toulon-business-hotel"),
   title: "Business Hotel in Toulon – Seafront & Meetings",
   description:
     "Organise business trips or meetings in Toulon. Best Western Plus La Corniche offers an exceptional seaside setting for seminars and professional stays.",

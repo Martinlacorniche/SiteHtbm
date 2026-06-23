@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/en/seafront-hotel-toulon"),
   title: "Seafront Hotel in Toulon – Best Western Plus La Corniche",
   description:
     "4-star seafront hotel in Toulon, located in the Mourillon district. Sea view rooms, balcony options, breakfast buffet, ideal for weekends or business trips.",

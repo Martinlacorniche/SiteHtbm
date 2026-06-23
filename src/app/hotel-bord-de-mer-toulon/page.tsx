@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 import Link from "next/link";
 
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/hotel-bord-de-mer-toulon"),
   title: "Hôtel bord de mer à Toulon – Best Western Plus La Corniche",
   description:
     "Hôtel 4 étoiles face à la mer à Toulon, dans le quartier du Mourillon. Chambres vue mer, balcon, petit-déjeuner, idéal pour week-end, vacances et voyages professionnels.",

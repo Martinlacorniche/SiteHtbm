@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/villa-les-voiles-toulon"),
   title: "Villa Les Voiles à Toulon – Location privatisable",
   description:
     "Villa privatisable à Toulon, idéal pour familles, groupes et séjours longue durée, à proximité des plages du Mourillon.",

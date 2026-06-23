@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/site";
 import Link from "next/link";
 
 
 export const metadata: Metadata = {
+  alternates: alternatesFor("/hotel-seminaire-toulon"),
   title: "Hôtel pour séminaire à Toulon – Bord de mer",
   description:
     "Organiser un séminaire à Toulon en bord de mer : Best Western Plus La Corniche et son Espace Pro pour réunions, journées d’étude et événements d’entreprise.",

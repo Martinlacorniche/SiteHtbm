@@ -275,20 +275,55 @@ export default function PageUltimeV15() {
             {
                 "@context": "https://schema.org",
                 "@type": "Hotel",
+                "@id": "https://www.hotels-toulon-bord-de-mer.com/#corniche",
                 "name": "Best Western Plus La Corniche",
+                "url": "https://www.hotels-toulon-bord-de-mer.com/hotel-bord-de-mer-toulon",
                 "image": "https://www.hotels-toulon-bord-de-mer.com/images/corniche.jpg",
-                "description": "Hôtel 4 étoiles face à la rade de Toulon.",
-                "address": { "@type": "PostalAddress", "streetAddress": "17 Littoral Frédéric Mistral", "addressLocality": "Toulon", "postalCode": "83000", "addressCountry": "FR" },
-                "starRating": { "@type": "Rating", "ratingValue": "4" }
+                "description": "Hôtel 4 étoiles face à la rade de Toulon, les pieds dans l'eau au Mourillon. Balcons panoramiques, restaurant de bord de mer et accès direct au littoral.",
+                "telephone": "+33494413512",
+                "email": "contact-corniche@htbm.fr",
+                "priceRange": "€€€",
+                "currenciesAccepted": "EUR",
+                "address": { "@type": "PostalAddress", "streetAddress": "17 Littoral Frédéric Mistral", "addressLocality": "Toulon", "addressRegion": "Provence-Alpes-Côte d'Azur", "postalCode": "83000", "addressCountry": "FR" },
+                "hasMap": "https://maps.google.com/?q=17+Littoral+Frédéric+Mistral+83000+Toulon",
+                "starRating": { "@type": "Rating", "ratingValue": "4" },
+                "amenityFeature": [
+                  { "@type": "LocationFeatureSpecification", "name": "Wi-Fi gratuit (fibre)", "value": true },
+                  { "@type": "LocationFeatureSpecification", "name": "Vue mer", "value": true },
+                  { "@type": "LocationFeatureSpecification", "name": "Restaurant", "value": true },
+                  { "@type": "LocationFeatureSpecification", "name": "Salle de séminaire", "value": true }
+                ],
+                "sameAs": [
+                  "https://www.instagram.com/hotels_toulon_mer/",
+                  "https://www.facebook.com/hotelstbm",
+                  "https://fr.linkedin.com/company/best-western-plus-hotel-la-corniche"
+                ]
             },
             {
                 "@context": "https://schema.org",
                 "@type": "Hotel",
+                "@id": "https://www.hotels-toulon-bord-de-mer.com/#voiles",
                 "name": "Hôtel Les Voiles",
+                "url": "https://www.hotels-toulon-bord-de-mer.com/hotel-plage-mourillon",
                 "image": "https://www.hotels-toulon-bord-de-mer.com/images/voiles.jpg",
-                "description": "Boutique hôtel 3 étoiles calme sur les hauteurs du Mourillon.",
-                "address": { "@type": "PostalAddress", "streetAddress": "124 rue Gubler", "addressLocality": "Toulon", "postalCode": "83000", "addressCountry": "FR" },
-                "starRating": { "@type": "Rating", "ratingValue": "3" }
+                "description": "Boutique-hôtel 3 étoiles intimiste niché au calme sur les hauteurs du Mourillon, à Toulon. Jardin secret, rooftop avec vue et accès aux plages.",
+                "telephone": "+33494413623",
+                "email": "contact-lesvoiles@htbm.fr",
+                "priceRange": "€€",
+                "currenciesAccepted": "EUR",
+                "address": { "@type": "PostalAddress", "streetAddress": "124 rue Gubler", "addressLocality": "Toulon", "addressRegion": "Provence-Alpes-Côte d'Azur", "postalCode": "83000", "addressCountry": "FR" },
+                "hasMap": "https://maps.google.com/?q=124+rue+Gubler+83000+Toulon",
+                "starRating": { "@type": "Rating", "ratingValue": "3" },
+                "amenityFeature": [
+                  { "@type": "LocationFeatureSpecification", "name": "Wi-Fi gratuit (fibre)", "value": true },
+                  { "@type": "LocationFeatureSpecification", "name": "Rooftop avec vue", "value": true },
+                  { "@type": "LocationFeatureSpecification", "name": "Accès plage", "value": true },
+                  { "@type": "LocationFeatureSpecification", "name": "Petit-déjeuner inclus", "value": true }
+                ],
+                "sameAs": [
+                  "https://www.instagram.com/hotels_toulon_mer/",
+                  "https://www.facebook.com/hotelstbm"
+                ]
             }
             ])
         }}
