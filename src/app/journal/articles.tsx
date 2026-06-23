@@ -67,6 +67,13 @@ export const ARTICLES = [
         <p className="mb-6 leading-relaxed text-slate-600">
           Ce sont ces petites attentions — une odeur, un soin, une texture — qui transforment une nuit d'hôtel en souvenir. Au <a href="/hotel-bord-de-mer-toulon" className="underline text-sky-700">Best Western Plus La Corniche</a>, les soins Byca font désormais partie de l'expérience, tandis que l'esprit de la figue souffle aussi sur l'<a href="/hotel-plage-mourillon" className="underline text-sky-700">Hôtel Les Voiles</a>. Une signature discrète, mais que l'on n'oublie pas.
         </p>
+
+        <div className="bg-slate-900 text-white p-6 my-8 rounded-xl">
+          <h4 className="font-bold mb-2 uppercase tracking-widest text-xs text-amber-300">✨ Bientôt</h4>
+          <p className="text-slate-200 text-sm leading-relaxed">
+            Cet été, nous allons encore plus loin : nos premiers diffuseurs de parfum nouvelle génération arrivent dans les chambres. L'idée ? Vous laisser <strong>choisir l'odeur de votre chambre</strong> — au moment du check-in, et bientôt dès la réservation. Votre séjour, votre ambiance. On a hâte de vous faire respirer ça.
+          </p>
+        </div>
       </>
     )
   },
