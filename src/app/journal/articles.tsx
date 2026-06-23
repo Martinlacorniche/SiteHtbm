@@ -59,13 +59,13 @@ export const ARTICLES = [
         <div className="bg-emerald-50 border-l-4 border-emerald-300 p-6 my-8 rounded-r-xl">
           <h4 className="font-bold text-emerald-900 mb-2 uppercase tracking-widest text-xs">🌿 À emporter (ou presque)</h4>
           <p className="text-emerald-800 text-sm">
-            Les soins Byca sont disponibles à la réception de nos deux hôtels. Beaucoup de nos hôtes repartent avec : un moyen simple de prolonger un peu le séjour, une fois rentrés chez eux.
+            Les soins Byca sont disponibles à la réception du Best Western Plus La Corniche. Beaucoup de nos hôtes repartent avec : un moyen simple de prolonger un peu le séjour, une fois rentrés chez eux.
           </p>
         </div>
 
         <h3 className="text-2xl font-serif text-slate-900 mt-8 mb-4">Le détail qui fait la maison</h3>
         <p className="mb-6 leading-relaxed text-slate-600">
-          Ce sont ces petites attentions — une odeur, un soin, une texture — qui transforment une nuit d'hôtel en souvenir. Au <a href="/hotel-bord-de-mer-toulon" className="underline text-sky-700">Best Western Plus La Corniche</a> comme à l'<a href="/hotel-plage-mourillon" className="underline text-sky-700">Hôtel Les Voiles</a>, la figue et Byca font désormais partie de notre identité. Une signature discrète, mais que l'on n'oublie pas.
+          Ce sont ces petites attentions — une odeur, un soin, une texture — qui transforment une nuit d'hôtel en souvenir. Au <a href="/hotel-bord-de-mer-toulon" className="underline text-sky-700">Best Western Plus La Corniche</a>, les soins Byca font désormais partie de l'expérience, tandis que l'esprit de la figue souffle aussi sur l'<a href="/hotel-plage-mourillon" className="underline text-sky-700">Hôtel Les Voiles</a>. Une signature discrète, mais que l'on n'oublie pas.
         </p>
       </>
     )
