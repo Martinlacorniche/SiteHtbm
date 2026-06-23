@@ -1,37 +1,49 @@
-"use client";
-
-import React from "react";
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, Clock } from "lucide-react";
-import { Playfair_Display, Inter } from 'next/font/google';
+import { Playfair_Display, Inter } from "next/font/google";
+import { SITE_URL } from "@/lib/site";
 // Note les ".." pour remonter chercher les données
-import { ARTICLES } from "../articles"; 
+import { ARTICLES } from "../articles";
 
-const serif = Playfair_Display({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-serif' });
-const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
-export default function ArticlePage() {
-  const params = useParams();
-  
+// Pré-génère une page statique par article (bon pour le SEO et la perf)
+export function generateStaticParams() {
+  return ARTICLES.map((a) => ({ slug: a.slug }));
+}
+
+// Métadonnées propres à chaque article (titre, description, canonical, OpenGraph)
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const post = ARTICLES.find((a) => a.slug === slug);
+  if (!post) return { title: "Article introuvable" };
+  return {
+    title: post.title,
+    description: post.excerpt,
+    alternates: { canonical: `${SITE_URL}/journal/${post.slug}` },
+    openGraph: {
+      type: "article",
+      title: post.title,
+      description: post.excerpt,
+      url: `${SITE_URL}/journal/${post.slug}`,
+      images: [{ url: post.image }],
+    },
+  };
+}
+
+export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   // On cherche l'article qui correspond au slug dans l'URL
-  const post = ARTICLES.find((a) => a.slug === params.slug);
-
-  // Sécurité si l'article n'existe pas
-  if (!post) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFCF8]">
-        <h1 className="font-serif text-4xl mb-4">Oups !</h1>
-        <p>Article introuvable.</p>
-        <Link href="/journal" className="mt-8 underline">Retour au journal</Link>
-      </div>
-    );
-  }
+  const post = ARTICLES.find((a) => a.slug === slug);
+  if (!post) notFound();
 
   return (
     <div className={`${serif.variable} ${sans.variable} font-sans min-h-screen bg-[#FDFCF8] text-slate-900 selection:bg-amber-100`}>
-      
+
       {/* NAVBAR */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between">
          <Link href="/journal" className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest hover:text-blue-600 transition-colors">
@@ -59,7 +71,7 @@ export default function ArticlePage() {
         {/* CONTENU TEXTE */}
         <div className="max-w-2xl mx-auto px-6 text-lg leading-relaxed text-slate-800">
             {post.content}
-            
+
             <div className="mt-16 pt-8 border-t border-slate-200 flex justify-between items-center">
                 <span className="font-serif italic text-slate-400">La Rédaction HTBM</span>
             </div>

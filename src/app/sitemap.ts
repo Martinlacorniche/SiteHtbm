@@ -5,7 +5,7 @@ import { SITE_URL, hreflangFor } from "@/lib/site";
 const JOURNAL_SLUGS = [
   "criques-mitre-toulon",
   "art-figue",
-  "regates-voiles",
+  "le-mourillon-quartier-plage-toulon",
   "renovation-villa",
 ];
 
