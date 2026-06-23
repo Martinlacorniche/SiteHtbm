@@ -1,6 +1,6 @@
 // Configuration centrale du site pour le SEO (URL de prod, hreflang, etc.)
 
-export const SITE_URL = "https://www.hotels-toulon-bord-de-mer.com";
+export const SITE_URL = "https://hotels-toulon-mer.com";
 
 // Grappes de pages équivalentes dans plusieurs langues.
 // Sert à générer les balises hreflang (alternates) et le sitemap.

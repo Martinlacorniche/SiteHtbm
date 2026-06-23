@@ -23,7 +23,7 @@ export default function MentionsLegales() {
           <section>
             <h2 className="font-serif text-2xl text-slate-900 mb-4">1. Éditeur du site</h2>
             <p>
-              Le site <strong>hotels-toulon-bord-de-mer.com</strong> est édité par la société <strong>SARL SUERE</strong>.<br/>
+              Le site <strong>hotels-toulon-mer.com</strong> est édité par la société <strong>SARL SUERE</strong>.<br/>
               Forme juridique : [SARL]<br/>
               Capital social : [100 000] €<br/>
               SIRET : [34179719900013]<br/>
