@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const validDates = (dates as string[]).filter(Boolean);
 
   const { data: emailData, error: emailError } = await resend.emails.send({
-    from: 'BW+ La Corniche <onboarding@resend.dev>',
+    from: 'BW+ La Corniche <demandes@send.hotel-corniche.com>',
     to: process.env.ALERT_EMAIL!,
     subject: `🔔 Nouvelle demande · ${(types as string[]).join(', ')} — ${nom}`,
     html: `

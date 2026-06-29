@@ -8,12 +8,12 @@ function fmtD(d?: string) {
 }
 function litLabel(v: string | null) { return v === "twin" ? "2 lits séparés" : v === "double" ? "1 grand lit" : "—"; }
 
-// Envoi best-effort à l'hôtel (domaine de test Resend → ALERT_EMAIL)
+// Envoi best-effort à l'hôtel (domaine vérifié Resend → ALERT_EMAIL)
 async function notifyHotel(subject: string, html: string) {
   try {
     if (process.env.RESEND_API_KEY && process.env.ALERT_EMAIL) {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({ from: "Groupes HTBM <onboarding@resend.dev>", to: process.env.ALERT_EMAIL!, subject, html });
+      await resend.emails.send({ from: "Groupes HTBM <demandes@send.hotel-corniche.com>", to: process.env.ALERT_EMAIL!, subject, html });
     }
   } catch (e) { console.error("Resend notif:", e); }
 }
