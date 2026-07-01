@@ -164,9 +164,9 @@ export default function RooftopCarteClient() {
           className="glass gradient-border rounded-2xl px-6 py-6 text-center"
         >
           <h2 className="font-serif text-2xl md:text-3xl text-slate-900">{t.formula_title}</h2>
-          <div className="mt-4 flex items-center justify-center gap-4 md:gap-8 flex-wrap">
+          <div className="mx-auto mt-4 grid max-w-sm grid-cols-[1fr_auto_1fr] items-start justify-items-center gap-2">
             <FormulaBadge icon={<Wine size={22} />} label={t.formula_drink} />
-            <span className="font-serif text-3xl md:text-4xl text-[var(--gold)]">+</span>
+            <span className="flex h-16 items-center font-serif text-3xl md:text-4xl text-[var(--gold)]">+</span>
             <FormulaBadge icon={<UtensilsCrossed size={22} />} label={t.formula_plate} />
           </div>
           <p className="mx-auto mt-4 max-w-lg text-sm text-slate-500 leading-relaxed">{t.formula_rule}</p>
@@ -293,7 +293,7 @@ function FormulaBadge({ icon, label, highlight }: { icon: React.ReactNode; label
       }`}>
         {icon}
       </span>
-      <span className={`text-sm ${highlight ? "font-semibold text-[var(--deep-blue)]" : "font-medium text-slate-700"}`}>{label}</span>
+      <span className={`text-center text-sm leading-tight ${highlight ? "font-semibold text-[var(--deep-blue)]" : "font-medium text-slate-700"}`}>{label}</span>
     </div>
   );
 }
