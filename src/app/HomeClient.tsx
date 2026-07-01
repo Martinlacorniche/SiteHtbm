@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script"; 
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, MapPin, Star, Wind, Thermometer, Menu, X, Instagram, Facebook, Phone, Building2, Mail, FileText, Home, Plus, Minus } from "lucide-react";
+import { ArrowRight, MapPin, Star, Wind, Thermometer, Menu, X, Phone, Building2, Mail, FileText, Plus, Minus } from "lucide-react";
 import { Playfair_Display, Inter } from 'next/font/google';
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -140,6 +140,8 @@ export default function PageUltimeV15() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [weather, setWeather] = useState<{ air: number | null; sea: number | null }>({ air: null, sea: null });
+  // Le bouton "Découvrir le Rooftop" suit la visibilité de la tuile Rooftop (wifi_tiles).
+  const [rooftopOn, setRooftopOn] = useState(true);
 
   // --- POPUP STATE ---
   const [showPopup, setShowPopup] = useState(false);
@@ -241,6 +243,14 @@ export default function PageUltimeV15() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Visibilité du bouton Rooftop = état de la tuile "rooftop" des Voiles (pilotée dans /wifi-admin).
+  useEffect(() => {
+    supabase.from("wifi_tiles").select("visible")
+      .eq("slug", "rooftop").eq("hotel_id", "ded6e6fb-ff3c-4fa8-ad07-403ee316be53")
+      .maybeSingle()
+      .then(({ data }) => { if (data) setRooftopOn(!!data.visible); });
+  }, []);
+
   // --- POPUP LOGIC ---
   useEffect(() => {
   const now = new Date();
@@ -339,7 +349,7 @@ export default function PageUltimeV15() {
         
         <Link href="/" className="flex items-center gap-3 z-50 relative group">
              <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden shadow-sm border border-white/20 bg-white">
-                <Image src="/logos/logo-bleu.png" alt="Logo HTBM" fill className="object-cover p-1" />
+                <Image src="/images/cigale-or-512.png" alt="Logo Hôtels Toulon Bord de Mer" fill className="object-contain p-1.5" />
              </div>
              <div className="flex flex-col">
                 <span className="font-serif font-bold text-sm md:text-base tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
@@ -380,6 +390,7 @@ export default function PageUltimeV15() {
               <a href={CONFIG.corniche.bookingUrl} className="hover:text-blue-300 transition-colors">{CONFIG.corniche.title}</a>
               <a href={CONFIG.voiles.bookingUrl} className="hover:text-green-300 transition-colors">{CONFIG.voiles.title}</a>
               <a href={CONFIG.villa.bookingUrl} className="hover:text-amber-300 transition-colors">{CONFIG.villa.title}</a>
+              {rooftopOn && <Link href="/rooftop-les-voiles" className="hover:text-amber-300 transition-colors">Le Rooftop</Link>}
               <Link href="/journal" className="text-2xl md:text-4xl italic text-white/60 hover:text-white transition-colors mt-2">
                   Le Journal
               </Link>
@@ -628,6 +639,11 @@ export default function PageUltimeV15() {
                     <MapPin className="w-4 h-4"/> <span>{t.viewMap}</span>
                  </a>
               </div>
+              {rooftopOn && (
+                <Link href="/rooftop-les-voiles" style={{ color: "#fff" }} className="pointer-events-auto relative z-20 bg-[#C6A972] text-white px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:bg-[#b8975e] hover:scale-105 transition-all">
+                  🍸 {lang === "en" ? "Discover the Rooftop" : "Découvrir le Rooftop"} <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
               <div className="bg-white text-slate-900 px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform">
                 {t.book} <ArrowRight className="w-4 h-4" />
               </div>
@@ -986,7 +1002,7 @@ export default function PageUltimeV15() {
                     <div className="space-y-6 overflow-y-auto max-h-[55vh] pr-1">
                       {/* Type d'événement */}
                       <div>
-                        <p className="text-[10px] font-black tracking-[0.15em] text-slate-400 uppercase mb-2.5">Type d'événement</p>
+                        <p className="text-[10px] font-black tracking-[0.15em] text-slate-400 uppercase mb-2.5">Type d’événement</p>
                         <div className="flex flex-wrap gap-2">
                           {['Location de salle sèche', 'Journée d\'étude', 'Event', 'Mariage', 'Soirée cocktail', 'Location de chambres'].map(type => (
                             <button

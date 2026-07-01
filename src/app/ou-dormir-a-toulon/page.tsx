@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { alternatesFor } from "@/lib/site";
+import SiteBrand from "@/components/SiteBrand";
 
 export const metadata: Metadata = {
   alternates: alternatesFor("/ou-dormir-a-toulon"),
@@ -34,6 +35,7 @@ const FAQ = [
 export default function Page() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 text-slate-800">
+      <SiteBrand />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

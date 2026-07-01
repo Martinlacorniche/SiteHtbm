@@ -100,10 +100,12 @@ export default function ReservationClient() {
           style={{ backgroundImage: "url('/images/package-rooftop.jpg')", backgroundSize: "cover", backgroundPosition: "center 72%" }} />
         <div className="absolute inset-0 bg-gradient-to-b from-[#013a5c]/70 via-[#013a5c]/40 to-[#013a5c]/80" />
         <div className="relative mx-auto max-w-2xl px-4 pt-5 pb-8 text-center">
-          <Link href="/rooftop-les-voiles" className="inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white transition [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
+          <Link href="/rooftop-les-voiles" className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--gold)] hover:text-white transition [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
             <ArrowLeft size={15} /> Retour à la carte
           </Link>
-          <p className="mt-5 text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">Rooftop · Les Voiles</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/cigale-or-512.png" alt="Hôtels Toulon Bord de Mer" className="mx-auto mt-4 h-10 w-auto drop-shadow" />
+          <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">Rooftop · Les Voiles</p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl font-semibold drop-shadow">Réserver une table</h1>
           <p className="mx-auto mt-2 max-w-md text-sm md:text-base text-white/80">
             Un verre, une assiette, la vue sur la rade. Dites-nous juste quand — 30 secondes chrono.

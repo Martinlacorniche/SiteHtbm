@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { alternatesFor } from "@/lib/site";
+import SiteBrand from "@/components/SiteBrand";
 
 export const metadata: Metadata = {
   alternates: alternatesFor("/villa-les-voiles-toulon"),
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 text-slate-800">
+      <SiteBrand />
       <article className="space-y-8">
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { alternatesFor } from "@/lib/site";
+import SiteBrand from "@/components/SiteBrand";
 
 export const metadata: Metadata = {
   alternates: alternatesFor("/en/where-to-stay-in-toulon"),
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 text-slate-800">
+      <SiteBrand />
       <article className="space-y-12">
 
         <header className="text-center space-y-2">
