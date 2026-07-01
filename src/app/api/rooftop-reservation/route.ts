@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { SITE_URL } from '@/lib/site';
 
-// Notification de demande de réservation de table au Rooftop des Voiles.
-// Envoie un email à l'équipe (contact-lesvoiles@htbm.fr). L'enregistrement en base
-// (rooftop_reservations) est fait côté client en anon ; ici on ne fait que notifier.
+// Réservation de table au Rooftop des Voiles.
+// - notifie l'équipe (contact-lesvoiles@htbm.fr)
+// - envoie une confirmation au client (si email fourni) avec un lien "Ajouter à mon agenda"
+// L'enregistrement en base est fait via la RPC rooftop_book côté client.
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { nom, telephone, email, date, heure, couverts, message } = await req.json();
+  const { nom, telephone, email, date, heure, couverts, message, table } = await req.json();
 
   const dateFr = (() => {
     try {
@@ -16,7 +18,29 @@ export async function POST(req: NextRequest) {
     } catch { return date; }
   })();
 
-  const { error } = await resend.emails.send({
+  // ── Lien "Ajouter à mon agenda" (Google Calendar) ──────────────────────────
+  const calLink = (() => {
+    try {
+      const m = String(heure).match(/(\d{1,2})\s*h\s*(\d{0,2})/i);
+      const h = m ? parseInt(m[1], 10) : 19;
+      const min = m && m[2] ? parseInt(m[2], 10) : 0;
+      const ymd = String(date).replace(/-/g, '');
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const start = `${ymd}T${pad(h)}${pad(min)}00`;
+      const end = `${ymd}T${pad(Math.min(h + 2, 23))}${pad(min)}00`;
+      const p = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: 'Rooftop Les Voiles — Table réservée',
+        dates: `${start}/${end}`,
+        details: `Réservation pour ${couverts} personne(s) à ${heure}.`,
+        location: 'Hôtel Les Voiles, 124 rue Gubler, 83000 Toulon',
+      });
+      return `https://calendar.google.com/calendar/render?${p.toString()}`;
+    } catch { return null; }
+  })();
+
+  // ── 1) Notif équipe ─────────────────────────────────────────────────────────
+  const { error: teamErr } = await resend.emails.send({
     from: 'Rooftop Les Voiles <demandes@send.hotel-corniche.com>',
     to: 'contact-lesvoiles@htbm.fr',
     replyTo: email || undefined,
@@ -24,13 +48,14 @@ export async function POST(req: NextRequest) {
     html: `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #1e293b;">
         <div style="background: #004e7c; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-          <p style="margin: 0; color: #C6A972; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;">Rooftop Les Voiles · Réservation de table</p>
+          <p style="margin: 0; color: #C6A972; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;">Rooftop Les Voiles · Réservation</p>
           <h1 style="margin: 8px 0 0; color: #fff; font-size: 20px; font-weight: 700;">${dateFr} · ${heure}</h1>
         </div>
         <div style="background: #f8fafc; padding: 28px 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
           <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 12px; width: 120px;">Nom</td><td style="padding: 8px 0; font-weight: 600;">${nom}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 12px;">Couverts</td><td style="padding: 8px 0;">${couverts} personne(s)</td></tr>
+            ${table ? `<tr><td style="padding: 8px 0; color: #64748b; font-size: 12px;">Table</td><td style="padding: 8px 0;">${table}</td></tr>` : ''}
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 12px;">Date</td><td style="padding: 8px 0;">${dateFr}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b; font-size: 12px;">Heure</td><td style="padding: 8px 0;">${heure}</td></tr>
             ${telephone ? `<tr><td style="padding: 8px 0; color: #64748b; font-size: 12px;">Téléphone</td><td style="padding: 8px 0;">${telephone}</td></tr>` : ''}
@@ -38,16 +63,54 @@ export async function POST(req: NextRequest) {
             ${message ? `<tr><td style="padding: 8px 0; color: #64748b; font-size: 12px; vertical-align: top;">Message</td><td style="padding: 8px 0; font-style: italic;">${message}</td></tr>` : ''}
           </table>
           <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
-            <p style="margin: 0; font-size: 11px; color: #94a3b8;">Demande reçue via la vitrine Rooftop · à confirmer auprès du client</p>
+            <p style="margin: 0; font-size: 11px; color: #94a3b8;">Réservation confirmée via la vitrine Rooftop.</p>
           </div>
         </div>
       </div>
     `,
   });
 
-  if (error) {
-    console.error('Resend error (rooftop):', error);
-    return NextResponse.json({ ok: false }, { status: 500 });
+  if (teamErr) console.error('Resend error (rooftop team):', teamErr);
+
+  // ── 2) Confirmation client (best-effort) ────────────────────────────────────
+  if (email) {
+    const { error: clientErr } = await resend.emails.send({
+      from: 'Rooftop Les Voiles <demandes@send.hotel-corniche.com>',
+      to: email,
+      subject: `Votre table au Rooftop des Voiles — ${dateFr} à ${heure}`,
+      html: `
+      <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #1e293b;">
+        <div style="background: #013a5c; padding: 26px 32px; border-radius: 12px 12px 0 0; text-align: center;">
+          <p style="margin: 0; color: #C6A972; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;">Rooftop · Les Voiles · Toulon</p>
+          <h1 style="margin: 10px 0 0; color: #fff; font-size: 22px; font-weight: 700;">C'est réservé ! 🥂</h1>
+        </div>
+        <div style="background: #ffffff; padding: 28px 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0 0 16px; font-size: 15px;">Bonjour ${nom},</p>
+          <p style="margin: 0 0 20px; font-size: 14px; color: #475569; line-height: 1.55;">
+            Votre table vous attend au Rooftop des Voiles. On a hâte de vous accueillir face à la rade !
+          </p>
+          <table style="width: 100%; border-collapse: collapse; background: #f9f5ef; border-radius: 10px;">
+            <tr><td style="padding: 12px 16px 4px; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;">Quand</td></tr>
+            <tr><td style="padding: 0 16px 12px; font-size: 16px; font-weight: 600; text-transform: capitalize;">${dateFr} · ${heure}</td></tr>
+            <tr><td style="padding: 0 16px 4px; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;">Pour</td></tr>
+            <tr><td style="padding: 0 16px 14px; font-size: 15px;">${couverts} personne(s)</td></tr>
+          </table>
+          ${calLink ? `
+          <div style="text-align: center; margin: 24px 0 8px;">
+            <a href="${calLink}" style="background: #C6A972; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 13px 26px; border-radius: 9999px; display: inline-block;">📅 Ajouter à mon agenda</a>
+          </div>` : ''}
+          <div style="text-align: center; margin: 10px 0 0;">
+            <a href="${SITE_URL}/rooftop-les-voiles" style="color: #004e7c; font-size: 13px; text-decoration: underline;">Revoir la carte du rooftop</a>
+          </div>
+          <p style="margin: 20px 0 0; font-size: 12px; color: #94a3b8; line-height: 1.55; text-align: center;">
+            Un empêchement ? Appelez-nous au 04 94 41 36 23.<br/>Hôtel Les Voiles · 124 rue Gubler, Toulon
+          </p>
+        </div>
+      </div>
+      `,
+    });
+    if (clientErr) console.error('Resend error (rooftop client):', clientErr);
   }
-  return NextResponse.json({ ok: true });
+
+  return NextResponse.json({ ok: !teamErr });
 }
