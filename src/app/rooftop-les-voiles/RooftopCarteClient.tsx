@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Wine, UtensilsCrossed, Leaf, Check, Waves } from "lucide-react";
+import { ArrowLeft, ArrowRight, Wine, UtensilsCrossed, Leaf, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -31,20 +31,20 @@ const T = {
     back: "Retour aux hôtels",
     hotel: "Les Voiles · Toulon",
     title: "Le Rooftop",
-    tagline: "Eat · Drink & Enjoy — only.",
-    usp: "L’unique rooftop vue mer de Toulon",
-    subtitle: "Bar à ciel ouvert sur la rade. Ici, on ne boit jamais à sec : chaque verre arrive avec son assiette. Oui, même le café.",
-    formula_title: "Le principe, sans langue de bois",
-    formula_plate: "Une assiette",
-    formula_drink: "Une boisson",
+    tagline: "Sunset · Eat & Drink",
+    usp: "Rooftop vue mer",
+    subtitle: "Bar à ciel ouvert sur la rade. Ici, chaque verre vient avec son accompagnement à picorer. Oui, même le café.",
+    formula_title: "Formule unique",
+    formula_plate: "Accompagnement",
+    formula_drink: "Boisson",
     formula_result: "Un seul prix",
-    formula_rule: "Une boisson toute seule ? Elle s'ennuierait. Chez nous, le prix comprend toujours l'assiette qui va avec. Donc oui, le café est à 8 € — mais c'est un café + de quoi le rendre heureux. Vous nous remercierez.",
-    compose: "Composez votre Rooftop",
-    step1: "L'assiette",
+    formula_rule: "Une boisson toute seule ? Elle s'ennuierait. Chez nous, le prix comprend toujours un accompagnement à grignoter — pas un plat, juste ce qu'il faut. Donc oui, le café est à 8 € : un café + de quoi le rendre heureux. Vous nous remercierez.",
+    compose: "Composez votre moment",
+    step1: "L'accompagnement",
     step1_sub: "Eh oui, on commence par là.",
     step2: "La boisson",
-    step2_sub: "C'est elle qui affiche le prix — l'assiette voyage avec.",
-    price_note: "Assiette comprise dans chaque prix. Promis, aucun supplément qui se cache.",
+    step2_sub: "C'est elle qui affiche le prix — l'accompagnement vient avec.",
+    price_note: "Accompagnement compris dans chaque prix. Promis, aucun supplément qui se cache.",
     sale: "Salé",
     sucre: "Sucré, tout en glace",
     reserve: "Réserver une table",
@@ -55,20 +55,20 @@ const T = {
     back: "Back to hotels",
     hotel: "Les Voiles · Toulon",
     title: "The Rooftop",
-    tagline: "Eat · Drink & Enjoy — only.",
-    usp: "Toulon’s only sea-view rooftop",
-    subtitle: "Open-air bar over the bay. Here we never drink dry: every glass comes with its plate. Yes, even the coffee.",
-    formula_title: "How it works, no small print",
-    formula_plate: "A plate",
-    formula_drink: "A drink",
+    tagline: "Sunset · Eat & Drink",
+    usp: "Sea-view rooftop",
+    subtitle: "Open-air bar over the bay. Here, every glass comes with its bite to nibble. Yes, even the coffee.",
+    formula_title: "One simple set",
+    formula_plate: "Bite",
+    formula_drink: "Drink",
     formula_result: "One price",
-    formula_rule: "A drink on its own? It'd be lonely. Here, the price always includes the plate that goes with it. So yes, the coffee is €8 — but that's a coffee + something to make it happy. You'll thank us.",
-    compose: "Build your Rooftop",
-    step1: "The plate",
+    formula_rule: "A drink on its own? It'd be lonely. Here, the price always includes a little something to nibble — not a meal, just the right touch. So yes, the coffee is €8: a coffee + something to make it happy. You'll thank us.",
+    compose: "Build your moment",
+    step1: "The bite",
     step1_sub: "Yep, we start here.",
     step2: "The drink",
-    step2_sub: "It shows the price — the plate travels with it.",
-    price_note: "Plate included in every price. Promise, no sneaky surcharge.",
+    step2_sub: "It shows the price — the bite comes with it.",
+    price_note: "A bite included in every price. Promise, no sneaky surcharge.",
     sale: "Savoury",
     sucre: "Sweet, all frozen",
     reserve: "Book a table",
@@ -139,16 +139,12 @@ export default function RooftopCarteClient() {
         {/* Voile dégradé pour garder le texte lisible par-dessus la photo */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#013a5c]/70 via-[#013a5c]/40 to-[#013a5c]/80" />
         <div className="relative mx-auto max-w-4xl px-4 pt-5 pb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white transition [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
             <ArrowLeft size={15} /> {t.back}
           </Link>
           <p className="mt-5 text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">{t.hotel}</p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl font-semibold drop-shadow">{t.title}</h1>
           <p className="mt-1.5 font-serif italic text-lg md:text-xl text-[var(--gold)]">{t.tagline}</p>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[var(--gold)]/70 bg-black/15 px-4 py-1.5 backdrop-blur-sm">
-            <Waves size={14} className="text-[var(--gold)]" />
-            <span className="text-[12px] md:text-sm font-medium tracking-wide">{t.usp}</span>
-          </div>
           <p className="mx-auto mt-3 max-w-md text-sm md:text-base text-white/85">{t.subtitle}</p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <div className="h-px w-10 bg-[var(--gold)]/60" />
@@ -167,15 +163,21 @@ export default function RooftopCarteClient() {
           className="glass gradient-border rounded-2xl px-6 py-6 text-center"
         >
           <h2 className="font-serif text-2xl md:text-3xl text-slate-900">{t.formula_title}</h2>
-          <div className="mt-4 flex items-center justify-center gap-3 md:gap-5 flex-wrap">
+          <div className="mt-4 flex items-center justify-center gap-4 md:gap-8 flex-wrap">
             <FormulaBadge icon={<Wine size={22} />} label={t.formula_drink} />
             <span className="font-serif text-3xl md:text-4xl text-[var(--gold)]">+</span>
             <FormulaBadge icon={<UtensilsCrossed size={22} />} label={t.formula_plate} />
-            <span className="font-serif text-3xl md:text-4xl text-[var(--gold)]">=</span>
-            <FormulaBadge icon={<Check size={22} />} label={t.formula_result} highlight />
           </div>
           <p className="mx-auto mt-4 max-w-lg text-sm text-slate-500 leading-relaxed">{t.formula_rule}</p>
         </motion.section>
+
+        {/* ---------- CTA RÉSERVATION (sous la formule) ---------- */}
+        <section className="text-center -mt-2">
+          <Link href="/reservation-table-voiles"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--gold)] px-8 py-3 text-sm font-semibold tracking-wide text-[var(--gold)] transition-colors hover:bg-[var(--gold)] hover:text-white">
+            {t.reserve} <ArrowRight size={16} />
+          </Link>
+        </section>
 
         {isEmpty && <p className="text-center text-slate-400">{t.empty}</p>}
 
@@ -261,13 +263,6 @@ export default function RooftopCarteClient() {
           </section>
         )}
 
-        {/* ---------- CTA RÉSERVATION ---------- */}
-        <section className="text-center pt-4">
-          <Link href="/reservation-table-voiles"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--gold)] px-8 py-3 text-sm font-semibold tracking-wide text-[var(--gold)] transition-colors hover:bg-[var(--gold)] hover:text-white">
-            {t.reserve} <ArrowRight size={16} />
-          </Link>
-        </section>
       </div>
     </main>
   );
