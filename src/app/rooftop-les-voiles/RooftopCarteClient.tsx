@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Wine, UtensilsCrossed, Leaf, Check } from "lucide-react";
+import { ArrowRight, Wine, UtensilsCrossed, Leaf, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -139,11 +139,10 @@ export default function RooftopCarteClient() {
         {/* Voile dégradé pour garder le texte lisible par-dessus la photo */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#013a5c]/70 via-[#013a5c]/40 to-[#013a5c]/80" />
         <div className="relative mx-auto max-w-4xl px-4 pt-5 pb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--gold)] hover:text-white transition [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
-            <ArrowLeft size={15} /> {t.back}
+          <Link href="/" aria-label="Hôtels Toulon Bord de Mer" className="inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/cigale-or-512.png" alt="Hôtels Toulon Bord de Mer" className="mx-auto h-11 w-auto drop-shadow transition-opacity hover:opacity-80" />
           </Link>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/cigale-or-512.png" alt="Hôtels Toulon Bord de Mer" className="mx-auto mt-4 h-10 w-auto drop-shadow" />
           <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">{t.hotel}</p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl font-semibold drop-shadow">{t.title}</h1>
           <p className="mt-1.5 font-serif italic text-lg md:text-xl text-[var(--gold)]">{t.tagline}</p>
