@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Wine, UtensilsCrossed, Leaf, Check } from "lucide-react";
+import { ArrowRight, Wine, UtensilsCrossed, Leaf, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -39,16 +39,18 @@ const T = {
     formula_plate: "Accompagnement",
     formula_drink: "Boisson",
     formula_result: "Un seul prix",
-    formula_rule: "Une boisson toute seule ? Elle s'ennuierait. Chez nous, le prix comprend toujours un accompagnement à grignoter — pas un plat, juste ce qu'il faut. Donc oui, le café est à 8 € : un café + de quoi le rendre heureux. Vous nous remercierez.",
+    formula_rule: "Une boisson toute seule ? Elle s'ennuierait. Chez nous, le prix comprend toujours un accompagnement à grignoter — pas un plat, juste ce qu'il faut. Donc oui, le café est à 11 € : un café + de quoi le rendre heureux. Vous nous remercierez.",
     compose: "Composez votre moment",
-    step1: "L'accompagnement",
-    step1_sub: "Eh oui, on commence par là.",
-    step2: "La boisson",
-    step2_sub: "C'est elle qui affiche le prix — l'accompagnement vient avec.",
+    step1: "La boisson",
+    step1_sub: "On commence par elle — c'est elle qui affiche le prix.",
+    step2: "L'accompagnement",
+    step2_sub: "Il vient avec, compris dans le prix.",
     price_note: "Accompagnement compris dans chaque prix. Promis, aucun supplément qui se cache.",
     sale: "Salé",
     sucre: "Sucré, tout en glace",
     reserve: "Réserver une table",
+    faq_q: "Pourquoi on ne sert pas juste un verre ?",
+    faq_a: "D'abord une histoire de licence : la nôtre est une licence restauration, donc chez nous une boisson s'accompagne toujours de quelque chose à manger. Et franchement, tant mieux — un verre tout seul n'a jamais rendu personne heureux. Chaque boisson arrive donc avec sa petite assiette à grignoter : pas un repas, juste ce qu'il faut pour accompagner le coucher de soleil. Le prix affiché, c'est le tout : rien à ajouter.",
     empty: "La carte arrive très bientôt.",
     vege: "Végé",
   },
@@ -64,16 +66,18 @@ const T = {
     formula_plate: "Bite",
     formula_drink: "Drink",
     formula_result: "One price",
-    formula_rule: "A drink on its own? It'd be lonely. Here, the price always includes a little something to nibble — not a meal, just the right touch. So yes, the coffee is €8: a coffee + something to make it happy. You'll thank us.",
+    formula_rule: "A drink on its own? It'd be lonely. Here, the price always includes a little something to nibble — not a meal, just the right touch. So yes, the coffee is €11: a coffee + something to make it happy. You'll thank us.",
     compose: "Build your moment",
-    step1: "The bite",
-    step1_sub: "Yep, we start here.",
-    step2: "The drink",
-    step2_sub: "It shows the price — the bite comes with it.",
+    step1: "The drink",
+    step1_sub: "Start here — it's the one that shows the price.",
+    step2: "The bite",
+    step2_sub: "It comes with, included in the price.",
     price_note: "A bite included in every price. Promise, no sneaky surcharge.",
     sale: "Savoury",
     sucre: "Sweet, all frozen",
     reserve: "Book a table",
+    faq_q: "Why don't you just sell a single drink?",
+    faq_a: "First, it's a licence thing: ours is a restaurant licence, so here a drink always comes with something to eat. And honestly, all the better — a drink on its own never made anyone happy. So every drink arrives with its own little plate to nibble: not a meal, just enough to go with the sunset. The listed price is the whole thing: nothing to add.",
     empty: "The menu is coming very soon.",
     vege: "Veggie",
   },
@@ -87,6 +91,15 @@ export default function RooftopCarteClient() {
   const [catEn, setCatEn] = useState<Record<string, string>>({});
   const [catPrix, setCatPrix] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [faqOpen, setFaqOpen] = useState(false);
+  const [foodTab, setFoodTab] = useState<"sale" | "sucre">("sale");
+
+  // Ouvre l'onglet sur la section qui a des plats (si pas de salé, montre le sucré).
+  useEffect(() => {
+    const hasSale = plats.some(p => p.section === "sale");
+    const hasSucre = plats.some(p => p.section === "sucre");
+    if (!hasSale && hasSucre) setFoodTab("sucre");
+  }, [plats]);
   const t = T[lang];
 
   useEffect(() => {
@@ -166,7 +179,7 @@ export default function RooftopCarteClient() {
         {/* ---------- FORMULE — équation visuelle ---------- */}
         <motion.section
           initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="glass gradient-border rounded-2xl px-6 py-6 text-center"
+          className="rounded-2xl border border-[var(--gold)]/30 bg-white/70 px-6 py-6 text-center shadow-sm backdrop-blur-sm"
         >
           <h2 className="font-serif text-2xl md:text-3xl text-slate-900">{t.formula_title}</h2>
           <div className="mx-auto mt-4 grid max-w-sm grid-cols-[1fr_auto_1fr] items-start justify-items-center gap-2">
@@ -178,10 +191,10 @@ export default function RooftopCarteClient() {
         </motion.section>
 
         {/* ---------- CTA RÉSERVATION (sous la formule) ---------- */}
-        <section className="text-center -mt-2">
+        <section className="text-center -mt-1">
           <Link href="/reservation-table-voiles"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--gold)] px-8 py-3 text-sm font-semibold tracking-wide text-[var(--gold)] transition-colors hover:bg-[var(--gold)] hover:text-white">
-            {t.reserve} <ArrowRight size={16} />
+            className="inline-flex items-center gap-2.5 rounded-full bg-[var(--gold)] px-10 py-4 text-base font-bold tracking-wide text-[#013a5c] shadow-xl shadow-[var(--gold)]/40 ring-1 ring-[var(--gold)]/50 transition-all hover:brightness-105 hover:-translate-y-0.5 active:scale-[0.98]">
+            {t.reserve} <ArrowRight size={19} />
           </Link>
         </section>
 
@@ -193,48 +206,9 @@ export default function RooftopCarteClient() {
             <SectionTitle>{t.compose}</SectionTitle>
 
             <div className="grid lg:grid-cols-[1fr_auto_1fr] gap-6 items-start">
-              {/* Colonne gauche — l'assiette */}
+              {/* Colonne gauche — la boisson (on commence par elle) */}
               <div className="space-y-5">
                 <StepHead num={1} title={t.step1} sub={t.step1_sub} />
-                {sale.length > 0 && (
-                  <div className="space-y-3">
-                    <SubTitle>{t.sale}</SubTitle>
-                    {sale.map(p => (
-                      <PlatCard key={p.id} nom={nomP(p)} desc={descP(p)} opt={optP(p)}
-                        marque={p.marque} prix={p.prix} vege={p.vege} photo={p.photo_url} vegeLabel={t.vege} />
-                    ))}
-                  </div>
-                )}
-                {sucre.length > 0 && (
-                  <div className="space-y-3">
-                    <SubTitle>{t.sucre}</SubTitle>
-                    {sucre.map(p => (
-                      <PlatCard key={p.id} nom={nomP(p)} desc={descP(p)} opt={optP(p)}
-                        marque={p.marque} prix={p.prix} vege={p.vege} photo={p.photo_url} vegeLabel={t.vege} />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Séparateur "+" — vertical sur desktop */}
-              <div className="hidden lg:flex flex-col items-center self-stretch pt-8">
-                <div className="flex-1 w-px bg-[var(--gold)]/30" />
-                <span className="my-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--gold)] text-white font-serif text-2xl shadow-lg shrink-0">+</span>
-                <div className="flex-1 w-px bg-[var(--gold)]/30" />
-              </div>
-              {/* Séparateur "+" — horizontal sur mobile */}
-              <div className="flex lg:hidden items-center justify-center gap-4">
-                <div className="h-px flex-1 bg-[var(--gold)]/30" />
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--gold)] text-white font-serif text-2xl shadow-lg shrink-0">+</span>
-                <div className="h-px flex-1 bg-[var(--gold)]/30" />
-              </div>
-
-              {/* Colonne droite — la boisson */}
-              <div className="space-y-5">
-                <StepHead num={2} title={t.step2} sub={t.step2_sub} />
-                <p className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/10 px-3 py-2.5 text-[12px] font-medium text-[var(--deep-blue)]">
-                  <Check size={15} className="mt-0.5 shrink-0" /> {t.price_note}
-                </p>
                 {drinkCats.map(cat => {
                   const items = drinks.filter(d => d.categorie === cat);
                   if (items.length === 0) return null;
@@ -249,16 +223,14 @@ export default function RooftopCarteClient() {
                           </span>
                         )}
                       </h4>
-                      <ul className="space-y-2.5">
+                      <ul className="space-y-1.5">
                         {items.map(d => {
                           const desc = descB(d);
                           return (
-                            <li key={d.id}>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-sm text-slate-700">{nomB(d)}</span>
-                                {d.quantite != null && <span className="text-[11px] text-slate-400">{d.quantite} cl</span>}
-                              </div>
-                              {desc && <p className="mt-0.5 text-[11px] italic text-slate-400 leading-snug">{desc}</p>}
+                            <li key={d.id} className="flex flex-wrap items-baseline gap-x-2 leading-snug">
+                              <span className="text-sm text-slate-700">{nomB(d)}</span>
+                              {d.quantite != null && <span className="text-[11px] text-slate-400">{d.quantite} cl</span>}
+                              {desc && <span className="text-[11px] italic text-slate-400">· {desc}</span>}
                             </li>
                           );
                         })}
@@ -267,9 +239,60 @@ export default function RooftopCarteClient() {
                   );
                 })}
               </div>
+
+              {/* Séparateur "+" — vertical sur desktop (position figée, ne bouge pas quand on change salé/sucré) */}
+              <div className="hidden lg:flex flex-col items-center self-start pt-10">
+                <div className="h-16 w-px bg-[var(--gold)]/30" />
+                <span className="my-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--gold)] text-white font-serif text-2xl shadow-lg shrink-0">+</span>
+                <div className="h-16 w-px bg-[var(--gold)]/30" />
+              </div>
+              {/* Séparateur "+" — horizontal sur mobile */}
+              <div className="flex lg:hidden items-center justify-center gap-4">
+                <div className="h-px flex-1 bg-[var(--gold)]/30" />
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--gold)] text-white font-serif text-2xl shadow-lg shrink-0">+</span>
+                <div className="h-px flex-1 bg-[var(--gold)]/30" />
+              </div>
+
+              {/* Colonne droite — l'accompagnement (vient avec) */}
+              <div className="space-y-5">
+                <StepHead num={2} title={t.step2} sub={t.step2_sub} />
+                {/* Sélecteur salé / sucré */}
+                <div className="flex flex-wrap gap-2">
+                  {sale.length > 0 && (
+                    <button onClick={() => setFoodTab("sale")}
+                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sale" ? "bg-[var(--gold)] text-white shadow-sm" : "border border-[var(--gold)]/40 text-[var(--deep-blue)] hover:border-[var(--gold)]"}`}>
+                      {t.sale}
+                    </button>
+                  )}
+                  {sucre.length > 0 && (
+                    <button onClick={() => setFoodTab("sucre")}
+                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sucre" ? "bg-[var(--gold)] text-white shadow-sm" : "border border-[var(--gold)]/40 text-[var(--deep-blue)] hover:border-[var(--gold)]"}`}>
+                      {t.sucre}
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {(foodTab === "sucre" ? sucre : sale).map(p => (
+                    <PlatCard key={p.id} nom={nomP(p)} desc={descP(p)} opt={optP(p)}
+                      marque={p.marque} prix={p.prix} vege={p.vege} photo={p.photo_url} vegeLabel={t.vege} />
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
         )}
+
+        {/* ---------- FAQ ---------- */}
+        <section className="mx-auto max-w-lg">
+          <button onClick={() => setFaqOpen(o => !o)}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--gold)]/30 bg-white/70 px-5 py-4 text-left shadow-sm backdrop-blur-sm transition hover:border-[var(--gold)]/60 hover:shadow-md">
+            <span className="font-serif text-base text-slate-900">{t.faq_q}</span>
+            <ChevronDown size={18} className={`shrink-0 text-[var(--gold)] transition-transform ${faqOpen ? "rotate-180" : ""}`} />
+          </button>
+          {faqOpen && (
+            <p className="mt-2 rounded-2xl border border-[var(--gold)]/20 bg-white/60 px-5 py-4 text-sm leading-relaxed text-slate-600 backdrop-blur-sm">{t.faq_a}</p>
+          )}
+        </section>
 
       </div>
     </main>
@@ -286,10 +309,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
-}
-
-function SubTitle({ children }: { children: React.ReactNode }) {
-  return <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{children}</p>;
 }
 
 function FormulaBadge({ icon, label, highlight }: { icon: React.ReactNode; label: string; highlight?: boolean }) {
