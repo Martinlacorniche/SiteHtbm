@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseServer } from "@/lib/supabase-server";
+import { teamEmailForHotel } from "@/lib/hotel-email";
 
 function fmtD(d?: string) {
   if (!d) return "—";
@@ -8,12 +9,13 @@ function fmtD(d?: string) {
 }
 function litLabel(v: string | null) { return v === "twin" ? "2 lits séparés" : v === "double" ? "1 grand lit" : "—"; }
 
-// Envoi best-effort à l'hôtel (domaine vérifié Resend → ALERT_EMAIL)
-async function notifyHotel(subject: string, html: string) {
+// Envoi best-effort à l'équipe de l'hôtel concerné (to résolu par l'appelant via
+// hotels.email_equipe, repli ALERT_EMAIL).
+async function notifyHotel(to: string | null, subject: string, html: string) {
   try {
-    if (process.env.RESEND_API_KEY && process.env.ALERT_EMAIL) {
+    if (process.env.RESEND_API_KEY && to) {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({ from: "Groupes HTBM <demandes@send.hotel-corniche.com>", to: process.env.ALERT_EMAIL!, subject, html });
+      await resend.emails.send({ from: "Groupes HTBM <demandes@send.hotel-corniche.com>", to, subject, html });
     }
   } catch (e) { console.error("Resend notif:", e); }
 }
@@ -101,7 +103,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
 
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, code_pin, statut, date_arrivee, date_depart, config_lit, nb_personnes, nom, prenom, email, tel, groupes(nom, date_arrivee, date_depart, date_limite, statut), groupe_chambres(room_units(numero, pax_max, twinable))")
+    .select("id, code_pin, statut, date_arrivee, date_depart, config_lit, nb_personnes, nom, prenom, email, tel, groupes(nom, date_arrivee, date_depart, date_limite, statut), groupe_chambres(hotel_id, room_units(numero, pax_max, twinable))")
     .eq("booking_ref", ref);
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable" }, { status: 404 });
 
@@ -117,9 +119,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   if (!target) return NextResponse.json({ ok: false, error: "Chambre introuvable dans cette réservation." }, { status: 400 });
 
   const nowIso = new Date().toISOString();
-  const ru = one(one(target.groupe_chambres)?.room_units);
+  const gc = one(target.groupe_chambres);
+  const ru = one(gc?.room_units);
   const guest = `${target.prenom || ""} ${target.nom || ""}`.trim();
   const numero = ru?.numero ?? "?";
+  const to = await teamEmailForHotel(gc?.hotel_id);
 
   if (action === "cancel") {
     const { error } = await supabaseServer.from("groupe_reservations")
@@ -127,6 +131,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
       .eq("id", resa_id);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     await notifyHotel(
+      to,
       `❌ Annulation · ${g.nom} — Ch. ${numero}`,
       shell("Annulation", "#dc2626", `${guest} — Chambre ${numero}`,
         row("Groupe", g.nom) + row("Statut", "ANNULÉE par l'invité", true) + row("Séjour", `${fmtD(target.date_arrivee)} → ${fmtD(target.date_depart)}`) + row("Contact", `${target.email || "—"} · ${target.tel || "—"}`),
@@ -154,6 +159,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     const litChanged = lit !== target.config_lit;
     const paxChanged = pax !== target.nb_personnes;
     await notifyHotel(
+      to,
       `✏️ Modification · ${g.nom} — Ch. ${numero}`,
       shell("Modification", "#d97706", `${guest} — Chambre ${numero}`,
         row("Groupe", g.nom) +

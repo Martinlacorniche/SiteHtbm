@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStripeForHotel } from "@/lib/stripe";
+import { teamEmailForHotel } from "@/lib/hotel-email";
 
 // POST /api/groupe/[code]/reserve
 // Réserve une OU plusieurs chambres en une fois (booking_ref partagé).
@@ -138,21 +139,39 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     return NextResponse.json({ ok: true, ref: bookingRef, requirePayment: true, payments: paymentsOut });
   }
 
-  // Notification hôtel (best-effort ; domaine de test Resend → ALERT_EMAIL)
+  // Notification hôtel (best-effort). Routée PAR HÔTEL via hotels.email_equipe
+  // (repli ALERT_EMAIL) : un booking bi-hôtel prévient chaque équipe concernée,
+  // avec uniquement ses chambres.
   try {
-    if (process.env.RESEND_API_KEY && process.env.ALERT_EMAIL) {
+    if (process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const roomRows = rooms.map((r: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number }) => {
-        const ru = one(gcMap.get(r.groupe_chambre_id)!.room_units);
-        const lit = ru?.twinable ? (r.config_lit === "twin" ? "2 lits séparés" : "1 grand lit") : "—";
-        const pax = Math.max(1, parseInt(String(r.nb_personnes)) || 1);
-        return `<tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:600;">Ch. ${ru?.numero ?? "?"}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${lit}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${pax} pers.</td></tr>`;
-      }).join("");
-      await resend.emails.send({
-        from: "BW+ La Corniche <paiement@send.hotel-corniche.com>",
-        to: process.env.ALERT_EMAIL!,
-        subject: `🛏️ Nouvelle réservation · ${g.nom} — ${prenom || ""} ${nom}`,
-        html: `
+      const roomRowsOf = (rs: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number }[]) =>
+        rs.map((r) => {
+          const ru = one(gcMap.get(r.groupe_chambre_id)!.room_units);
+          const lit = ru?.twinable ? (r.config_lit === "twin" ? "2 lits séparés" : "1 grand lit") : "—";
+          const pax = Math.max(1, parseInt(String(r.nb_personnes)) || 1);
+          return `<tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:600;">Ch. ${ru?.numero ?? "?"}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${lit}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${pax} pers.</td></tr>`;
+        }).join("");
+
+      // Regroupe les chambres réservées par hôtel.
+      const byHotelRooms = new Map<string, { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number }[]>();
+      for (const r of rooms) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const gc: any = gcMap.get(r.groupe_chambre_id);
+        const hid = gc?.hotel_id;
+        if (!hid) continue;
+        if (!byHotelRooms.has(hid)) byHotelRooms.set(hid, []);
+        byHotelRooms.get(hid)!.push(r);
+      }
+
+      for (const [hid, hrooms] of byHotelRooms) {
+        const to = await teamEmailForHotel(hid);
+        if (!to) continue;
+        await resend.emails.send({
+          from: "BW+ La Corniche <paiement@send.hotel-corniche.com>",
+          to,
+          subject: `🛏️ Nouvelle réservation · ${g.nom} — ${prenom || ""} ${nom}`,
+          html: `
           <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1e293b;">
             <div style="background:#004e7c;padding:20px 28px;border-radius:12px 12px 0 0;">
               <p style="margin:0;color:#C6A972;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">${g.nom} · Nouvelle réservation</p>
@@ -164,14 +183,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
                 <tr><td style="padding:6px 0;color:#64748b;font-size:12px;">Téléphone</td><td style="padding:6px 0;font-weight:600;">${tel || "—"}</td></tr>
                 <tr><td style="padding:6px 0;color:#64748b;font-size:12px;">Séjour</td><td style="padding:6px 0;font-weight:600;">${da} → ${dd}</td></tr>
               </table>
-              <p style="margin:0 0 6px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Chambres (${rooms.length})</p>
-              <table style="width:100%;border-collapse:collapse;font-size:14px;">${roomRows}</table>
+              <p style="margin:0 0 6px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Chambres (${hrooms.length})</p>
+              <table style="width:100%;border-collapse:collapse;font-size:14px;">${roomRowsOf(hrooms)}</table>
               <p style="margin:18px 0 0;font-size:11px;color:#94a3b8;">À saisir dans le PMS. Pensez à cocher « Traité PMS » dans le back-office.</p>
             </div>
           </div>`,
-      });
+        });
+      }
 
-      // Confirmation au CLIENT
+      // Confirmation au CLIENT (toutes les chambres du booking).
+      const roomRows = roomRowsOf(rooms);
       const origin = req.headers.get("origin") || "";
       await resend.emails.send({
         from: "BW+ La Corniche <paiement@send.hotel-corniche.com>",
