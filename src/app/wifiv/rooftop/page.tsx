@@ -51,6 +51,7 @@ export default function RooftopPage() {
   const [items, setItems] = useState<BarItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [catEn, setCatEn] = useState<Record<string, string>>({});
+  const [catPrix, setCatPrix] = useState<Record<string, string>>({});
   const [active, setActive] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const t = T[lang];
@@ -79,6 +80,9 @@ export default function RooftopPage() {
       }
       if (tileData?.config?.en?.categories) {
         setCatEn(tileData.config.en.categories as Record<string, string>);
+      }
+      if (tileData?.config?.categories_prix) {
+        setCatPrix(tileData.config.categories_prix as Record<string, string>);
       }
       setLoading(false);
     });
@@ -171,6 +175,14 @@ export default function RooftopPage() {
                   transition={{ duration: 0.18 }}
                   className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
                 >
+                  {(catPrix[active] ?? "").trim() && (
+                    <div className="flex items-baseline justify-between gap-2 px-4 py-3 border-b border-slate-100 bg-[#7c2d12]/5">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-[#7c2d12]">{displayCat(active)}</span>
+                      <span className="text-base font-semibold tabular-nums text-slate-800">
+                        {catPrix[active].includes("€") ? catPrix[active] : `${catPrix[active].trim()} €`}
+                      </span>
+                    </div>
+                  )}
                   <ul className="divide-y divide-slate-50">
                     {catItems.map(item => {
                       const desc = displayDesc(item);
@@ -194,9 +206,6 @@ export default function RooftopPage() {
                               </p>
                             )}
                           </div>
-                          <span className="text-sm font-semibold tabular-nums text-slate-800 shrink-0 pt-0.5">
-                            {item.prix.includes("€") ? item.prix : `${item.prix} €`}
-                          </span>
                         </li>
                       );
                     })}

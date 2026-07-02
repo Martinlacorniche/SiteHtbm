@@ -33,6 +33,7 @@ const T = {
     title: "Le Rooftop",
     tagline: "Sunset · Eat & Drink",
     usp: "Rooftop vue mer",
+    hours: "Ouvert tous les soirs · 17h – 22h",
     subtitle: "Bar à ciel ouvert sur la rade. Ici, chaque verre vient avec son accompagnement à picorer. Oui, même le café.",
     formula_title: "Formule unique",
     formula_plate: "Accompagnement",
@@ -57,6 +58,7 @@ const T = {
     title: "The Rooftop",
     tagline: "Sunset · Eat & Drink",
     usp: "Sea-view rooftop",
+    hours: "Open every evening · 5–10pm",
     subtitle: "Open-air bar over the bay. Here, every glass comes with its bite to nibble. Yes, even the coffee.",
     formula_title: "One simple set",
     formula_plate: "Bite",
@@ -83,6 +85,7 @@ export default function RooftopCarteClient() {
   const [drinks, setDrinks] = useState<BarItem[]>([]);
   const [drinkCats, setDrinkCats] = useState<string[]>([]);
   const [catEn, setCatEn] = useState<Record<string, string>>({});
+  const [catPrix, setCatPrix] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const t = T[lang];
 
@@ -109,6 +112,7 @@ export default function RooftopCarteClient() {
         setDrinkCats(ordered.filter(c => !hidden.has(c)));
       }
       if (tileData?.config?.en?.categories) setCatEn(tileData.config.en.categories as Record<string, string>);
+      if (tileData?.config?.categories_prix) setCatPrix(tileData.config.categories_prix as Record<string, string>);
       setLoading(false);
     });
   }, []);
@@ -147,6 +151,7 @@ export default function RooftopCarteClient() {
           <h1 className="mt-2 font-serif text-3xl md:text-4xl font-semibold drop-shadow">{t.title}</h1>
           <p className="mt-1.5 font-serif italic text-lg md:text-xl text-[var(--gold)]">{t.tagline}</p>
           <p className="mx-auto mt-3 max-w-md text-sm md:text-base text-white/85">{t.subtitle}</p>
+          <p className="mt-2 text-[12px] font-medium uppercase tracking-widest text-[var(--gold)]">{t.hours}</p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <div className="h-px w-10 bg-[var(--gold)]/60" />
             <button onClick={toggleLang} className="text-[11px] font-semibold tracking-widest text-[var(--gold)] hover:text-white transition">
@@ -233,10 +238,16 @@ export default function RooftopCarteClient() {
                 {drinkCats.map(cat => {
                   const items = drinks.filter(d => d.categorie === cat);
                   if (items.length === 0) return null;
+                  const prixCat = (catPrix[cat] ?? "").trim();
                   return (
                     <div key={cat}>
-                      <h4 className="font-serif text-lg text-slate-900 border-b border-[var(--gold)]/40 pb-1.5 mb-3">
-                        {displayCat(cat)}
+                      <h4 className="flex items-baseline gap-2 font-serif text-lg text-slate-900 border-b border-[var(--gold)]/40 pb-1.5 mb-3">
+                        <span>{displayCat(cat)}</span>
+                        {prixCat && (
+                          <span className="ml-auto text-base font-semibold tabular-nums text-[var(--deep-blue)]">
+                            {prixCat.includes("€") ? prixCat : `${prixCat} €`}
+                          </span>
+                        )}
                       </h4>
                       <ul className="space-y-2.5">
                         {items.map(d => {
@@ -246,10 +257,6 @@ export default function RooftopCarteClient() {
                               <div className="flex items-baseline gap-2">
                                 <span className="text-sm text-slate-700">{nomB(d)}</span>
                                 {d.quantite != null && <span className="text-[11px] text-slate-400">{d.quantite} cl</span>}
-                                <span className="flex-1 border-b border-dotted border-slate-300 translate-y-[-3px]" />
-                                <span className="text-sm font-semibold tabular-nums text-slate-800">
-                                  {d.prix?.includes("€") ? d.prix : `${d.prix} €`}
-                                </span>
                               </div>
                               {desc && <p className="mt-0.5 text-[11px] italic text-slate-400 leading-snug">{desc}</p>}
                             </li>
