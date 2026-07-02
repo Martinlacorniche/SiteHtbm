@@ -163,7 +163,6 @@ export default function RooftopCarteClient() {
           <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">{t.hotel}</p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl font-semibold drop-shadow">{t.title}</h1>
           <p className="mt-1.5 font-serif italic text-lg md:text-xl text-[var(--gold)]">{t.tagline}</p>
-          <p className="mx-auto mt-3 max-w-md text-sm md:text-base text-white/85">{t.subtitle}</p>
           <p className="mt-2 text-[12px] font-medium uppercase tracking-widest text-[var(--gold)]">{t.hours}</p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <div className="h-px w-10 bg-[var(--gold)]/60" />
