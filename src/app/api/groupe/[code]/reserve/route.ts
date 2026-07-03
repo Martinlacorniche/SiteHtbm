@@ -208,8 +208,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
              </div>`
           : mode === "optionnel" && gestionUrl
           ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fbf7ef;border:1px solid #e5d9c3;border-radius:10px;">
-               <p style="margin:0 0 10px;color:#8a6d3b;font-size:13px;line-height:1.5;">Vous pouvez régler dès à présent, en toute sécurité.</p>
-               <a href="${gestionUrl}" style="display:inline-block;background:#C6A972;color:#1e293b;padding:9px 18px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13px;">Payer maintenant</a>
+               <p style="margin:0 0 10px;color:#8a6d3b;font-size:13px;line-height:1.5;">Le règlement se fera directement à l'hôtel. Si vous préférez, vous pouvez aussi régler en ligne dès maintenant, en toute sécurité :</p>
+               <a href="${gestionUrl}" style="display:inline-block;background:#C6A972;color:#1e293b;padding:9px 18px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13px;">Payer en ligne</a>
              </div>`
           : "";
       await resend.emails.send({
