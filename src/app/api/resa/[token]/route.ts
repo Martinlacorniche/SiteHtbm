@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, statut, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url)")
+    .select("id, statut, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url, mode_paiement, paiement_obligatoire)")
     .eq("booking_ref", ref);
 
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable" }, { status: 404 });
@@ -82,10 +82,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     }
   }
 
+  // Paiement en ligne à la demande (modes « Sur place » / « Programmé ») : dispo
+  // s'il reste au moins une chambre tenue et non encore réglée.
+  const mode: string = g?.mode_paiement || (g?.paiement_obligatoire ? "immediat" : "aucun");
+  let canPayOnline = false;
+  if (mode === "optionnel" || mode === "differe") {
+    const ckoutIds = [...new Set(rows.filter((r) => r.stripe_checkout_id).map((r) => r.stripe_checkout_id as string))];
+    const paidCkout = new Set<string>();
+    if (ckoutIds.length) {
+      const { data: pays } = await supabaseServer.from("payments").select("stripe_checkout_id").in("stripe_checkout_id", ckoutIds).eq("status", "paid");
+      for (const p of pays || []) if (p.stripe_checkout_id) paidCkout.add(p.stripe_checkout_id);
+    }
+    canPayOnline = rows.some((r) =>
+      (r.statut === "confirmee" || r.statut === "paiement_differe") &&
+      !(r.stripe_checkout_id && paidCkout.has(r.stripe_checkout_id)));
+  }
+
   return NextResponse.json({
     ok: true,
     resas,
     pendingPayments,
+    canPayOnline,
     groupe: {
       nom: g?.nom, code: g?.code_acces, date_arrivee: g?.date_arrivee, date_depart: g?.date_depart, date_limite: g?.date_limite,
       conditions_annulation: g?.conditions_annulation, cover_image_url: g?.cover_image_url,

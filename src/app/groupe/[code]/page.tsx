@@ -476,6 +476,9 @@ function ManageView({ token }: { token: string }) {
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; numero?: string } | null>(null);
   const [pending, setPending] = useState<{ hotel_id: string; hotelNom: string; amount: number; url: string }[]>([]);
+  const [canPay, setCanPay] = useState(false);
+  const [payLinks, setPayLinks] = useState<{ hotelNom: string; amount: number; url: string }[] | null>(null);
+  const [payBusy, setPayBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -483,7 +486,7 @@ function ManageView({ token }: { token: string }) {
       const res = await fetch(`/api/resa/${token}`);
       const d = await res.json();
       if (!d.ok) { setError(d.error || "Réservation introuvable"); return; }
-      setResas(d.resas); setGroupe(d.groupe); setPending(d.pendingPayments || []);
+      setResas(d.resas); setGroupe(d.groupe); setPending(d.pendingPayments || []); setCanPay(!!d.canPayOnline);
     } catch { setError("Connexion impossible."); } finally { setLoading(false); }
   }, [token]);
   useEffect(() => { load(); }, [load]);
@@ -513,6 +516,16 @@ function ManageView({ token }: { token: string }) {
       const d = await res.json(); if (!d.ok) { setMsg(d.error); if (typeof d.error === "string" && d.error.includes("Code")) { setCodeKnown(false); try { sessionStorage.removeItem(`pin_${token}`); } catch {} } setCancelTarget(null); return; }
       setCancelTarget(null); await load();
     } finally { setBusy(false); }
+  }
+  async function startPay() {
+    setPayBusy(true); setMsg(null);
+    try {
+      const res = await fetch(`/api/groupe/${groupe.code}/pay`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: token }) });
+      const d = await res.json();
+      if (!d.ok) { setMsg(d.error || "Paiement indisponible"); return; }
+      if (d.payments.length === 1) { window.location.href = d.payments[0].url; return; }
+      setPayLinks(d.payments);
+    } catch { setMsg("Connexion impossible."); } finally { setPayBusy(false); }
   }
 
   return (
@@ -547,6 +560,33 @@ function ManageView({ token }: { token: string }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {canPay && pending.length === 0 && (
+          <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 border" style={{ borderColor: GOLD }}>
+            {!payLinks ? (
+              <>
+                <p className="font-serif font-semibold text-slate-800">Régler en ligne</p>
+                <p className="text-xs text-slate-500 mt-0.5 mb-3">Payez votre séjour dès maintenant, en toute sécurité (sinon, règlement à l&apos;hôtel).</p>
+                <button onClick={startPay} disabled={payBusy} className="w-full h-11 rounded-full font-semibold text-white disabled:opacity-60" style={{ background: NAVY }}>
+                  {payBusy ? "…" : "Payer en ligne"}
+                </button>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <p className="font-serif font-semibold text-slate-800 mb-1">Finalisez votre paiement</p>
+                {payLinks.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                    <div className="min-w-0">
+                      {payLinks.length > 1 && <div className="text-[11px] text-slate-400 truncate">{p.hotelNom}</div>}
+                      <div className="text-xl font-bold leading-none" style={{ color: NAVY }}>{euro(p.amount)}</div>
+                    </div>
+                    <a href={p.url} className="h-10 px-5 rounded-full font-semibold flex items-center shrink-0" style={{ background: NAVY, color: "#fff" }}>Payer</a>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
