@@ -31,6 +31,28 @@ function fmt(d?: string) {
 function euro(n: number) {
   return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 }
+// Taxe de séjour réglée sur place (par personne et par nuit)
+function taxeSejour(hotel: string | null): number {
+  return (hotel || "").toLowerCase().includes("voile") ? 2.09 : 2.83;
+}
+function euro2(n: number) {
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
+}
+// Ordre d'affichage des catégories de chambres (du plus simple au plus prestigieux)
+function catRank(type: string | null): number {
+  const t = (type || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (t.includes("single")) return 0;
+  if (t.includes("classique")) return 1;
+  if (t.includes("confort")) return 2;
+  if (t.includes("superieur")) return 3;
+  if (t.includes("exec")) return 4;
+  if (t.includes("balcon")) return 6;   // vue mer balcon (après vue mer)
+  if (t.includes("vue mer")) return 5;
+  if (t.includes("loft")) return 7;
+  if (t.includes("junior")) return 8;
+  if (t.includes("prestige")) return 9;
+  return 99;
+}
 
 // ============================================================================
 export default function Page() {
@@ -115,7 +137,9 @@ function BookingView({ code }: { code: string }) {
         if (!byCat.has(k)) byCat.set(k, []);
         byCat.get(k)!.push(r);
       }
-      const cats = [...byCat.entries()].map(([name, rr]) => ({ name, tarif: rr[0]?.tarif ?? 0, rooms: rr }));
+      const cats = [...byCat.entries()]
+        .map(([name, rr]) => ({ name, tarif: rr[0]?.tarif ?? 0, rooms: rr }))
+        .sort((a, b) => catRank(a.name) - catRank(b.name) || a.name.localeCompare(b.name, "fr"));
       out.push({ hotel, cats });
     }
     return out;
@@ -154,8 +178,12 @@ function BookingView({ code }: { code: string }) {
             {sec.cats.map((cat) => (
               <div key={cat.name} className="mb-5">
                 <div className="flex items-baseline justify-between mb-2.5 px-0.5">
-                  <h3 className="font-serif font-semibold text-xl" style={{ color: NAVY }}>{cat.name}</h3>
-                  <span className="text-sm font-semibold" style={{ color: GOLD }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span></span>
+                  <div className="flex items-baseline gap-2.5 min-w-0">
+                    <span aria-hidden className="self-stretch w-[3px] rounded-full shrink-0" style={{ background: GOLD }} />
+                    <h3 className="font-serif font-semibold text-2xl leading-tight truncate" style={{ color: NAVY }}>{cat.name}</h3>
+                    <span className="text-xs font-medium text-slate-400 whitespace-nowrap shrink-0">{cat.rooms.filter(r => !r.taken).length} dispo.</span>
+                  </div>
+                  <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span></span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                   {cat.rooms.map((r, i) => (
@@ -279,6 +307,9 @@ function BookingForm({ code, groupe, rooms, onClose, onDone, onPay, onConflict }
     setCfg(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
 
+  const nights = Math.max(1, Math.round((new Date(dd + "T00:00:00").getTime() - new Date(da + "T00:00:00").getTime()) / 86400000));
+  const totalHebergement = rooms.reduce((s, r) => s + r.tarif, 0) * nights;
+
   async function submit() {
     setErr(null);
     if (!nom.trim() || !email.trim()) return setErr("Nom et email sont requis.");
@@ -309,6 +340,37 @@ function BookingForm({ code, groupe, rooms, onClose, onDone, onPay, onConflict }
   return (
     <Sheet onClose={onClose} title={`${rooms.length} chambre${rooms.length > 1 ? "s" : ""}`} subtitle="Réserver">
       <div className="px-5 py-5 space-y-4">
+        {/* Récap type de chambre + prix */}
+        <div className="rounded-xl border p-3.5 space-y-2" style={{ borderColor: "rgba(0,78,124,.14)", background: "rgba(0,78,124,.03)" }}>
+          {rooms.map(r => (
+            <div key={r.id} className="flex items-baseline justify-between gap-3">
+              <span className="font-serif font-semibold text-base leading-tight truncate" style={{ color: NAVY }}>
+                {r.type || "Chambre"}
+                <span className="ml-1.5 text-xs font-normal text-slate-400">n° {r.numero}</span>
+              </span>
+              <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>
+                {euro(r.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span>
+              </span>
+            </div>
+          ))}
+          <div className="flex items-baseline justify-between gap-3 pt-2 border-t" style={{ borderColor: "rgba(0,78,124,.1)" }}>
+            <span className="text-sm font-semibold" style={{ color: NAVY }}>
+              Total hébergement
+              <span className="ml-1.5 text-[11px] font-normal text-slate-400">{nights} nuit{nights > 1 ? "s" : ""}{rooms.length > 1 ? ` · ${rooms.length} ch.` : ""}</span>
+            </span>
+            <span className="text-base font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(totalHebergement)}</span>
+          </div>
+          <div className="text-[11px] text-slate-500 leading-relaxed">
+            <span className="font-medium text-slate-600">Taxe de séjour</span> à régler sur place, par personne et par nuit :{" "}
+            {[...new Map(rooms.map(r => [r.hotel, r.hotel])).keys()].length > 1
+              ? [...new Map(rooms.map(r => [r.hotel, r.hotel])).keys()].map((h, i, a) => (
+                  <span key={h ?? i}>{euro2(taxeSejour(h))} ({h}){i < a.length - 1 ? ", " : ""}</span>
+                ))
+              : <span>{euro2(taxeSejour(rooms[0]?.hotel ?? null))}</span>}
+            .
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <FInput label="Prénom" value={prenom} onChange={setPrenom} placeholder="Léa" />
           <FInput label="Nom *" value={nom} onChange={setNom} placeholder="Dupont" />
