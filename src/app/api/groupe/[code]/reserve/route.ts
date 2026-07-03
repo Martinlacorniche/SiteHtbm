@@ -63,7 +63,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     if (!up.error) sigPath = path;
   }
 
-  const obligatoire = !!g.paiement_obligatoire;
+  // Mode de paiement (4 modes ; repli sur l'ancien booléen pour compat).
+  const mode: string = g.mode_paiement || (g.paiement_obligatoire ? "immediat" : "aucun");
+  const immediat = mode === "immediat";
+  const differe = mode === "differe";
   const nights = Math.max(1, Math.round((new Date(dd).getTime() - new Date(da).getTime()) / 86400000));
   const nowIso = new Date().toISOString();
 
@@ -81,8 +84,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       date_arrivee: da, date_depart: dd,
       config_lit: lit, nb_personnes: Math.max(1, parseInt(String(r.nb_personnes)) || 1),
       signature_url: sigPath, cgv_acceptees_at: nowIso,
-      // Paiement obligatoire → la chambre est TENUE en attente jusqu'au paiement.
-      statut: obligatoire ? "en_attente_paiement" : "confirmee",
+      // immédiat → tenue en attente de paiement ; différé → tenue jusqu'au lien
+      // envoyé + 48h ; optionnel/aucun → confirmée directement.
+      statut: immediat ? "en_attente_paiement" : differe ? "paiement_differe" : "confirmee",
       derniere_action: "creation", vu_backoffice: false,
     };
   });
@@ -94,8 +98,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  // ── PAIEMENT OBLIGATOIRE : une session Checkout PAR HÔTEL (comptes Stripe distincts) ──
-  if (obligatoire) {
+  // ── PAIEMENT IMMÉDIAT : une session Checkout PAR HÔTEL (comptes Stripe distincts) ──
+  if (immediat) {
     const origin = req.headers.get("origin") || "http://localhost:3001";
     type HG = { resaIds: string[]; lines: { name: string; amount: number }[]; total: number };
     const byHotel = new Map<string, HG>();
@@ -194,6 +198,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       // Confirmation au CLIENT (toutes les chambres du booking).
       const roomRows = roomRowsOf(rooms);
       const origin = req.headers.get("origin") || "";
+      // Encart paiement selon le mode (charte HTBM).
+      const fmtFr = (d: string) => { try { return new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
+      const gestionUrl = origin ? `${origin}/groupe/${code}?r=${bookingRef}` : "";
+      const paymentNote =
+        differe && g.date_envoi_paiement
+          ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fbf7ef;border:1px solid #e5d9c3;border-radius:10px;">
+               <p style="margin:0;color:#8a6d3b;font-size:13px;line-height:1.5;">💳 Un lien de paiement sécurisé vous sera envoyé le <strong>${fmtFr(g.date_envoi_paiement)}</strong>. Vous aurez ensuite <strong>48&nbsp;heures</strong> pour régler, sans quoi la chambre sera automatiquement remise à disposition.</p>
+             </div>`
+          : mode === "optionnel" && gestionUrl
+          ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fbf7ef;border:1px solid #e5d9c3;border-radius:10px;">
+               <p style="margin:0 0 10px;color:#8a6d3b;font-size:13px;line-height:1.5;">Vous pouvez régler dès à présent, en toute sécurité.</p>
+               <a href="${gestionUrl}" style="display:inline-block;background:#C6A972;color:#1e293b;padding:9px 18px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13px;">Payer maintenant</a>
+             </div>`
+          : "";
       await resend.emails.send({
         from: "BW+ La Corniche <paiement@send.hotel-corniche.com>",
         to: email,
@@ -210,6 +228,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
                 <tr><td style="padding:6px 0;color:#64748b;font-size:12px;width:110px;">Séjour</td><td style="padding:6px 0;font-weight:600;">${da} → ${dd}</td></tr>
               </table>
               <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">${roomRows}</table>
+              ${paymentNote}
               ${origin ? `<p style="margin:4px 0 0;text-align:center;"><a href="${origin}/groupe/${code}?r=${bookingRef}" style="background:#004e7c;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Voir / gérer ma réservation</a></p>` : ""}
               <p style="margin:14px 0 0;color:#94a3b8;font-size:11px;text-align:center;">Votre code à 4 chiffres vous sera demandé pour modifier ou annuler.</p>
             </div>
