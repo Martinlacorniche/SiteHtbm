@@ -39,7 +39,7 @@ const T = {
     formula_plate: "Accompagnement",
     formula_drink: "Boisson",
     formula_result: "Un seul prix",
-    formula_rule: "Une boisson toute seule ? Elle s'ennuierait. Chez nous, le prix comprend toujours un accompagnement à grignoter — pas un plat, juste ce qu'il faut. Donc oui, le café est à 11 € : un café + de quoi le rendre heureux. Vous nous remercierez.",
+    formula_rule: "Une boisson toute seule ? Elle s'ennuierait. Chez nous, le prix comprend toujours un accompagnement à grignoter. Vous nous remercierez 😊",
     compose: "Composez votre moment",
     step1: "La boisson",
     step1_sub: "On commence par elle — c'est elle qui affiche le prix.",
@@ -66,7 +66,7 @@ const T = {
     formula_plate: "Bite",
     formula_drink: "Drink",
     formula_result: "One price",
-    formula_rule: "A drink on its own? It'd be lonely. Here, the price always includes a little something to nibble — not a meal, just the right touch. So yes, the coffee is €11: a coffee + something to make it happy. You'll thank us.",
+    formula_rule: "A drink on its own? It'd be lonely. Here, the price always includes a little something to nibble. You'll thank us 😊",
     compose: "Build your moment",
     step1: "The drink",
     step1_sub: "Start here — it's the one that shows the price.",
@@ -174,7 +174,7 @@ export default function RooftopCarteClient() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+      <div className="mx-auto max-w-4xl px-4 pt-8 pb-28 space-y-8">
         {/* ---------- FORMULE — équation visuelle ---------- */}
         <motion.section
           initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
