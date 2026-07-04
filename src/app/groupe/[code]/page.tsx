@@ -33,7 +33,7 @@ function euro(n: number) {
 }
 // Taxe de séjour réglée sur place (par personne et par nuit)
 function taxeSejour(hotel: string | null): number {
-  return (hotel || "").toLowerCase().includes("voile") ? 2.09 : 2.83;
+  return (hotel || "").toLowerCase().includes("voile") ? 1.86 : 2.83;
 }
 function euro2(n: number) {
   return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
