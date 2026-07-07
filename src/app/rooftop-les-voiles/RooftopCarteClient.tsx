@@ -189,7 +189,19 @@ export default function RooftopCarteClient() {
           <p className="mx-auto mt-4 max-w-lg text-sm text-slate-500 leading-relaxed">{t.formula_rule}</p>
         </motion.section>
 
-        {/* ---------- CTA RÉSERVATION (sous la formule) ---------- */}
+        {/* ---------- FAQ (entre la formule et le CTA réservation) ---------- */}
+        <section className="mx-auto max-w-lg">
+          <button onClick={() => setFaqOpen(o => !o)}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--gold)]/30 bg-white/70 px-5 py-4 text-left shadow-sm backdrop-blur-sm transition hover:border-[var(--gold)]/60 hover:shadow-md">
+            <span className="font-serif text-base text-slate-900">{t.faq_q}</span>
+            <ChevronDown size={18} className={`shrink-0 text-[var(--gold)] transition-transform ${faqOpen ? "rotate-180" : ""}`} />
+          </button>
+          {faqOpen && (
+            <p className="mt-2 rounded-2xl border border-[var(--gold)]/20 bg-white/60 px-5 py-4 text-sm leading-relaxed text-slate-600 backdrop-blur-sm">{t.faq_a}</p>
+          )}
+        </section>
+
+        {/* ---------- CTA RÉSERVATION (sous la FAQ) ---------- */}
         <section className="text-center -mt-1">
           <Link href="/reservation-table-voiles"
             className="inline-flex items-center gap-2.5 rounded-full bg-[var(--gold)] px-10 py-4 text-base font-bold tracking-wide text-[#013a5c] shadow-xl shadow-[var(--gold)]/40 ring-1 ring-[var(--gold)]/50 transition-all hover:brightness-105 hover:-translate-y-0.5 active:scale-[0.98]">
@@ -280,18 +292,6 @@ export default function RooftopCarteClient() {
             </div>
           </section>
         )}
-
-        {/* ---------- FAQ ---------- */}
-        <section className="mx-auto max-w-lg">
-          <button onClick={() => setFaqOpen(o => !o)}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--gold)]/30 bg-white/70 px-5 py-4 text-left shadow-sm backdrop-blur-sm transition hover:border-[var(--gold)]/60 hover:shadow-md">
-            <span className="font-serif text-base text-slate-900">{t.faq_q}</span>
-            <ChevronDown size={18} className={`shrink-0 text-[var(--gold)] transition-transform ${faqOpen ? "rotate-180" : ""}`} />
-          </button>
-          {faqOpen && (
-            <p className="mt-2 rounded-2xl border border-[var(--gold)]/20 bg-white/60 px-5 py-4 text-sm leading-relaxed text-slate-600 backdrop-blur-sm">{t.faq_a}</p>
-          )}
-        </section>
 
       </div>
     </main>
