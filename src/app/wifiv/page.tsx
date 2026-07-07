@@ -111,7 +111,7 @@ function renderContent(tile: DbTile, lang: Lang): React.ReactNode {
   }
 }
 
-const HREFS: Record<string, string> = { rooftop: "/wifiv/rooftop" };
+const HREFS: Record<string, string> = { rooftop: "/rooftop-les-voiles" };
 
 type Translations = {
   welcome: string;
