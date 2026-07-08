@@ -52,7 +52,7 @@ const CONFIG = {
  // --- CONFIG POPUP (Rooftop Les Voiles) ---
 
   popup: {
-    endDate: "2026-10-01", // Fin de la saison estivale — après, la pop-up ne s'affiche plus
+    endDate: "2026-07-30", // Après cette date, la pop-up ne s'affiche plus
     image: "/images/popuproof.jpg", // Photo du rooftop en fond de la pop-up
     link: "/rooftop-les-voiles", // Clic → la carte du rooftop (navigation interne)
     teaser_intro: { fr: "Vous l'attendiez…", en: "You've been waiting…" },
