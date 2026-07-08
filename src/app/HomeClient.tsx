@@ -49,13 +49,22 @@ const CONFIG = {
     }
   },
 
- // --- CONFIG POPUP ---
+ // --- CONFIG POPUP (Rooftop Les Voiles) ---
 
   popup: {
-    endDate: "2026-03-01", 
-    image: "/images/popup-sun26.jpg", // Pense à remplacer le fichier image dans ton dossier !
-    // MODIF ICI 👇 : On met SUN26 dans le lien
-    link: "https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR?code=SUN26",
+    endDate: "2026-10-01", // Fin de la saison estivale — après, la pop-up ne s'affiche plus
+    image: "/images/popuproof.jpg", // Photo du rooftop en fond de la pop-up
+    link: "/rooftop-les-voiles", // Clic → la carte du rooftop (navigation interne)
+    teaser_intro: { fr: "Vous l'attendiez…", en: "You've been waiting…" },
+    teaser_punch: { fr: "Il revient.", en: "It's back." },
+    teaser_hook: { fr: "Et cette fois, tous les soirs !", en: "And this time, every evening!" },
+    eyebrow: { fr: "Les Voiles · Toulon", en: "Les Voiles · Toulon" },
+    title: { fr: "Le Rooftop", en: "The Rooftop" },
+    tagline: { fr: "Eat & Drink · Sunset", en: "Eat & Drink · Sunset" },
+    hours: { fr: "Ouvert de 17h à 22h", en: "Open 5 → 10pm" },
+    reservation: { fr: "Réservation obligatoire", en: "Booking required" },
+    cta: { fr: "Découvrir la carte", en: "See the menu" },
+    dismiss: { fr: "Non merci", en: "No thanks" },
   },
 
   corniche: {
@@ -256,7 +265,7 @@ export default function PageUltimeV15() {
   const now = new Date();
   const limit = new Date(CONFIG.popup.endDate);
   // On change le nom ici 👇
-  const hasSeen = localStorage.getItem("popup_soleil_seen");
+  const hasSeen = localStorage.getItem("popup_rooftop_seen");
 
   if (now < limit && !hasSeen) {
     const timer = setTimeout(() => setShowPopup(true), 2000); 
@@ -267,7 +276,7 @@ export default function PageUltimeV15() {
   const closePopup = () => {
   setShowPopup(false);
   // Et ici aussi 👇
-  localStorage.setItem("popup_soleil_seen", "true");
+  localStorage.setItem("popup_rooftop_seen", "true");
 };
 
   const getFlexClass = (id: "corniche" | "voiles" | "villa") => {
@@ -408,56 +417,58 @@ export default function PageUltimeV15() {
         )}
       </AnimatePresence>
 
-   {/* --- POPUP FEVRIER (VERSION BILINGUE) --- */}
+   {/* --- POPUP ROOFTOP LES VOILES (photo composée + texte, bilingue) --- */}
       <AnimatePresence>
         {showPopup && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           >
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-4xl w-full flex flex-col relative mx-4"
+              className="relative w-full max-w-md overflow-hidden rounded-2xl shadow-2xl mx-4"
             >
               {/* Croix de fermeture */}
-              <button onClick={closePopup} className="absolute top-3 right-3 z-30 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors backdrop-blur-sm">
+              <button onClick={closePopup} aria-label={CONFIG.popup.dismiss[lang]} className="absolute top-3 right-3 z-30 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors backdrop-blur-sm">
                 <X className="w-5 h-5" />
               </button>
 
-              {/* L'IMAGE (Cliquable) */}
-              <a href={CONFIG.popup.link} target="_blank" className="relative w-full aspect-video bg-slate-100 group overflow-hidden">
-                <Image 
-                    src={CONFIG.popup.image} 
-                    alt="Offre Soleil" 
-                    fill 
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-              </a>
+              {/* Photo du rooftop en fond, cliquable → la carte */}
+              <Link href={CONFIG.popup.link} onClick={closePopup} className="group block">
+                <div className="relative aspect-[3/4] w-full overflow-hidden bg-[#013a5c]">
+                  <Image
+                    src={CONFIG.popup.image}
+                    alt={`${CONFIG.popup.title[lang]} — ${CONFIG.popup.tagline[lang]}`}
+                    fill
+                    className="object-cover object-center transition-transform duration-[1400ms] group-hover:scale-105"
+                  />
+                  {/* Dégradés haut + bas pour la lisibilité du texte, cocktails visibles au milieu */}
+                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-[#013a5c]/85 via-[#013a5c]/40 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-[#013a5c]/95 via-[#013a5c]/45 to-transparent" />
 
-              {/* BARRE DU BAS (TRADUITE) */}
-              <div className="p-4 md:p-6 bg-white flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100">
-                <span className="text-sm text-slate-500 hidden md:block italic">
-                    {lang === 'fr' 
-                      ? "Offre valable uniquement en Février 2026." 
-                      : "Offer valid only in February 2026."}
-                </span>
-                
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <button onClick={closePopup} className="hidden md:block text-slate-400 text-sm hover:text-slate-600 underline">
-                        {lang === 'fr' ? "Non merci" : "No thanks"}
-                    </button>
-                    <a 
-                      href={CONFIG.popup.link} 
-                      target="_blank"
-                      onClick={closePopup}
-                      className="flex-1 md:flex-none bg-blue-700 text-white px-8 py-3 rounded-full font-bold text-sm md:text-base hover:bg-blue-800 hover:scale-105 transition-all shadow-lg text-center"
-                    >
-                      {lang === 'fr' ? "J'en profite (140€)" : "Book Now (140€)"}
-                    </a>
+                  {/* Accroche — en haut, sur le ciel, en 3 temps pour le rythme */}
+                  <div className="absolute inset-x-0 top-0 px-8 pt-7 pb-6 text-center text-white">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--gold,#c9a45c)]">{CONFIG.popup.eyebrow[lang]}</p>
+                    <p className="mt-4 font-serif text-lg italic text-white/85 drop-shadow">{CONFIG.popup.teaser_intro[lang]}</p>
+                    <p className="mt-1 font-serif text-3xl font-semibold drop-shadow">{CONFIG.popup.teaser_punch[lang]}</p>
+                    <span className="mt-3 inline-block rounded-full bg-[#013a5c]/80 px-4 py-1.5 font-serif text-base italic text-[var(--gold,#c9a45c)] shadow-md backdrop-blur-sm">{CONFIG.popup.teaser_hook[lang]}</span>
+                  </div>
+
+                  {/* Concept Eat & Drink + CTA — en bas */}
+                  <div className="absolute inset-x-0 bottom-0 p-6 text-center text-white">
+                    <h3 className="font-serif text-4xl font-semibold drop-shadow">{CONFIG.popup.title[lang]}</h3>
+                    <p className="mt-1 font-serif italic text-xl text-[var(--gold,#c9a45c)]">{CONFIG.popup.tagline[lang]}</p>
+                    <p className="mt-2 text-[12px] font-medium uppercase tracking-widest text-white/80">{CONFIG.popup.hours[lang]}</p>
+                    <p className="mt-1 text-[12px] font-semibold uppercase tracking-widest text-[var(--gold,#c9a45c)]">{CONFIG.popup.reservation[lang]}</p>
+
+                    <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--gold,#c9a45c)] px-8 py-3 text-sm font-bold tracking-wide text-[#013a5c] shadow-lg transition-transform group-hover:scale-105">
+                      {CONFIG.popup.cta[lang]} <ArrowRight className="w-4 h-4" />
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </Link>
             </motion.div>
           </motion.div>
         )}
