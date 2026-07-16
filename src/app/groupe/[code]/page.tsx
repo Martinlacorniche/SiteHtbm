@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,14 +12,23 @@ const GOLD = "#C6A972";
 const SEA_BG = "/images/pagewifi.jpg";
 
 // ---------- Types ----------
+// Une nuit déjà prise sur une chambre (mode 'pro'). Bornes [from, to) : le jour du
+// départ est libre pour l'arrivant suivant — même sémantique que la contrainte
+// d'exclusion en base (migration 82).
+interface Periode { from: string; to: string; occupant: string | null }
 interface Room {
   id: string; numero: string; type: string | null; pax_max: number;
   twinable: boolean; tarif: number; hotel: string | null; taken: boolean; occupant: string | null;
+  periodes?: Periode[];
 }
 interface GroupeMeta {
   nom: string; date_arrivee: string; date_depart: string; date_limite: string;
   conditions_annulation: string | null; plan_visible: boolean;
   cover_image_url: string | null; message_accueil: string | null; closed: boolean;
+  // 'simple' : cartes de chambres sur les dates du groupe (mariages — la page reste
+  // telle quelle). 'pro' : calendrier chambres × nuits, chaque invité pose ses dates
+  // (tournages, séminaires, groupes longs). Choisi par groupe au back-office.
+  mode_vue?: "simple" | "pro";
 }
 type Filter = "all" | "free" | "taken";
 
@@ -39,6 +48,46 @@ function euro2(n: number) {
   return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
 }
 // Ordre d'affichage des catégories de chambres (du plus simple au plus prestigieux)
+// ⚠️ `new Date("2026-10-18T00:00:00")` est du LOCAL (minuit à Paris = 22h00 UTC la veille)
+// → `toISOString().slice(0,10)` rendait « 2026-10-17 » et décalait TOUT le calendrier d'un
+// jour. On formate donc en heure locale, jamais via toISOString.
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Liste des nuits d'une plage : « 18/10 → 21/10 » = les nuits du 18, 19 et 20.
+// Le départ n'est PAS une nuit (bornes [from, to)).
+function nightsBetween(from: string, to: string): string[] {
+  const out: string[] = [];
+  const d = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+  while (d < end) {
+    out.push(ymd(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
+function nextDay(d: string): string {
+  const x = new Date(d + "T00:00:00"); x.setDate(x.getDate() + 1);
+  return ymd(x);
+}
+function prevDay(d: string): string {
+  const x = new Date(d + "T00:00:00"); x.setDate(x.getDate() - 1);
+  return ymd(x);
+}
+
+// Deux séjours se chevauchent-ils ? Bornes [from, to) → un départ le 28 et une arrivée
+// le 28 NE se chevauchent pas (la chambre se libère le matin).
+function overlaps(aFrom: string, aTo: string, bFrom: string, bTo: string): boolean {
+  return aFrom < bTo && bFrom < aTo;
+}
+
+// La chambre est-elle libre sur TOUTE la plage demandée ? (mode 'pro')
+function roomFreeFor(room: Room, from: string, to: string): boolean {
+  return !(room.periodes || []).some((p) => overlaps(from, to, p.from, p.to));
+}
+
 function catRank(type: string | null): number {
   const t = (type || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (t.includes("single")) return 0;
@@ -101,6 +150,8 @@ function BookingView({ code }: { code: string }) {
   const [claim, setClaim] = useState<Room | null>(null);
   const [done, setDone] = useState<{ ref: string; pin: string } | null>(null);
   const [pay, setPay] = useState<{ hotel_id: string; hotelNom: string; amount: number; url: string }[] | null>(null);
+  // Plage choisie par l'invité (mode 'pro' uniquement) — initialisée aux dates du groupe.
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,15 +165,28 @@ function BookingView({ code }: { code: string }) {
   }, [code]);
   useEffect(() => { load(); }, [load]);
 
+  // Mode 'pro' : l'invité choisit SES dates, et la disponibilité se calcule sur cette
+  // plage (une chambre peut être libre la 1re semaine et prise la 2e). En mode 'simple'
+  // tout le monde réserve la plage du groupe → `taken` suffit, rien ne change.
+  const isPro = groupe?.mode_vue === "pro";
+  useEffect(() => {
+    if (groupe && !range) setRange({ from: groupe.date_arrivee, to: groupe.date_depart });
+  }, [groupe, range]);
+
+  const isFree = useCallback(
+    (r: Room) => (isPro && range ? roomFreeFor(r, range.from, range.to) : !r.taken),
+    [isPro, range],
+  );
+
   const counts = useMemo(() => ({
     all: rooms.length,
-    free: rooms.filter(r => !r.taken).length,
-    taken: rooms.filter(r => r.taken).length,
-  }), [rooms]);
+    free: rooms.filter(r => isFree(r)).length,
+    taken: rooms.filter(r => !isFree(r)).length,
+  }), [rooms, isFree]);
 
   // Regroupement hôtel → catégorie
   const sections = useMemo(() => {
-    const visible = rooms.filter(r => filter === "all" || (filter === "free" ? !r.taken : r.taken));
+    const visible = rooms.filter(r => filter === "all" || (filter === "free" ? isFree(r) : !isFree(r)));
     const byHotel = new Map<string, Room[]>();
     for (const r of visible) {
       const h = r.hotel || "";
@@ -143,7 +207,7 @@ function BookingView({ code }: { code: string }) {
       out.push({ hotel, cats });
     }
     return out;
-  }, [rooms, filter]);
+  }, [rooms, filter, isFree]);
 
   if (loading) return <FullLoader />;
   if (error || !groupe) return <Centered title="Oups" text={error || "Ce lien ne correspond à aucun groupe."} />;
@@ -153,7 +217,10 @@ function BookingView({ code }: { code: string }) {
   const selectedRooms = rooms.filter(r => selected.has(r.id));
 
   function toggle(r: Room) {
-    if (r.taken) { setClaim(r); return; }
+    // Chambre indisponible : en mode 'simple' c'est forcément « déjà réservée » → on
+    // propose de récupérer sa résa (PIN). En mode 'pro' elle peut simplement être prise
+    // SUR CETTE PLAGE alors qu'elle est libre ailleurs → ne pas envoyer sur l'écran PIN.
+    if (!isFree(r)) { if (!isPro || r.taken) setClaim(r); return; }
     if (groupe!.closed) return;
     setSelected(prev => { const n = new Set(prev); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; });
   }
@@ -165,7 +232,18 @@ function BookingView({ code }: { code: string }) {
       <div className="max-w-5xl mx-auto px-4 mt-6">
         {groupe.closed && <Banner>Les inscriptions sont closes pour ce groupe.</Banner>}
 
-        {/* Filtre */}
+        {/* Mode 'pro' : chacun pose ses dates, puis choisit une chambre libre SUR CES NUITS. */}
+        {isPro && range && (
+          <ProPlanner
+            groupe={groupe} rooms={rooms} sections={sections} range={range} onRange={setRange}
+            selected={selected} isFree={isFree} onToggle={toggle} counts={counts}
+          />
+        )}
+
+        {/* Filtre — mode 'simple' seulement : en mode 'pro' le calendrier montre déjà
+            qui est libre et quand, les pastilles Toutes/Disponibles/Réservées n'ont plus
+            de sens (une chambre est libre CERTAINES nuits). */}
+        {!isPro && (<>
         <div className="flex items-center justify-center gap-2 mb-5">
           <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>Toutes <b>{counts.all}</b></FilterChip>
           <FilterChip active={filter === "free"} onClick={() => setFilter("free")}>Disponibles <b>{counts.free}</b></FilterChip>
@@ -196,6 +274,7 @@ function BookingView({ code }: { code: string }) {
           </div>
         ))}
         {sections.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Aucune chambre dans ce filtre.</p>}
+        </>)}
       </div>
 
       {/* Barre de sélection */}
@@ -214,6 +293,9 @@ function BookingView({ code }: { code: string }) {
       <AnimatePresence>
         {formOpen && (
           <BookingForm code={code} groupe={groupe} rooms={selectedRooms}
+            // Mode 'pro' : les dates ont déjà été posées dans le calendrier — le formulaire
+            // les reprend au lieu de repartir des dates du groupe.
+            initRange={isPro ? range : null}
             onClose={() => setFormOpen(false)}
             onConflict={() => { setFormOpen(false); setSelected(new Set()); load(); }}
             onDone={(ref, pin) => { setFormOpen(false); setSelected(new Set()); setDone({ ref, pin }); }}
@@ -225,6 +307,177 @@ function BookingView({ code }: { code: string }) {
         )}
       </AnimatePresence>
     </main>
+  );
+}
+
+// ---------- Mode 'pro' : le calendrier ----------
+// Vue « PMS » : une ligne par chambre, une colonne par nuit du groupe. L'invité pose SES
+// dates en haut, le calendrier grise les nuits déjà prises et n'ouvre à la sélection que
+// les chambres libres sur TOUTE sa plage.
+// Pensé pour les groupes longs (tournage CACTUS : 11 nuits, chacun arrive/repart quand il
+// veut). La garantie anti-chevauchement vit en base (migration 82) : cette grille est un
+// confort de lecture, pas le garde-fou.
+function ProPlanner({ groupe, rooms, sections, range, onRange, selected, isFree, onToggle, counts }: {
+  groupe: GroupeMeta;
+  rooms: Room[];
+  sections: { hotel: string; cats: { name: string; tarif: number; rooms: Room[] }[] }[];
+  range: { from: string; to: string };
+  onRange: (r: { from: string; to: string }) => void;
+  selected: Set<string>;
+  isFree: (r: Room) => boolean;
+  onToggle: (r: Room) => void;
+  counts: { all: number; free: number; taken: number };
+}) {
+  // Toutes les nuits du groupe = les colonnes. La nuit du départ n'existe pas (bornes [)).
+  const nuits = useMemo(() => nightsBetween(groupe.date_arrivee, groupe.date_depart), [groupe]);
+  const nightsSel = useMemo(() => new Set(nightsBetween(range.from, range.to)), [range]);
+
+  // Récap budget (Martin 2026-07-16 : « genre j'ai réservé 10000/32000 »).
+  // · enveloppe = TOUT le bloc réservé à fond = Σ (tarif × nuits du groupe)
+  // · engagé    = ce qui est déjà posé      = Σ (tarif × nuits de chaque séjour)
+  // Hébergement seul (le tarif du bloc), hors taxe de séjour et extras : c'est un
+  // repère de consommation du bloc, pas une facture.
+  const budget = useMemo(() => {
+    const nGroupe = nuits.length || 1;
+    let enveloppe = 0, engage = 0, moi = 0;
+    for (const r of rooms) {
+      enveloppe += r.tarif * nGroupe;
+      for (const p of r.periodes || []) engage += r.tarif * nightsBetween(p.from, p.to).length;
+      if (selected.has(r.id)) moi += r.tarif * nightsBetween(range.from, range.to).length;
+    }
+    return { enveloppe, engage, moi, pct: enveloppe ? Math.min(100, ((engage + moi) / enveloppe) * 100) : 0 };
+  }, [rooms, nuits, selected, range]);
+
+  // Garde-fou de saisie : départ toujours après l'arrivée, et on reste dans les bornes.
+  function setFrom(v: string) {
+    const from = v < groupe.date_arrivee ? groupe.date_arrivee : v;
+    onRange({ from, to: range.to <= from ? nextDay(from) : range.to });
+  }
+  function setTo(v: string) {
+    const to = v > groupe.date_depart ? groupe.date_depart : v;
+    onRange({ from: range.from >= to ? prevDay(to) : range.from, to });
+  }
+
+  const nbNuits = Math.max(1, nightsBetween(range.from, range.to).length);
+
+  return (
+    <div className="mb-7">
+      {/* 1) L'invité pose ses dates */}
+      <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-4 mb-4 shadow-sm">
+        <p className="text-[11px] uppercase tracking-wider font-semibold mb-3" style={{ color: GOLD }}>
+          Vos dates
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex-1 min-w-[140px]">
+            <span className="block text-xs text-slate-500 mb-1">Arrivée</span>
+            <input type="date" value={range.from} min={groupe.date_arrivee} max={groupe.date_depart}
+              onChange={(e) => setFrom(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
+          </label>
+          <label className="flex-1 min-w-[140px]">
+            <span className="block text-xs text-slate-500 mb-1">Départ</span>
+            <input type="date" value={range.to} min={groupe.date_arrivee} max={groupe.date_depart}
+              onChange={(e) => setTo(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
+          </label>
+          <p className="text-sm text-slate-500 pb-2">
+            <b style={{ color: NAVY }}>{nbNuits}</b> nuit{nbNuits > 1 ? "s" : ""} ·{" "}
+            <b style={{ color: NAVY }}>{counts.free}</b> chambre{counts.free > 1 ? "s" : ""} libre{counts.free > 1 ? "s" : ""}
+          </p>
+        </div>
+      </div>
+
+      {/* 2) Où en est le bloc — « j'ai réservé 10 000 / 32 000 ». */}
+      <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-4 mb-4 shadow-sm">
+        <div className="flex items-baseline justify-between gap-3 mb-2">
+          <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: GOLD }}>Le bloc</p>
+          <p className="text-sm">
+            <b style={{ color: NAVY }}>{euro(budget.engage + budget.moi)}</b>
+            <span className="text-slate-400"> / {euro(budget.enveloppe)}</span>
+          </p>
+        </div>
+        <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex">
+          {/* déjà réservé par le groupe */}
+          <div style={{ width: `${budget.enveloppe ? (budget.engage / budget.enveloppe) * 100 : 0}%`, background: NAVY }} />
+          {/* ce que VOUS ajoutez à l'instant (avant validation) */}
+          <div style={{ width: `${budget.enveloppe ? (budget.moi / budget.enveloppe) * 100 : 0}%`, background: GOLD }} />
+        </div>
+        <p className="text-[11px] text-slate-400 mt-2">
+          Hébergement du bloc, hors taxe de séjour.
+          {budget.moi > 0 && <> Dont <b style={{ color: GOLD }}>{euro(budget.moi)}</b> pour votre sélection en cours.</>}
+        </p>
+      </div>
+
+      {/* 3) Le calendrier. Défile horizontalement si le séjour est long. */}
+      <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-sm overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-10 bg-white/95 text-left px-3 py-2 font-medium text-slate-400 text-xs">Chambre</th>
+              {nuits.map((n) => (
+                <th key={n} className="px-1 py-2 font-medium text-slate-400 text-[10px] whitespace-nowrap min-w-[34px]">
+                  {new Date(n + "T00:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          {sections.map((sec) => (
+            <tbody key={sec.hotel || "_"}>
+              {sec.hotel && (
+                <tr><td colSpan={nuits.length + 1} className="px-3 pt-4 pb-1 font-serif font-semibold text-lg" style={{ color: NAVY }}>{sec.hotel}</td></tr>
+              )}
+              {sec.cats.map((cat) => (
+                <Fragment key={cat.name}>
+                  <tr>
+                    <td colSpan={nuits.length + 1} className="px-3 pt-3 pb-1">
+                      <span className="text-xs font-semibold" style={{ color: NAVY }}>{cat.name}</span>
+                      <span className="text-xs text-slate-400"> · {euro(cat.tarif)} / nuit</span>
+                    </td>
+                  </tr>
+                  {cat.rooms.map((r) => {
+                    const libre = isFree(r);
+                    const sel = selected.has(r.id);
+                    return (
+                      <tr key={r.id}
+                        onClick={() => onToggle(r)}
+                        className={`border-t border-slate-100 ${libre ? "cursor-pointer hover:bg-slate-50" : "cursor-default"}`}>
+                        <td className="sticky left-0 z-10 bg-white/95 px-3 py-1.5 whitespace-nowrap">
+                          <span className="font-semibold" style={{ color: sel ? NAVY : libre ? "#334155" : "#94a3b8" }}>{r.numero}</span>
+                          {sel && <span className="ml-2 text-[10px] font-medium" style={{ color: NAVY }}>Sélectionnée</span>}
+                          {!libre && <span className="ml-2 text-[10px] text-slate-400">indisponible</span>}
+                        </td>
+                        {nuits.map((n) => {
+                          // Nuit prise ? (bornes [) → le jour du départ est libre)
+                          const occ = (r.periodes || []).find((p) => n >= p.from && n < p.to);
+                          const dansMaPlage = nightsSel.has(n);
+                          return (
+                            <td key={n} className="px-0.5 py-1.5">
+                              <div
+                                title={occ ? (occ.occupant || "Réservée") : dansMaPlage ? "Libre — dans vos dates" : "Libre"}
+                                className="h-6 rounded"
+                                style={{
+                                  background: occ ? "#e2e8f0"
+                                    : dansMaPlage ? (sel ? NAVY : libre ? "rgba(0,78,124,.18)" : "#f1f5f9")
+                                    : "#f8fafc",
+                                  border: occ ? "1px solid #cbd5e1" : "1px solid transparent",
+                                }}
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </tbody>
+          ))}
+        </table>
+      </div>
+      <p className="text-[11px] text-slate-400 mt-2 px-1">
+        Cliquez une chambre libre sur vos dates pour la sélectionner. Les nuits grisées sont déjà réservées.
+      </p>
+    </div>
   );
 }
 
@@ -284,8 +537,9 @@ function RoomBubble({ room, index, selected, planVisible, disabled, onClick }: {
 }
 
 // ---------- Formulaire (multi-chambres) ----------
-function BookingForm({ code, groupe, rooms, onClose, onDone, onPay, onConflict }: {
+function BookingForm({ code, groupe, rooms, initRange, onClose, onDone, onPay, onConflict }: {
   code: string; groupe: GroupeMeta; rooms: Room[];
+  initRange?: { from: string; to: string } | null;
   onClose: () => void; onDone: (ref: string, pin: string) => void;
   onPay: (payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]) => void;
   onConflict: () => void;
@@ -293,7 +547,8 @@ function BookingForm({ code, groupe, rooms, onClose, onDone, onPay, onConflict }
   const [nom, setNom] = useState(""); const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState(""); const [tel, setTel] = useState("");
   const [emailAck, setEmailAck] = useState(false);
-  const [da, setDa] = useState(groupe.date_arrivee); const [dd, setDd] = useState(groupe.date_depart);
+  const [da, setDa] = useState(initRange?.from || groupe.date_arrivee);
+  const [dd, setDd] = useState(initRange?.to || groupe.date_depart);
   const [pin, setPin] = useState(""); const [pin2, setPin2] = useState("");
   const [cgv, setCgv] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
