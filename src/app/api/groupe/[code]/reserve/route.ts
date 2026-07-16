@@ -22,12 +22,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const { rooms, nom, prenom, email, tel, date_arrivee, date_depart, signature, cgv, pin } = body;
 
   if (!Array.isArray(rooms) || rooms.length === 0) return NextResponse.json({ ok: false, error: "Sélectionnez au moins une chambre." }, { status: 400 });
-  if (!nom || !email) return NextResponse.json({ ok: false, error: "Nom et email sont requis." }, { status: 400 });
+  if (!nom) return NextResponse.json({ ok: false, error: "Le nom est requis." }, { status: 400 });
   if (!cgv) return NextResponse.json({ ok: false, error: "Vous devez accepter les conditions." }, { status: 400 });
-  if (!/^\d{4}$/.test(String(pin || ""))) return NextResponse.json({ ok: false, error: "Choisissez un code à 4 chiffres." }, { status: 400 });
 
   const { data: g } = await supabaseServer.from("groupes").select("*").eq("code_acces", code).maybeSingle();
   if (!g) return NextResponse.json({ ok: false, error: "Groupe introuvable" }, { status: 404 });
+
+  // Mode 'pro' (tournage, séminaire…) : le nom SUFFIT. Email, téléphone et code PIN deviennent
+  // facultatifs — on ne fait pas remplir un formulaire de client individuel à 18 comédiens dont
+  // la production gère déjà tout (Martin 2026-07-16).
+  // ⚠️ Conséquence assumée : sans email ET sans PIN, l'invité n'a aucun moyen de revenir sur sa
+  // résa (ni lien magique, ni code) → c'est la réception/production qui la gère.
+  const isPro = g.mode_vue === "pro";
+  if (!isPro && !email) return NextResponse.json({ ok: false, error: "Nom et email sont requis." }, { status: 400 });
+  const pinStr = String(pin || "");
+  if (pinStr && !/^\d{4}$/.test(pinStr)) return NextResponse.json({ ok: false, error: "Le code doit faire 4 chiffres." }, { status: 400 });
+  if (!isPro && !pinStr) return NextResponse.json({ ok: false, error: "Choisissez un code à 4 chiffres." }, { status: 400 });
+  // Le paiement en ligne exige un email (Stripe l'envoie au client) → on l'impose là seulement.
+  const modeP: string = g.mode_paiement || (g.paiement_obligatoire ? "immediat" : "aucun");
+  if ((modeP === "immediat" || modeP === "differe") && !email)
+    return NextResponse.json({ ok: false, error: "Un email est requis pour le règlement en ligne." }, { status: 400 });
 
   const today = new Date().toISOString().slice(0, 10);
   if (g.statut !== "actif" || today > g.date_limite) return NextResponse.json({ ok: false, error: "Les inscriptions sont closes." }, { status: 403 });
@@ -64,7 +78,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   }
 
   // Mode de paiement (4 modes ; repli sur l'ancien booléen pour compat).
-  const mode: string = g.mode_paiement || (g.paiement_obligatoire ? "immediat" : "aucun");
+  const mode: string = modeP;
   const immediat = mode === "immediat";
   const differe = mode === "differe";
   const nights = Math.max(1, Math.round((new Date(dd).getTime() - new Date(da).getTime()) / 86400000));
@@ -79,8 +93,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       groupe_chambre_id: r.groupe_chambre_id,
       booking_ref: bookingRef,
       token: crypto.randomUUID().replace(/-/g, ""),
-      code_pin: String(pin),
-      nom, prenom: prenom || null, email, tel: tel || null,
+      code_pin: pinStr || null,
+      nom, prenom: prenom || null, email: email || null, tel: tel || null,
       date_arrivee: da, date_depart: dd,
       config_lit: lit, nb_personnes: Math.max(1, parseInt(String(r.nb_personnes)) || 1),
       signature_url: sigPath, cgv_acceptees_at: nowIso,
@@ -94,7 +108,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const { data: inserted, error } = await supabaseServer
     .from("groupe_reservations").insert(insertRows).select("id, groupe_chambre_id");
   if (error) {
-    if (error.code === "23505") return NextResponse.json({ ok: false, error: "Une des chambres vient d'être réservée par quelqu'un d'autre." }, { status: 409 });
+    // 23505 = ancien index unique (1 résa/chambre) · 23P01 = contrainte d'EXCLUSION
+    // anti-chevauchement (migration 82). Sans 23P01, un conflit de dates renvoyait le
+    // message brut de Postgres à l'invité.
+    if (error.code === "23505" || error.code === "23P01")
+      return NextResponse.json({ ok: false, error: "Ces nuits viennent d'être réservées par quelqu'un d'autre. Choisissez d'autres dates ou une autre chambre." }, { status: 409 });
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
@@ -195,45 +213,71 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         });
       }
 
-      // Confirmation au CLIENT (toutes les chambres du booking).
-      const roomRows = roomRowsOf(rooms);
-      const origin = req.headers.get("origin") || "";
-      // Encart paiement selon le mode (charte HTBM).
-      const fmtFr = (d: string) => { try { return new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
-      const gestionUrl = origin ? `${origin}/groupe/${code}?r=${bookingRef}` : "";
-      const paymentNote =
-        differe && g.date_envoi_paiement
-          ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fbf7ef;border:1px solid #e5d9c3;border-radius:10px;">
-               <p style="margin:0;color:#8a6d3b;font-size:13px;line-height:1.5;">💳 Un lien de paiement sécurisé vous sera envoyé le <strong>${fmtFr(g.date_envoi_paiement)}</strong>. Vous aurez ensuite <strong>48&nbsp;heures</strong> pour régler, sans quoi la chambre sera automatiquement remise à disposition.</p>
-             </div>`
-          : mode === "optionnel" && gestionUrl
-          ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fbf7ef;border:1px solid #e5d9c3;border-radius:10px;">
-               <p style="margin:0 0 10px;color:#8a6d3b;font-size:13px;line-height:1.5;">Le règlement se fera directement à l'hôtel. Si vous préférez, vous pouvez aussi régler en ligne dès maintenant, en toute sécurité :</p>
-               <a href="${gestionUrl}" style="display:inline-block;background:#C6A972;color:#1e293b;padding:9px 18px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13px;">Payer en ligne</a>
+      // Confirmation au CLIENT — seulement s'il a laissé un email (facultatif en mode 'pro').
+      if (email) {
+        const roomRows = roomRowsOf(rooms);
+        const origin = req.headers.get("origin") || "";
+        const fmtFr = (d: string) => { try { return new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
+        const gestionUrl = origin ? `${origin}/groupe/${code}?r=${bookingRef}` : "";
+
+        // Encart paiement selon le mode (charte HTBM). Rien en mode 'aucun' : personne ne règle.
+        const paymentNote =
+          differe && g.date_envoi_paiement
+            ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fbf7ef;border:1px solid #e5d9c3;border-radius:10px;">
+                 <p style="margin:0;color:#8a6d3b;font-size:13px;line-height:1.5;">💳 Un lien de paiement sécurisé vous sera envoyé le <strong>${fmtFr(g.date_envoi_paiement)}</strong>. Vous aurez ensuite <strong>48&nbsp;heures</strong> pour régler, sans quoi la chambre sera automatiquement remise à disposition.</p>
+               </div>`
+            : mode === "optionnel" && gestionUrl
+            ? `<div style="margin:0 0 16px;padding:14px 16px;background:#fbf7ef;border:1px solid #e5d9c3;border-radius:10px;">
+                 <p style="margin:0 0 10px;color:#8a6d3b;font-size:13px;line-height:1.5;">Le règlement se fera directement à l'hôtel. Si vous préférez, vous pouvez aussi régler en ligne dès maintenant, en toute sécurité :</p>
+                 <a href="${gestionUrl}" style="display:inline-block;background:#C6A972;color:#1e293b;padding:9px 18px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13px;">Payer en ligne</a>
+               </div>`
+            : "";
+
+        // Mode 'pro' : le mail parle du GROUPE, pas d'un client individuel (Martin 2026-07-16).
+        // Il reprend le message d'accueil du groupe, ne réclame rien, et ne promet un code que
+        // si l'invité en a réellement choisi un.
+        const intro = isPro
+          ? `<p style="margin:0 0 14px;">Bonjour ${prenom || nom}, votre chambre est réservée pour <strong>${g.nom}</strong>. Voici le récapitulatif :</p>`
+          : `<p style="margin:0 0 14px;">Bonjour ${prenom || nom}, votre réservation est confirmée. Voici le récapitulatif :</p>`;
+        const accueil = isPro && g.message_accueil
+          ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f1f5f9;border-radius:10px;"><p style="margin:0;font-size:13px;line-height:1.55;color:#475569;">${g.message_accueil}</p></div>`
+          : "";
+        const priseEnCharge = isPro && mode === "aucun"
+          ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f0f7f4;border:1px solid #cfe3d8;border-radius:10px;">
+               <p style="margin:0;color:#2f6b4f;font-size:13px;line-height:1.5;">✅ Rien à régler : votre hébergement est pris en charge dans le cadre de <strong>${g.nom}</strong>.</p>
              </div>`
           : "";
-      await resend.emails.send({
-        from: "BW+ La Corniche <paiement@send.hotel-corniche.com>",
-        to: email,
-        subject: `Votre réservation est confirmée · ${g.nom}`,
-        html: `
-          <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1e293b;">
-            <div style="background:#004e7c;padding:20px 28px;border-radius:12px 12px 0 0;">
-              <p style="margin:0;color:#C6A972;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">${g.nom}</p>
-              <h1 style="margin:6px 0 0;color:#fff;font-size:20px;">Réservation confirmée</h1>
-            </div>
-            <div style="background:#f8fafc;padding:22px 28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
-              <p style="margin:0 0 14px;">Bonjour ${prenom || nom}, votre réservation est confirmée. Voici le récapitulatif :</p>
-              <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
-                <tr><td style="padding:6px 0;color:#64748b;font-size:12px;width:110px;">Séjour</td><td style="padding:6px 0;font-weight:600;">${da} → ${dd}</td></tr>
-              </table>
-              <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">${roomRows}</table>
-              ${paymentNote}
-              ${origin ? `<p style="margin:4px 0 0;text-align:center;"><a href="${origin}/groupe/${code}?r=${bookingRef}" style="background:#004e7c;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Voir / gérer ma réservation</a></p>` : ""}
-              <p style="margin:14px 0 0;color:#94a3b8;font-size:11px;text-align:center;">Votre code à 4 chiffres vous sera demandé pour modifier ou annuler.</p>
-            </div>
-          </div>`,
-      });
+        const pied = pinStr
+          ? `<p style="margin:14px 0 0;color:#94a3b8;font-size:11px;text-align:center;">Votre code à 4 chiffres vous sera demandé pour modifier ou annuler.</p>`
+          : isPro
+          ? `<p style="margin:14px 0 0;color:#94a3b8;font-size:11px;text-align:center;">Pour toute modification, contactez la réception ou votre production.</p>`
+          : "";
+
+        await resend.emails.send({
+          from: "BW+ La Corniche <paiement@send.hotel-corniche.com>",
+          to: email,
+          subject: isPro ? `Votre chambre est réservée · ${g.nom}` : `Votre réservation est confirmée · ${g.nom}`,
+          html: `
+            <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1e293b;">
+              <div style="background:#004e7c;padding:20px 28px;border-radius:12px 12px 0 0;">
+                <p style="margin:0;color:#C6A972;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">${g.nom}</p>
+                <h1 style="margin:6px 0 0;color:#fff;font-size:20px;">${isPro ? "Chambre réservée" : "Réservation confirmée"}</h1>
+              </div>
+              <div style="background:#f8fafc;padding:22px 28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
+                ${intro}
+                ${accueil}
+                <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
+                  <tr><td style="padding:6px 0;color:#64748b;font-size:12px;width:110px;">Séjour</td><td style="padding:6px 0;font-weight:600;">${fmtFr(da)} → ${fmtFr(dd)}</td></tr>
+                </table>
+                <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">${roomRows}</table>
+                ${priseEnCharge}
+                ${paymentNote}
+                ${gestionUrl ? `<p style="margin:4px 0 0;text-align:center;"><a href="${gestionUrl}" style="background:#004e7c;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Voir / gérer ma réservation</a></p>` : ""}
+                ${pied}
+              </div>
+            </div>`,
+        });
+      }
     }
   } catch (e) { console.error("Resend notif:", e); }
 

@@ -15,7 +15,7 @@ const SEA_BG = "/images/pagewifi.jpg";
 // Une nuit déjà prise sur une chambre (mode 'pro'). Bornes [from, to) : le jour du
 // départ est libre pour l'arrivant suivant — même sémantique que la contrainte
 // d'exclusion en base (migration 82).
-interface Periode { from: string; to: string; occupant: string | null }
+interface Periode { from: string; to: string; pax?: number; occupant: string | null }
 interface Room {
   id: string; numero: string; type: string | null; pax_max: number;
   twinable: boolean; tarif: number; hotel: string | null; taken: boolean; occupant: string | null;
@@ -25,6 +25,11 @@ interface GroupeMeta {
   nom: string; date_arrivee: string; date_depart: string; date_limite: string;
   conditions_annulation: string | null; plan_visible: boolean;
   cover_image_url: string | null; message_accueil: string | null; closed: boolean;
+  mode_paiement?: string | null;
+  // Réglages staff (migration 84).
+  affichage_tarifs?: "complet" | "budget" | "masque";
+  taxe_sejour_mode?: "sur_place" | "incluse" | "ajoutee";
+  taxe_sejour_montant?: number;
   // 'simple' : cartes de chambres sur les dates du groupe (mariages — la page reste
   // telle quelle). 'pro' : calendrier chambres × nuits, chaque invité pose ses dates
   // (tournages, séminaires, groupes longs). Choisi par groupe au back-office.
@@ -66,6 +71,12 @@ function nightsBetween(from: string, to: string): string[] {
     d.setDate(d.getDate() + 1);
   }
   return out;
+}
+
+// « 2026-10-18 » → « 18/10 » (récap du panier).
+function ddmm(d: string): string {
+  const x = new Date(d + "T00:00:00");
+  return `${String(x.getDate()).padStart(2, "0")}/${String(x.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function nextDay(d: string): string {
@@ -146,6 +157,11 @@ function BookingView({ code }: { code: string }) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Mode 'pro' : CHAQUE chambre porte SES dates (Martin 2026-07-16 — une plage globale
+  // écrasait le 1er choix dès qu'on en posait un 2e, ou propageait ses dates aux autres
+  // chambres : ingérable pour réserver 18 comédiens aux dates décalées).
+  // Mode 'simple' : tout le monde a les dates du groupe → `selected` suffit, inchangé.
+  const [picks, setPicks] = useState<Record<string, { from: string; to: string }>>({});
   const [formOpen, setFormOpen] = useState(false);
   const [claim, setClaim] = useState<Room | null>(null);
   const [done, setDone] = useState<{ ref: string; pin: string } | null>(null);
@@ -169,6 +185,7 @@ function BookingView({ code }: { code: string }) {
   // plage (une chambre peut être libre la 1re semaine et prise la 2e). En mode 'simple'
   // tout le monde réserve la plage du groupe → `taken` suffit, rien ne change.
   const isPro = groupe?.mode_vue === "pro";
+  const voitPrixPage = (groupe?.affichage_tarifs || "complet") === "complet";
   useEffect(() => {
     if (groupe && !range) setRange({ from: groupe.date_arrivee, to: groupe.date_depart });
   }, [groupe, range]);
@@ -214,13 +231,25 @@ function BookingView({ code }: { code: string }) {
   if (pay) return <PaymentScreen payments={pay} groupe={groupe} />;
   if (done) return <Confirmation code={code} refId={done.ref} pin={done.pin} groupe={groupe} />;
 
-  const selectedRooms = rooms.filter(r => selected.has(r.id));
+  const selectedRooms = rooms.filter(r => (isPro ? picks[r.id] !== undefined : selected.has(r.id)));
+
+  // Mode 'pro' : on a peint une plage sur la ligne d'une chambre. La plage devient LA plage
+  // (l'API réserve toutes les chambres du panier sur les mêmes dates) et la chambre entre
+  // dans la sélection. Les chambres déjà sélectionnées qui ne tiennent plus sur la nouvelle
+  // plage en sortent — sinon on enverrait une résa que la base refuserait.
+  function dragSelect(roomId: string, r: { from: string; to: string }) {
+    if (groupe!.closed) return;
+    setRange(r);                                   // mémorise la dernière plage (repère d'affichage)
+    setPicks((prev) => ({ ...prev, [roomId]: r })); // ⚠️ n'affecte QUE cette chambre
+  }
+  function unpick(roomId: string) {
+    setPicks((prev) => { const n = { ...prev }; delete n[roomId]; return n; });
+  }
 
   function toggle(r: Room) {
-    // Chambre indisponible : en mode 'simple' c'est forcément « déjà réservée » → on
-    // propose de récupérer sa résa (PIN). En mode 'pro' elle peut simplement être prise
-    // SUR CETTE PLAGE alors qu'elle est libre ailleurs → ne pas envoyer sur l'écran PIN.
-    if (!isFree(r)) { if (!isPro || r.taken) setClaim(r); return; }
+    // En 'pro', « retirer » sort simplement la chambre du panier.
+    if (isPro) { unpick(r.id); return; }
+    if (!isFree(r)) { setClaim(r); return; }
     if (groupe!.closed) return;
     setSelected(prev => { const n = new Set(prev); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; });
   }
@@ -236,7 +265,8 @@ function BookingView({ code }: { code: string }) {
         {isPro && range && (
           <ProPlanner
             groupe={groupe} rooms={rooms} sections={sections} range={range} onRange={setRange}
-            selected={selected} isFree={isFree} onToggle={toggle} counts={counts}
+            picks={picks} isFree={isFree} onToggle={toggle} onDragSelect={dragSelect}
+            onClaim={(r) => setClaim(r)} counts={counts}
           />
         )}
 
@@ -261,7 +291,7 @@ function BookingView({ code }: { code: string }) {
                     <h3 className="font-serif font-semibold text-2xl leading-tight truncate" style={{ color: NAVY }}>{cat.name}</h3>
                     <span className="text-xs font-medium text-slate-400 whitespace-nowrap shrink-0">{cat.rooms.filter(r => !r.taken).length} dispo.</span>
                   </div>
-                  <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span></span>
+                  {voitPrixPage && <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span></span>}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                   {cat.rooms.map((r, i) => (
@@ -279,11 +309,11 @@ function BookingView({ code }: { code: string }) {
 
       {/* Barre de sélection */}
       <AnimatePresence>
-        {selected.size > 0 && (
+        {selectedRooms.length > 0 && (
           <motion.div initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} transition={{ type: "spring", stiffness: 360, damping: 32 }}
             className="fixed bottom-0 inset-x-0 z-30 p-3">
             <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 flex items-center justify-between pl-4 pr-2 py-2">
-              <span className="text-sm text-slate-600"><b>{selected.size}</b> chambre{selected.size > 1 ? "s" : ""} sélectionnée{selected.size > 1 ? "s" : ""}</span>
+              <span className="text-sm text-slate-600"><b>{selectedRooms.length}</b> chambre{selectedRooms.length > 1 ? "s" : ""} sélectionnée{selectedRooms.length > 1 ? "s" : ""}</span>
               <button onClick={() => setFormOpen(true)} className="h-10 px-5 rounded-full text-white font-semibold text-sm" style={{ background: NAVY }}>Réserver →</button>
             </div>
           </motion.div>
@@ -296,6 +326,7 @@ function BookingView({ code }: { code: string }) {
             // Mode 'pro' : les dates ont déjà été posées dans le calendrier — le formulaire
             // les reprend au lieu de repartir des dates du groupe.
             initRange={isPro ? range : null}
+            picks={isPro ? picks : undefined}
             onClose={() => setFormOpen(false)}
             onConflict={() => { setFormOpen(false); setSelected(new Set()); load(); }}
             onDone={(ref, pin) => { setFormOpen(false); setSelected(new Set()); setDone({ ref, pin }); }}
@@ -317,18 +348,67 @@ function BookingView({ code }: { code: string }) {
 // Pensé pour les groupes longs (tournage CACTUS : 11 nuits, chacun arrive/repart quand il
 // veut). La garantie anti-chevauchement vit en base (migration 82) : cette grille est un
 // confort de lecture, pas le garde-fou.
-function ProPlanner({ groupe, rooms, sections, range, onRange, selected, isFree, onToggle, counts }: {
+function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, onToggle, onDragSelect, onClaim, counts }: {
   groupe: GroupeMeta;
   rooms: Room[];
   sections: { hotel: string; cats: { name: string; tarif: number; rooms: Room[] }[] }[];
   range: { from: string; to: string };
   onRange: (r: { from: string; to: string }) => void;
-  selected: Set<string>;
+  picks: Record<string, { from: string; to: string }>;
   isFree: (r: Room) => boolean;
   onToggle: (r: Room) => void;
+  onDragSelect: (roomId: string, r: { from: string; to: string }) => void;
+  onClaim: (r: Room) => void;
   counts: { all: number; free: number; taken: number };
 }) {
+  // Sélection « à la PMS » : on peint sa plage directement sur la ligne de la chambre
+  // (Martin 2026-07-16 : la vue allait, le parcours non — poser ses dates en haut PUIS
+  // cliquer une ligne, c'est un formulaire déguisé en calendrier).
+  // Un tap = 1 nuit · un glissé = la plage. Pointer events → marche à la souris ET au doigt.
+  const [drag, setDrag] = useState<{ roomId: string; anchor: string; cur: string } | null>(null);
+
+  // Le relâchement peut arriver hors de la grille → on écoute la fenêtre, sinon un drag
+  // resterait collé au curseur.
+  useEffect(() => {
+    if (!drag) return;
+    const commit = () => {
+      const [a, c] = [drag.anchor, drag.cur];
+      const from = a <= c ? a : c;
+      const to = nextDay(a <= c ? c : a);   // la nuit cliquée est INCLUSE → départ le lendemain
+      const room = rooms.find((r) => r.id === drag.roomId);
+      if (room && roomFreeFor(room, from, to)) onDragSelect(drag.roomId, { from, to });
+      setDrag(null);
+    };
+    window.addEventListener("pointerup", commit);
+    window.addEventListener("pointercancel", commit);
+    return () => {
+      window.removeEventListener("pointerup", commit);
+      window.removeEventListener("pointercancel", commit);
+    };
+  }, [drag, rooms, onDragSelect]);
+
+  // Nuits survolées pendant le glissé, et validité (on ne peint pas à travers une résa).
+  const dragNights = useMemo(() => {
+    if (!drag) return null;
+    const [a, c] = [drag.anchor, drag.cur];
+    const from = a <= c ? a : c;
+    const to = nextDay(a <= c ? c : a);
+    const room = rooms.find((r) => r.id === drag.roomId);
+    return { set: new Set(nightsBetween(from, to)), ok: !!room && roomFreeFor(room, from, to) };
+  }, [drag, rooms]);
   // Toutes les nuits du groupe = les colonnes. La nuit du départ n'existe pas (bornes [)).
+  // ⚠️ COLONNES = des JOURS (départ INCLUS), pas des nuits — c'est ce qui permet le rendu
+  // « à cheval » d'un PMS (Martin 2026-07-16 : « les résa sont à cheval sur la date, les gens
+  // comprennent mieux »). Chaque jour se coupe en 2 moitiés :
+  //   · moitié DROITE du jour J = la nuit qui commence le J  → on arrive l'après-midi
+  //   · moitié GAUCHE du jour J = la nuit J-1                → on repart le matin
+  // Un séjour 18→21 remplit donc : droite du 18 · 19 et 20 pleins · gauche du 21.
+  // Le dernier jour (= le départ du groupe) n'ouvre aucune nuit : il ne sert qu'à afficher
+  // les départs.
+  const jours = useMemo(
+    () => [...nightsBetween(groupe.date_arrivee, groupe.date_depart), groupe.date_depart],
+    [groupe],
+  );
   const nuits = useMemo(() => nightsBetween(groupe.date_arrivee, groupe.date_depart), [groupe]);
   const nightsSel = useMemo(() => new Set(nightsBetween(range.from, range.to)), [range]);
 
@@ -337,16 +417,32 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, selected, isFree,
   // · engagé    = ce qui est déjà posé      = Σ (tarif × nuits de chaque séjour)
   // Hébergement seul (le tarif du bloc), hors taxe de séjour et extras : c'est un
   // repère de consommation du bloc, pas une facture.
+  // La taxe de séjour n'entre dans le prix du bloc QUE si la réception l'a déclarée
+  // « à rajouter » (Martin 2026-07-16). « incluse » = déjà dans le tarif/nuit → on
+  // n'ajoute rien ; « sur place » = réglée à l'hôtel par le voyageur → hors bloc.
+  const ts = groupe.taxe_sejour_mode === "ajoutee" ? (groupe.taxe_sejour_montant || 0) : 0;
+  // Interrupteur staff (migration 84) : complet = prix + budget · budget = budget seul
+  // (vue organisateur) · masque = rien (groupe pris en charge, cf CACTUS).
+  const aff = groupe.affichage_tarifs || "complet";
+  const voitPrix = aff === "complet";
+  const voitBudget = aff === "complet" || aff === "budget";
   const budget = useMemo(() => {
     const nGroupe = nuits.length || 1;
     let enveloppe = 0, engage = 0, moi = 0;
     for (const r of rooms) {
-      enveloppe += r.tarif * nGroupe;
-      for (const p of r.periodes || []) engage += r.tarif * nightsBetween(p.from, p.to).length;
-      if (selected.has(r.id)) moi += r.tarif * nightsBetween(range.from, range.to).length;
+      // Enveloppe : le bloc rempli à fond. Une personne par chambre (single use) — c'est une
+      // borne haute indicative, pas une facture.
+      enveloppe += (r.tarif + ts) * nGroupe;
+      for (const p of r.periodes || []) {
+        const n = nightsBetween(p.from, p.to).length;
+        engage += r.tarif * n + ts * n * (p.pax || 1);
+      }
+      // Chaque chambre du panier compte SES propres nuits.
+      const mine = picks[r.id];
+      if (mine) moi += (r.tarif + ts) * nightsBetween(mine.from, mine.to).length;
     }
     return { enveloppe, engage, moi, pct: enveloppe ? Math.min(100, ((engage + moi) / enveloppe) * 100) : 0 };
-  }, [rooms, nuits, selected, range]);
+  }, [rooms, nuits, picks, ts]);
 
   // Garde-fou de saisie : départ toujours après l'arrivée, et on reste dans les bornes.
   function setFrom(v: string) {
@@ -358,36 +454,40 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, selected, isFree,
     onRange({ from: range.from >= to ? prevDay(to) : range.from, to });
   }
 
-  const nbNuits = Math.max(1, nightsBetween(range.from, range.to).length);
+  // Le panier : une ligne par chambre choisie, avec SES dates.
+  const mesPicks = useMemo(
+    () => rooms.filter((r) => picks[r.id]).map((room) => ({ room, p: picks[room.id] })),
+    [rooms, picks],
+  );
 
   return (
     <div className="mb-7">
-      {/* 1) L'invité pose ses dates */}
+      {/* 1) La consigne. Le geste EST le calendrier : plus de champs de dates globaux —
+             chaque chambre porte désormais ses propres nuits. */}
       <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-4 mb-4 shadow-sm">
-        <p className="text-[11px] uppercase tracking-wider font-semibold mb-3" style={{ color: GOLD }}>
-          Vos dates
+        <p className="text-sm font-medium mb-1" style={{ color: NAVY }}>
+          Glissez sur la ligne d’une chambre pour choisir vos nuits.
         </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex-1 min-w-[140px]">
-            <span className="block text-xs text-slate-500 mb-1">Arrivée</span>
-            <input type="date" value={range.from} min={groupe.date_arrivee} max={groupe.date_depart}
-              onChange={(e) => setFrom(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
-          </label>
-          <label className="flex-1 min-w-[140px]">
-            <span className="block text-xs text-slate-500 mb-1">Départ</span>
-            <input type="date" value={range.to} min={groupe.date_arrivee} max={groupe.date_depart}
-              onChange={(e) => setTo(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
-          </label>
-          <p className="text-sm text-slate-500 pb-2">
-            <b style={{ color: NAVY }}>{nbNuits}</b> nuit{nbNuits > 1 ? "s" : ""} ·{" "}
-            <b style={{ color: NAVY }}>{counts.free}</b> chambre{counts.free > 1 ? "s" : ""} libre{counts.free > 1 ? "s" : ""}
-          </p>
-        </div>
+        <p className="text-xs text-slate-500">
+          Un clic = une nuit. Vous pouvez enchaîner plusieurs chambres, chacune à ses dates.
+          Les nuits grisées sont déjà prises.
+        </p>
+        {mesPicks.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-slate-100">
+            {mesPicks.map(({ room, p }) => (
+              <span key={room.id} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
+                style={{ background: "rgba(0,78,124,.08)", color: NAVY }}>
+                Ch. {room.numero} · {ddmm(p.from)} → {ddmm(p.to)}
+                <button type="button" onClick={() => onToggle(room)} aria-label="Retirer"
+                  className="opacity-50 hover:opacity-100">✕</button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 2) Où en est le bloc — « j'ai réservé 10 000 / 32 000 ». */}
+      {voitBudget && (
       <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-4 mb-4 shadow-sm">
         <div className="flex items-baseline justify-between gap-3 mb-2">
           <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: GOLD }}>Le bloc</p>
@@ -403,65 +503,123 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, selected, isFree,
           <div style={{ width: `${budget.enveloppe ? (budget.moi / budget.enveloppe) * 100 : 0}%`, background: GOLD }} />
         </div>
         <p className="text-[11px] text-slate-400 mt-2">
-          Hébergement du bloc, hors taxe de séjour.
+          {groupe.taxe_sejour_mode === "ajoutee" ? "Hébergement du bloc, taxe de séjour comprise."
+            : groupe.taxe_sejour_mode === "incluse" ? "Hébergement du bloc, taxe de séjour incluse dans le tarif."
+            : "Hébergement du bloc. Taxe de séjour à régler sur place."}
           {budget.moi > 0 && <> Dont <b style={{ color: GOLD }}>{euro(budget.moi)}</b> pour votre sélection en cours.</>}
         </p>
       </div>
+      )}
 
       {/* 3) Le calendrier. Défile horizontalement si le séjour est long. */}
-      <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-sm overflow-x-auto">
+      <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-sm overflow-auto max-h-[70vh] [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 bg-white/95 text-left px-3 py-2 font-medium text-slate-400 text-xs">Chambre</th>
-              {nuits.map((n) => (
-                <th key={n} className="px-1 py-2 font-medium text-slate-400 text-[10px] whitespace-nowrap min-w-[34px]">
-                  {new Date(n + "T00:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
-                </th>
-              ))}
+              <th className="sticky left-0 top-0 z-30 bg-white text-left px-3 py-2 font-medium text-slate-400 text-xs">Chambre</th>
+              {jours.map((j) => {
+                const d = new Date(j + "T00:00:00");
+                const we = d.getDay() === 0 || d.getDay() === 6;
+                return (
+                  <th key={j} className="sticky top-0 z-20 bg-white px-0 py-2 font-medium text-[10px] whitespace-nowrap min-w-[38px]"
+                    style={{ color: we ? NAVY : "#94a3b8" }}>
+                    <span className="block text-[9px] font-normal opacity-70">
+                      {d.toLocaleDateString("fr-FR", { weekday: "narrow" })}
+                    </span>
+                    {d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           {sections.map((sec) => (
             <tbody key={sec.hotel || "_"}>
               {sec.hotel && (
-                <tr><td colSpan={nuits.length + 1} className="px-3 pt-4 pb-1 font-serif font-semibold text-lg" style={{ color: NAVY }}>{sec.hotel}</td></tr>
+                <tr><td colSpan={jours.length + 1} className="px-3 pt-4 pb-1 font-serif font-semibold text-lg" style={{ color: NAVY }}>{sec.hotel}</td></tr>
               )}
               {sec.cats.map((cat) => (
                 <Fragment key={cat.name}>
                   <tr>
-                    <td colSpan={nuits.length + 1} className="px-3 pt-3 pb-1">
+                    <td colSpan={jours.length + 1} className="px-3 pt-3 pb-1">
                       <span className="text-xs font-semibold" style={{ color: NAVY }}>{cat.name}</span>
-                      <span className="text-xs text-slate-400"> · {euro(cat.tarif)} / nuit</span>
+                      {voitPrix && <span className="text-xs text-slate-400"> · {euro(cat.tarif)} / nuit</span>}
                     </td>
                   </tr>
                   {cat.rooms.map((r) => {
                     const libre = isFree(r);
-                    const sel = selected.has(r.id);
+                    const mine = picks[r.id];          // MA plage sur CETTE chambre
+                    const sel = mine !== undefined;
                     return (
-                      <tr key={r.id}
-                        onClick={() => onToggle(r)}
-                        className={`border-t border-slate-100 ${libre ? "cursor-pointer hover:bg-slate-50" : "cursor-default"}`}>
+                      <tr key={r.id} className="border-t border-slate-100 select-none">
                         <td className="sticky left-0 z-10 bg-white/95 px-3 py-1.5 whitespace-nowrap">
                           <span className="font-semibold" style={{ color: sel ? NAVY : libre ? "#334155" : "#94a3b8" }}>{r.numero}</span>
-                          {sel && <span className="ml-2 text-[10px] font-medium" style={{ color: NAVY }}>Sélectionnée</span>}
-                          {!libre && <span className="ml-2 text-[10px] text-slate-400">indisponible</span>}
+                          {sel && (
+                            <button type="button" onClick={() => onToggle(r)}
+                              className="ml-2 text-[10px] font-medium underline decoration-dotted" style={{ color: NAVY }}>
+                              retirer
+                            </button>
+                          )}
                         </td>
-                        {nuits.map((n) => {
-                          // Nuit prise ? (bornes [) → le jour du départ est libre)
-                          const occ = (r.periodes || []).find((p) => n >= p.from && n < p.to);
-                          const dansMaPlage = nightsSel.has(n);
+                        {jours.map((j) => {
+                          // Ce qui remplit chaque MOITIÉ du jour J : la nuit J-1 à gauche, la nuit J
+                          // à droite. Même fonction pour les deux → le séjour se dessine « à cheval ».
+                          const etat = (nuit: string) => {
+                            if (!nuit) return null;
+                            const occ = (r.periodes || []).find((p) => nuit >= p.from && nuit < p.to);
+                            if (occ) return { kind: "occ" as const, occ };
+                            if (drag?.roomId === r.id && dragNights?.set.has(nuit))
+                              return { kind: dragNights.ok ? ("drag" as const) : ("bad" as const), occ: null };
+                            if (mine && nuit >= mine.from && nuit < mine.to) return { kind: "moi" as const, occ: null };
+                            return null;
+                          };
+                          const fill = (e: ReturnType<typeof etat>) =>
+                            !e ? "transparent"
+                              : e.kind === "occ" ? "#cbd5e1"
+                              : e.kind === "drag" ? GOLD
+                              : e.kind === "bad" ? "#fca5a5"
+                              : NAVY;
+
+                          // Le dernier jour (départ du groupe) n'ouvre AUCUNE nuit : il ne sert
+                          // qu'à afficher les départs sur sa moitié gauche.
+                          const nuitDroite = j === groupe.date_depart ? "" : j;
+                          const gauche = etat(prevDay(j));
+                          const droite = etat(nuitDroite);
+                          const occIci = gauche?.occ || droite?.occ;
+                          // Deux moitiés appartiennent-elles au MÊME séjour ? Si oui elles se
+                          // soudent (bords carrés) ; sinon chacune garde son bord arrondi — c'est
+                          // ce qui dessine proprement un départ et une arrivée le même jour.
+                          const runKey = (e: ReturnType<typeof etat>) =>
+                            !e ? "" : e.occ ? `occ:${e.occ.from}:${e.occ.to}` : e.kind;
+                          const sameRun = !!gauche && !!droite && runKey(gauche) === runKey(droite);
+
                           return (
-                            <td key={n} className="px-0.5 py-1.5">
+                            <td key={j} className="p-0 align-middle"
+                              // Peinture de la plage : appui = ancre, survol = extension.
+                              onPointerDown={(e) => {
+                                // Séjour déjà posé ici : c'est peut-être LE VÔTRE → écran « retrouver
+                                // ma réservation » (PIN), comme le mode simple sur une chambre prise.
+                                if (occIci) { onClaim(r); return; }
+                                if (groupe.closed || !nuitDroite) return;
+                                e.preventDefault();               // sinon le navigateur lance une sélection de texte
+                                setDrag({ roomId: r.id, anchor: nuitDroite, cur: nuitDroite });
+                              }}
+                              onPointerEnter={() => {
+                                if (drag && drag.roomId === r.id && nuitDroite) setDrag((d) => (d ? { ...d, cur: nuitDroite } : d));
+                              }}>
                               <div
-                                title={occ ? (occ.occupant || "Réservée") : dansMaPlage ? "Libre — dans vos dates" : "Libre"}
-                                className="h-6 rounded"
-                                style={{
-                                  background: occ ? "#e2e8f0"
-                                    : dansMaPlage ? (sel ? NAVY : libre ? "rgba(0,78,124,.18)" : "#f1f5f9")
-                                    : "#f8fafc",
-                                  border: occ ? "1px solid #cbd5e1" : "1px solid transparent",
-                                }}
-                              />
+                                title={occIci ? `${occIci.occupant || "Réservée"} — cliquez si c’est votre réservation`
+                                  : !nuitDroite ? "Jour du départ" : "Cliquez ou glissez pour choisir vos nuits"}
+                                className={`flex h-7 ${occIci || (!groupe.closed && nuitDroite) ? "cursor-pointer" : ""}`}
+                              >
+                                {/* gauche = nuit précédente (les DÉPARTS, on part le matin) ·
+                                    droite = nuit qui commence (les ARRIVÉES, on arrive l'aprem).
+                                    ⚠️ On n'arrondit QUE les extrémités du séjour : arrondir chaque
+                                    moitié donnait un chapelet de gélules au lieu d'une barre. */}
+                                <div className={`w-1/2 h-full transition-colors ${sameRun ? "" : "rounded-r-full"}`}
+                                  style={{ background: fill(gauche) }} />
+                                <div className={`w-1/2 h-full transition-colors ${sameRun ? "" : "rounded-l-full"}`}
+                                  style={{ background: fill(droite) }} />
+                              </div>
                             </td>
                           );
                         })}
@@ -537,9 +695,11 @@ function RoomBubble({ room, index, selected, planVisible, disabled, onClick }: {
 }
 
 // ---------- Formulaire (multi-chambres) ----------
-function BookingForm({ code, groupe, rooms, initRange, onClose, onDone, onPay, onConflict }: {
+function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, onPay, onConflict }: {
   code: string; groupe: GroupeMeta; rooms: Room[];
   initRange?: { from: string; to: string } | null;
+  // Mode 'pro' : les dates de CHAQUE chambre, posées au calendrier.
+  picks?: Record<string, { from: string; to: string }>;
   onClose: () => void; onDone: (ref: string, pin: string) => void;
   onPay: (payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]) => void;
   onConflict: () => void;
@@ -547,6 +707,9 @@ function BookingForm({ code, groupe, rooms, initRange, onClose, onDone, onPay, o
   const [nom, setNom] = useState(""); const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState(""); const [tel, setTel] = useState("");
   const [emailAck, setEmailAck] = useState(false);
+  const isPro = groupe.mode_vue === "pro";
+  // L'email n'est exigé qu'en mode simple, ou si un règlement en ligne l'attend (Stripe l'envoie).
+  const emailRequis = !isPro || groupe.mode_paiement === "immediat" || groupe.mode_paiement === "differe";
   const [da, setDa] = useState(initRange?.from || groupe.date_arrivee);
   const [dd, setDd] = useState(initRange?.to || groupe.date_depart);
   const [pin, setPin] = useState(""); const [pin2, setPin2] = useState("");
@@ -563,15 +726,36 @@ function BookingForm({ code, groupe, rooms, initRange, onClose, onDone, onPay, o
   }
 
   const nights = Math.max(1, Math.round((new Date(dd + "T00:00:00").getTime() - new Date(da + "T00:00:00").getTime()) / 86400000));
-  const totalHebergement = rooms.reduce((s, r) => s + r.tarif, 0) * nights;
+  // En 'pro', chaque chambre a SA durée → le total se calcule chambre par chambre.
+  const nightsOf = (r: Room) => {
+    const p = picks?.[r.id];
+    return p ? Math.max(1, Math.round((new Date(p.to).getTime() - new Date(p.from).getTime()) / 86400000)) : nights;
+  };
+  const totalHebergement = rooms.reduce((s, r) => s + r.tarif * nightsOf(r), 0);
+  // Réglages staff (migration 84). Le montant tombe en repli sur l'ancien helper codé en
+  // dur (1,86 Voiles / 2,83 Corniche) tant qu'un groupe n'a pas son propre montant saisi.
+  const affF = groupe.affichage_tarifs || "complet";
+  const voitPrixF = affF === "complet";
+  const tsMode = groupe.taxe_sejour_mode || "sur_place";
+  const tsMontant = groupe.taxe_sejour_montant || taxeSejour(rooms[0]?.hotel ?? null);
+  const totalPax = rooms.reduce((s, r) => s + (cfg[r.id]?.pax ?? 1), 0);
+  const totalTaxe = tsMode === "ajoutee"
+    ? rooms.reduce((s, r) => s + tsMontant * nightsOf(r) * (cfg[r.id]?.pax ?? 1), 0)
+    : 0;
 
   async function submit() {
     setErr(null);
-    if (!nom.trim() || !email.trim()) return setErr("Nom et email sont requis.");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setErr("Adresse e-mail invalide.");
-    if ([...email].some(c => c.charCodeAt(0) > 127) && !emailAck) { setEmailAck(true); return setErr("Votre e-mail contient un caractère accentué (ex. « é »). Vérifiez l'adresse, ou cliquez à nouveau pour confirmer."); }
-    if (!/^\d{4}$/.test(pin)) return setErr("Choisissez un code à 4 chiffres.");
-    if (pin !== pin2) return setErr("Les deux codes ne correspondent pas.");
+    // Mode 'pro' : le NOM suffit (Martin 2026-07-16). On ne fait pas remplir une fiche client
+    // individuelle à 18 comédiens dont la production gère déjà tout. Email/tél/code facultatifs
+    // — mais s'ils sont renseignés, ils restent validés.
+    // Un paiement en ligne redemande l'email : Stripe le lui envoie.
+    if (!nom.trim()) return setErr("Merci d'indiquer votre nom.");
+    if (emailRequis && !email.trim()) return setErr("Nom et email sont requis.");
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setErr("Adresse e-mail invalide.");
+    if (email.trim() && [...email].some(c => c.charCodeAt(0) > 127) && !emailAck) { setEmailAck(true); return setErr("Votre e-mail contient un caractère accentué (ex. « é »). Vérifiez l'adresse, ou cliquez à nouveau pour confirmer."); }
+    if (!isPro && !/^\d{4}$/.test(pin)) return setErr("Choisissez un code à 4 chiffres.");
+    if (pin && !/^\d{4}$/.test(pin)) return setErr("Le code doit faire 4 chiffres.");
+    if (pin && pin !== pin2) return setErr("Les deux codes ne correspondent pas.");
     if (!cgv) return setErr("Merci d'accepter les conditions.");
     if (!signature) return setErr("Merci de signer.");
     setSubmitting(true);
@@ -579,7 +763,11 @@ function BookingForm({ code, groupe, rooms, initRange, onClose, onDone, onPay, o
       const res = await fetch(`/api/groupe/${code}/reserve`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          rooms: rooms.map(r => ({ groupe_chambre_id: r.id, config_lit: cfg[r.id]?.lit, nb_personnes: cfg[r.id]?.pax })),
+          rooms: rooms.map(r => ({
+            groupe_chambre_id: r.id, config_lit: cfg[r.id]?.lit, nb_personnes: cfg[r.id]?.pax,
+            // 'pro' : dates propres à la chambre · 'simple' : le serveur retombe sur da/dd.
+            date_arrivee: picks?.[r.id]?.from, date_depart: picks?.[r.id]?.to,
+          })),
           nom: nom.trim(), prenom: prenom.trim(), email: email.trim(), tel: tel.trim(),
           date_arrivee: da, date_depart: dd, pin, cgv, signature,
         }),
@@ -603,48 +791,71 @@ function BookingForm({ code, groupe, rooms, initRange, onClose, onDone, onPay, o
                 {r.type || "Chambre"}
                 <span className="ml-1.5 text-xs font-normal text-slate-400">n° {r.numero}</span>
               </span>
-              <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>
-                {euro(r.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span>
-              </span>
+              {voitPrixF && (
+                <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>
+                  {euro(r.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span>
+                </span>
+              )}
             </div>
           ))}
+          {/* Prix masqués quand la réception l'a décidé (groupe pris en charge : personne ne
+              règle, afficher un total n'a aucun sens). */}
+          {voitPrixF && (
           <div className="flex items-baseline justify-between gap-3 pt-2 border-t" style={{ borderColor: "rgba(0,78,124,.1)" }}>
             <span className="text-sm font-semibold" style={{ color: NAVY }}>
-              Total hébergement
+              Total {tsMode === "ajoutee" ? "séjour" : "hébergement"}
               <span className="ml-1.5 text-[11px] font-normal text-slate-400">{nights} nuit{nights > 1 ? "s" : ""}{rooms.length > 1 ? ` · ${rooms.length} ch.` : ""}</span>
             </span>
-            <span className="text-base font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(totalHebergement)}</span>
+            <span className="text-base font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(totalHebergement + totalTaxe)}</span>
           </div>
+          )}
+          {voitPrixF && (
           <div className="text-[11px] text-slate-500 leading-relaxed">
-            <span className="font-medium text-slate-600">Taxe de séjour</span> à régler sur place, par personne et par nuit :{" "}
-            {[...new Map(rooms.map(r => [r.hotel, r.hotel])).keys()].length > 1
-              ? [...new Map(rooms.map(r => [r.hotel, r.hotel])).keys()].map((h, i, a) => (
-                  <span key={h ?? i}>{euro2(taxeSejour(h))} ({h}){i < a.length - 1 ? ", " : ""}</span>
-                ))
-              : <span>{euro2(taxeSejour(rooms[0]?.hotel ?? null))}</span>}
-            .
+            <span className="font-medium text-slate-600">Taxe de séjour</span>{" "}
+            {tsMode === "incluse"
+              ? <>incluse dans le tarif — rien à régler en plus.</>
+              : tsMode === "ajoutee"
+              ? <>comprise dans le total ci-dessus : {euro2(tsMontant)} par personne et par nuit.</>
+              : <>à régler sur place, par personne et par nuit : {euro2(tsMontant)}.</>}
           </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <FInput label="Prénom" value={prenom} onChange={setPrenom} placeholder="Léa" />
           <FInput label="Nom *" value={nom} onChange={setNom} placeholder="Dupont" />
         </div>
-        <FInput label="Email *" value={email} onChange={(v) => { setEmail(v); setEmailAck(false); }} placeholder="lea@exemple.fr" type="email" />
+        <FInput label={emailRequis ? "Email *" : "Email (facultatif)"} value={email} onChange={(v) => { setEmail(v); setEmailAck(false); }} placeholder="lea@exemple.fr" type="email" />
         <FInput label="Téléphone" value={tel} onChange={setTel} placeholder="06 12 34 56 78" type="tel" />
-        <div className="grid grid-cols-2 gap-3">
-          <FDate label="Arrivée" value={da} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDa} />
-          <FDate label="Départ" value={dd} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDd} />
-        </div>
+        {!isPro && (
+          <div className="grid grid-cols-2 gap-3">
+            <FDate label="Arrivée" value={da} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDa} />
+            <FDate label="Départ" value={dd} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDd} />
+          </div>
+        )}
 
         {/* Détail par chambre */}
         <div className="space-y-2">
           <Label>Vos chambres</Label>
           {rooms.map(r => (
             <div key={r.id} className="rounded-xl border border-slate-200 p-3">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-slate-800">{r.numero}{r.type ? <span className="text-xs text-slate-400 font-normal"> · {r.type}</span> : null}</span>
-                <Stepper value={cfg[r.id]?.pax ?? 1} min={1} max={r.pax_max} onChange={(v) => setRoomCfg(r.id, { pax: v })} />
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-slate-800">
+                  {r.numero}{r.type ? <span className="text-xs text-slate-400 font-normal"> · {r.type}</span> : null}
+                  {/* En 'pro' chaque chambre a SES nuits → on les montre ici, il n'y a plus de
+                      couple Arrivée/Départ global qui vaudrait pour tout le monde. */}
+                  {picks?.[r.id] && (
+                    <span className="block text-[11px] font-normal mt-0.5" style={{ color: NAVY }}>
+                      {fmt(picks[r.id].from)} → {fmt(picks[r.id].to)}
+                      <span className="text-slate-400"> · {nightsOf(r)} nuit{nightsOf(r) > 1 ? "s" : ""}</span>
+                    </span>
+                  )}
+                </span>
+                {/* Le pas « − 1 + » n'avait AUCUN libellé (Martin : « c'est quoi le +1 ? »). */}
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] text-slate-400">Personnes</span>
+                  <Stepper value={cfg[r.id]?.pax ?? 1} min={1} max={r.pax_max} onChange={(v) => setRoomCfg(r.id, { pax: v })} />
+                </span>
               </div>
               {r.twinable && (
                 <div className="grid grid-cols-2 gap-2 mt-2.5">
@@ -661,10 +872,10 @@ function BookingForm({ code, groupe, rooms, initRange, onClose, onDone, onPay, o
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>Créez un code à 4 chiffres</Label><PinInput value={pin} onChange={setPin} /></div>
+          <div><Label>{isPro ? "Code à 4 chiffres (facultatif)" : "Créez un code à 4 chiffres"}</Label><PinInput value={pin} onChange={setPin} /></div>
           <div><Label>Confirmez le code</Label><PinInput value={pin2} onChange={setPin2} /></div>
         </div>
-        <p className="text-[11px] text-slate-400 -mt-2">Ce code vous servira à modifier ou annuler votre réservation.</p>
+        <p className="text-[11px] text-slate-400 -mt-2">{isPro ? "Facultatif : avec un code, vous seul pourrez modifier ou annuler votre réservation." : "Ce code vous servira à modifier ou annuler votre réservation."}</p>
 
         {groupe.conditions_annulation && (
           <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-xs text-slate-500 leading-relaxed">
@@ -1008,7 +1219,7 @@ function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle
     <motion.div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 360, damping: 34 }}
-        className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto">
+        className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]">
         <div className="sticky top-0 bg-white/95 backdrop-blur px-5 py-4 flex items-center justify-between border-b border-slate-100 z-10">
           <div><p className="text-[11px] uppercase tracking-widest text-slate-400">{subtitle}</p><h2 className="font-serif font-semibold text-xl text-slate-800">{title}</h2></div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="w-5 h-5" /></button>

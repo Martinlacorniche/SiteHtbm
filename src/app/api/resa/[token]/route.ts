@@ -169,7 +169,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     const { error } = await supabaseServer.from("groupe_reservations")
       .update({ date_arrivee: da, date_depart: dd, config_lit: lit, nb_personnes: pax, derniere_action: "modification", vu_backoffice: false, pms_done: false, modified_at: nowIso })
       .eq("id", resa_id);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    // Déplacer ses dates peut désormais TOMBER SUR un autre séjour de la même chambre
+    // (23P01 = contrainte d'exclusion, migration 82) → message lisible plutôt que le brut SQL.
+    if (error) {
+      if (error.code === "23P01" || error.code === "23505")
+        return NextResponse.json({ ok: false, error: "Ces nuits sont déjà prises sur cette chambre. Choisissez d'autres dates." }, { status: 409 });
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
 
     // Email avec les changements en rouge (old → new)
     const dChanged = da !== target.date_arrivee || dd !== target.date_depart;
