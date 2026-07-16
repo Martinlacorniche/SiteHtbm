@@ -211,8 +211,16 @@ function BookingView({ code }: { code: string }) {
   }, [groupe, range]);
 
   const isFree = useCallback(
-    (r: Room) => (isPro && range ? roomFreeFor(r, range.from, range.to) : !r.taken),
-    [isPro, range],
+    (r: Room) => {
+      if (isPro && range) return roomFreeFor(r, range.from, range.to);
+      // Mode 'simple' : tout le monde réserve la plage ENTIÈRE du groupe → une seule nuit
+      // retirée (migration 86) rend la chambre inutilisable. Sans ce contrôle, le client la
+      // voyait « Disponible », remplissait tout le formulaire, et le SERVEUR le rejetait
+      // à la fin (« n'est pas proposée sur ces dates »).
+      if (!groupe) return !r.taken;
+      return !r.taken && roomFreeFor(r, groupe.date_arrivee, groupe.date_depart);
+    },
+    [isPro, range, groupe],
   );
 
   const counts = useMemo(() => ({
@@ -285,8 +293,10 @@ function BookingView({ code }: { code: string }) {
   function toggle(r: Room) {
     // En 'pro', « retirer » sort simplement la chambre du panier.
     if (isPro) { unpick(r.id); return; }
-    if (!isFree(r)) { setClaim(r); return; }
-    if (groupe!.closed) return;
+    // Une chambre indisponible parce qu'elle n'est pas PROPOSÉE n'a pas d'occupant :
+    // lui demander un code n'aurait aucun sens.
+    if (r.taken) { openResa(r); return; }
+    if (!isFree(r) || groupe!.closed) return;
     setSelected(prev => { const n = new Set(prev); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; });
   }
 
@@ -331,7 +341,7 @@ function BookingView({ code }: { code: string }) {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                   {cat.rooms.map((r, i) => (
-                    <RoomBubble key={r.id} room={r} index={i} selected={selected.has(r.id)}
+                    <RoomBubble key={r.id} room={r} index={i} selected={selected.has(r.id)} free={isFree(r)}
                       planVisible={groupe.plan_visible} disabled={groupe.closed && !r.taken} onClick={() => toggle(r)} />
                   ))}
                 </div>
@@ -719,10 +729,10 @@ function Hero({ groupe }: { groupe: GroupeMeta }) {
   );
 }
 
-function RoomBubble({ room, index, selected, planVisible, disabled, onClick }: {
-  room: Room; index: number; selected: boolean; planVisible: boolean; disabled: boolean; onClick: () => void;
+function RoomBubble({ room, index, selected, planVisible, disabled, free, onClick }: {
+  room: Room; index: number; selected: boolean; planVisible: boolean; disabled: boolean; free: boolean; onClick: () => void;
 }) {
-  const muted = room.taken || disabled;
+  const muted = room.taken || disabled || !free;
   return (
     <motion.button type="button" onClick={onClick} disabled={disabled && !room.taken}
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -743,6 +753,9 @@ function RoomBubble({ room, index, selected, planVisible, disabled, onClick }: {
       <div className="mt-2 pt-2 border-t border-slate-100">
         {room.taken
           ? <span className="text-[11px] text-slate-400">{planVisible && room.occupant ? room.occupant : "Réservée"}</span>
+          : !free
+          // Ni réservée ni libre : le staff a retiré des nuits du bloc sur cette chambre.
+          ? <span className="text-[11px] text-slate-400">Non proposée</span>
           : <span className="text-[11px] font-medium" style={{ color: NAVY }}>{selected ? "Sélectionnée" : "Disponible"}</span>}
       </div>
     </motion.button>
