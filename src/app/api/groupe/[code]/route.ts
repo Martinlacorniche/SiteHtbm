@@ -94,7 +94,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
       mode_paiement: g.mode_paiement || (g.paiement_obligatoire ? "immediat" : "aucun"),
       // Réglages staff (migration 84). Replis = comportement d'avant si non migré.
       affichage_tarifs: ["complet", "budget", "masque"].includes(g.affichage_tarifs) ? g.affichage_tarifs : "complet",
-      taxe_sejour_mode: ["sur_place", "incluse", "ajoutee"].includes(g.taxe_sejour_mode) ? g.taxe_sejour_mode : "sur_place",
+      taxe_sejour_mode: ["incluse", "ajoutee"].includes(g.taxe_sejour_mode) ? g.taxe_sejour_mode : "ajoutee",
       taxe_sejour_montant: Number(g.taxe_sejour_montant) || 0,
       cover_image_url: g.cover_image_url,
       message_accueil: g.message_accueil,

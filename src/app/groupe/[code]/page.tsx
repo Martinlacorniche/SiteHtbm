@@ -33,7 +33,7 @@ interface GroupeMeta {
   mode_paiement?: string | null;
   // Réglages staff (migration 84).
   affichage_tarifs?: "complet" | "budget" | "masque";
-  taxe_sejour_mode?: "sur_place" | "incluse" | "ajoutee";
+  taxe_sejour_mode?: "incluse" | "ajoutee";
   taxe_sejour_montant?: number;
   // 'simple' : cartes de chambres sur les dates du groupe (mariages — la page reste
   // telle quelle). 'pro' : calendrier chambres × nuits, chaque invité pose ses dates
@@ -464,8 +464,9 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
   // Hébergement seul (le tarif du bloc), hors taxe de séjour et extras : c'est un
   // repère de consommation du bloc, pas une facture.
   // La taxe de séjour n'entre dans le prix du bloc QUE si la réception l'a déclarée
-  // « à rajouter » (Martin 2026-07-16). « incluse » = déjà dans le tarif/nuit → on
-  // n'ajoute rien ; « sur place » = réglée à l'hôtel par le voyageur → hors bloc.
+  // « à rajouter » ; « incluse » = déjà dans le tarif/nuit → on n'ajoute rien.
+  // (« sur place » a été supprimé, migration 89 : c'est mode_paiement qui dit OÙ
+  //  l'on règle, pas le mode de taxe.)
   const ts = groupe.taxe_sejour_mode === "ajoutee" ? (groupe.taxe_sejour_montant || 0) : 0;
   // Interrupteur staff (migration 84) : complet = prix + budget · budget = budget seul
   // (vue organisateur) · masque = rien (groupe pris en charge, cf CACTUS).
@@ -549,9 +550,9 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
           <div style={{ width: `${budget.enveloppe ? (budget.moi / budget.enveloppe) * 100 : 0}%`, background: GOLD }} />
         </div>
         <p className="text-[11px] text-slate-400 mt-2">
-          {groupe.taxe_sejour_mode === "ajoutee" ? "Hébergement du bloc, taxe de séjour comprise."
-            : groupe.taxe_sejour_mode === "incluse" ? "Hébergement du bloc, taxe de séjour incluse dans le tarif."
-            : "Hébergement du bloc. Taxe de séjour à régler sur place."}
+          {groupe.taxe_sejour_mode === "incluse"
+            ? "Hébergement du bloc, taxe de séjour incluse dans le tarif."
+            : "Hébergement du bloc, taxe de séjour comprise."}
           {budget.moi > 0 && <> Dont <b style={{ color: GOLD }}>{euro(budget.moi)}</b> pour votre sélection en cours.</>}
         </p>
       </div>
@@ -804,7 +805,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
   // dur (1,86 Voiles / 2,83 Corniche) tant qu'un groupe n'a pas son propre montant saisi.
   const affF = groupe.affichage_tarifs || "complet";
   const voitPrixF = affF === "complet";
-  const tsMode = groupe.taxe_sejour_mode || "sur_place";
+  const tsMode = groupe.taxe_sejour_mode || "ajoutee";
   const tsMontant = groupe.taxe_sejour_montant || taxeSejour(rooms[0]?.hotel ?? null);
   const totalPax = rooms.reduce((s, r) => s + (cfg[r.id]?.pax ?? 1), 0);
   const totalTaxe = tsMode === "ajoutee"
@@ -882,9 +883,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
             <span className="font-medium text-slate-600">Taxe de séjour</span>{" "}
             {tsMode === "incluse"
               ? <>incluse dans le tarif — rien à régler en plus.</>
-              : tsMode === "ajoutee"
-              ? <>comprise dans le total ci-dessus : {euro2(tsMontant)} par personne et par nuit.</>
-              : <>à régler sur place, par personne et par nuit : {euro2(tsMontant)}.</>}
+              : <>comprise dans le total ci-dessus : {euro2(tsMontant)} par personne et par nuit.</>}
           </div>
           )}
         </div>

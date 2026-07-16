@@ -18,9 +18,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const ref = body.ref;
   if (!ref) return NextResponse.json({ ok: false, error: "Référence manquante" }, { status: 400 });
 
-  const { data: g } = await supabaseServer.from("groupes").select("id, nom, code_acces, mode_paiement, paiement_obligatoire").eq("code_acces", code).maybeSingle();
+  const { data: g } = await supabaseServer.from("groupes")
+    .select("id, nom, code_acces, mode_paiement, paiement_obligatoire, taxe_sejour_mode, taxe_sejour_montant")
+    .eq("code_acces", code).maybeSingle();
   if (!g) return NextResponse.json({ ok: false, error: "Groupe introuvable" }, { status: 404 });
   const mode: string = g.mode_paiement || (g.paiement_obligatoire ? "immediat" : "aucun");
+  // Taxe de séjour : encaissée en mode « ajoutee » — celui où la page groupe
+  // l'annonce comprise dans le total. 'incluse' = déjà dans le tarif/nuit, rien à
+  // ajouter. (2 modes seulement depuis la migration 89.)
+  const tsAjoutee = g.taxe_sejour_mode === "ajoutee";
+  const tsMontant = Number(g.taxe_sejour_montant) || 0;
   if (mode !== "optionnel" && mode !== "differe") {
     return NextResponse.json({ ok: false, error: "Paiement en ligne indisponible pour ce groupe." }, { status: 400 });
   }
@@ -28,7 +35,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   // Chambres du booking encore « tenues » (confirmée sur place, ou en attente du lien programmé).
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, email, nom, prenom, date_arrivee, date_depart, statut, stripe_checkout_id, groupe_chambres!inner(hotel_id, tarif_nuit, room_units(numero))")
+    .select("id, email, nom, prenom, date_arrivee, date_depart, nb_personnes, statut, stripe_checkout_id, groupe_chambres!inner(hotel_id, tarif_nuit, room_units(numero))")
     .eq("booking_ref", ref).eq("groupe_id", g.id).in("statut", ["confirmee", "paiement_differe"]);
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable." }, { status: 404 });
 
@@ -46,19 +53,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const origin = req.headers.get("origin") || "";
 
   // Une session par hôtel (comptes Stripe distincts).
-  type HG = { ids: string[]; lines: { name: string; amount: number }[]; total: number };
+  type HG = { ids: string[]; lines: { name: string; amount: number }[]; total: number; taxe: number; taxePax: number };
   const byHotel = new Map<string, HG>();
   for (const r of unpaid) {
     const gc = one(r.groupe_chambres);
     const hid = gc?.hotel_id;
     if (!hid) continue;
     const n = nights(r.date_arrivee, r.date_depart);
+    const pax = Math.max(1, Number(r.nb_personnes) || 1);
     const amount = Math.round(Number(gc.tarif_nuit) * n * 100);
-    const h = byHotel.get(hid) || { ids: [], lines: [], total: 0 };
+    const h = byHotel.get(hid) || { ids: [], lines: [], total: 0, taxe: 0, taxePax: 0 };
     h.ids.push(r.id);
     h.lines.push({ name: `${g.nom} · Ch. ${one(gc.room_units)?.numero ?? "?"} · ${n} nuit(s)`, amount });
     h.total += amount;
+    if (tsAjoutee) { h.taxe += Math.round(tsMontant * n * pax * 100); h.taxePax += pax * n; }
     byHotel.set(hid, h);
+  }
+  for (const h of byHotel.values()) {
+    if (h.taxe > 0) {
+      h.lines.push({ name: `Taxe de séjour · ${h.taxePax} nuitée(s) × ${tsMontant.toFixed(2)} €`, amount: h.taxe });
+      h.total += h.taxe;
+    }
   }
 
   const out: { hotelNom: string; amount: number; url: string }[] = [];

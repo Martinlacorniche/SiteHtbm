@@ -11,6 +11,7 @@ import { teamEmailForHotel } from "@/lib/hotel-email";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function one(x: any) { return Array.isArray(x) ? x[0] : x; }
+const nightsOf = (a: string, b: string) => Math.max(1, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000));
 
 export async function POST(req: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -100,6 +101,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const differe = mode === "differe";
   const nights = Math.max(1, Math.round((new Date(dd).getTime() - new Date(da).getTime()) / 86400000));
   const nowIso = new Date().toISOString();
+  // Taxe de séjour : voir plus bas, elle n'entre dans l'encaissement qu'en mode
+  // « ajoutee » (le seul où la page l'annonce comprise dans le total).
+  const tsAjoutee = g.taxe_sejour_mode === "ajoutee";
+  const tsMontant = Number(g.taxe_sejour_montant) || 0;
 
   const insertRows = rooms.map((r: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number; date_arrivee?: string; date_depart?: string }) => {
     const gc = gcMap.get(r.groupe_chambre_id);
@@ -139,19 +144,39 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   // ── PAIEMENT IMMÉDIAT : une session Checkout PAR HÔTEL (comptes Stripe distincts) ──
   if (immediat) {
     const origin = req.headers.get("origin") || "http://localhost:3001";
-    type HG = { resaIds: string[]; lines: { name: string; amount: number }[]; total: number };
+    // Les nuits/pax sont ceux de CHAQUE chambre (mode 'pro' : dates par chambre).
+    // Se servir du `nights` global du groupe surfacturerait un comédien venu 2 nuits
+    // sur un bloc de 11.
+    const parChambre = new Map(insertRows.map((r) => [r.groupe_chambre_id, r]));
+    type HG = { resaIds: string[]; lines: { name: string; amount: number }[]; total: number; taxe: number; taxePax: number };
     const byHotel = new Map<string, HG>();
     for (const ins of inserted || []) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const gc: any = gcMap.get(ins.groupe_chambre_id);
       if (!gc) continue;
+      const row = parChambre.get(ins.groupe_chambre_id);
       const ru = one(gc.room_units);
-      const amount = Math.round(Number(gc.tarif_nuit) * nights * 100); // cents
-      const h = byHotel.get(gc.hotel_id) || { resaIds: [], lines: [], total: 0 };
+      const rn = nightsOf(row?.date_arrivee || da, row?.date_depart || dd);
+      const pax = row?.nb_personnes ?? 1;
+      const amount = Math.round(Number(gc.tarif_nuit) * rn * 100); // cents
+      const h = byHotel.get(gc.hotel_id) || { resaIds: [], lines: [], total: 0, taxe: 0, taxePax: 0 };
       h.resaIds.push(ins.id);
-      h.lines.push({ name: `${g.nom} · Ch. ${ru?.numero ?? "?"} · ${nights} nuit(s)`, amount });
+      h.lines.push({ name: `${g.nom} · Ch. ${ru?.numero ?? "?"} · ${rn} nuit(s)`, amount });
       h.total += amount;
+      // Taxe de séjour : ENCAISSÉE si la réception l'a déclarée « à rajouter » —
+      // le mode où la page l'annonce « comprise dans le total ». 'incluse' = déjà
+      // dans le tarif/nuit, rien à ajouter. (2 modes, migration 89.)
+      if (tsAjoutee) {
+        h.taxe += Math.round(tsMontant * rn * pax * 100);
+        h.taxePax += pax * rn;
+      }
       byHotel.set(gc.hotel_id, h);
+    }
+    for (const h of byHotel.values()) {
+      if (h.taxe > 0) {
+        h.lines.push({ name: `Taxe de séjour · ${h.taxePax} nuitée(s) × ${tsMontant.toFixed(2)} €`, amount: h.taxe });
+        h.total += h.taxe;
+      }
     }
 
     const { data: hotelsData } = await supabaseServer.from("hotels").select("id, nom").in("id", [...byHotel.keys()]);
