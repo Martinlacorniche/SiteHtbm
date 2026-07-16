@@ -20,6 +20,11 @@ interface Room {
   id: string; numero: string; type: string | null; pax_max: number;
   twinable: boolean; tarif: number; hotel: string | null; taken: boolean; occupant: string | null;
   periodes?: Periode[];
+  // Nuits où cette chambre n'est PAS offerte au groupe (migration 86) : elle peut être
+  // déjà vendue certaines nuits, y compris au milieu du séjour.
+  nuitsExclues?: string[];
+  // La résa de cette chambre exige-t-elle un code ? (facultatif en mode 'pro')
+  claimNeedsPin?: boolean;
 }
 interface GroupeMeta {
   nom: string; date_arrivee: string; date_depart: string; date_limite: string;
@@ -42,8 +47,16 @@ function fmt(d?: string) {
   if (!d) return "";
   return new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
+// ⚠️ NE PAS ARRONDIR (Martin 2026-07-16) : `maximumFractionDigits: 0` affichait « 458 € »
+// pour 458,49 € — invisible tant que les tarifs étaient ronds, faux dès que la taxe de
+// séjour entre dans le total. On garde les centimes quand il y en a, sans les imposer
+// aux montants ronds (« 150 € », pas « 150,00 € »).
 function euro(n: number) {
-  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  return n.toLocaleString("fr-FR", {
+    style: "currency", currency: "EUR",
+    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 }
 // Taxe de séjour réglée sur place (par personne et par nuit)
 function taxeSejour(hotel: string | null): number {
@@ -96,7 +109,14 @@ function overlaps(aFrom: string, aTo: string, bFrom: string, bTo: string): boole
 
 // La chambre est-elle libre sur TOUTE la plage demandée ? (mode 'pro')
 function roomFreeFor(room: Room, from: string, to: string): boolean {
+  // Une seule nuit retirée du bloc suffit à interdire la plage.
+  if (nightsBetween(from, to).some((n) => !nightInRoomWindow(room, n))) return false;
   return !(room.periodes || []).some((p) => overlaps(from, to, p.from, p.to));
+}
+
+// La nuit `n` est-elle offerte au groupe sur cette chambre ?
+function nightInRoomWindow(room: Room, n: string): boolean {
+  return !(room.nuitsExclues || []).includes(n);
 }
 
 function catRank(type: string | null): number {
@@ -246,6 +266,22 @@ function BookingView({ code }: { code: string }) {
     setPicks((prev) => { const n = { ...prev }; delete n[roomId]; return n; });
   }
 
+  // Clic sur une chambre déjà réservée. Avec un code → on le demande. SANS code → la résa
+  // n'est pas verrouillée (choix assumé, Martin 2026-07-16) → on entre directement, sinon
+  // on réclamerait un code que personne n'a jamais créé.
+  async function openResa(r: Room) {
+    if (r.claimNeedsPin !== false) { setClaim(r); return; }
+    try {
+      const res = await fetch(`/api/groupe/${code}/access`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupe_chambre_id: r.id }),
+      });
+      const d = await res.json();
+      if (d.ok) router.push(`/groupe/${code}?r=${d.ref}`);
+      else setClaim(r);
+    } catch { setClaim(r); }
+  }
+
   function toggle(r: Room) {
     // En 'pro', « retirer » sort simplement la chambre du panier.
     if (isPro) { unpick(r.id); return; }
@@ -266,7 +302,7 @@ function BookingView({ code }: { code: string }) {
           <ProPlanner
             groupe={groupe} rooms={rooms} sections={sections} range={range} onRange={setRange}
             picks={picks} isFree={isFree} onToggle={toggle} onDragSelect={dragSelect}
-            onClaim={(r) => setClaim(r)} counts={counts}
+            onClaim={openResa} counts={counts}
           />
         )}
 
@@ -565,6 +601,8 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
                           // à droite. Même fonction pour les deux → le séjour se dessine « à cheval ».
                           const etat = (nuit: string) => {
                             if (!nuit) return null;
+                            // Hors de la fenêtre de CETTE chambre → hachuré, non réservable.
+                            if (!nightInRoomWindow(r, nuit)) return { kind: "hors" as const, occ: null };
                             const occ = (r.periodes || []).find((p) => nuit >= p.from && nuit < p.to);
                             if (occ) return { kind: "occ" as const, occ };
                             if (drag?.roomId === r.id && dragNights?.set.has(nuit))
@@ -574,14 +612,15 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
                           };
                           const fill = (e: ReturnType<typeof etat>) =>
                             !e ? "transparent"
-                              : e.kind === "occ" ? "#cbd5e1"
+                              : e.kind === "hors" ? "repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 3px,#e2e8f0 3px,#e2e8f0 6px)"
+                              : e.kind === "occ" ? "#5f9e7f"
                               : e.kind === "drag" ? GOLD
                               : e.kind === "bad" ? "#fca5a5"
                               : NAVY;
 
                           // Le dernier jour (départ du groupe) n'ouvre AUCUNE nuit : il ne sert
                           // qu'à afficher les départs sur sa moitié gauche.
-                          const nuitDroite = j === groupe.date_depart ? "" : j;
+                          const nuitDroite = j === groupe.date_depart || !nightInRoomWindow(r, j) ? "" : j;
                           const gauche = etat(prevDay(j));
                           const droite = etat(nuitDroite);
                           const occIci = gauche?.occ || droite?.occ;
@@ -594,6 +633,9 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
 
                           return (
                             <td key={j} className="p-0 align-middle"
+                              // La cellule qui porte le nom passe au-dessus des suivantes,
+                              // sinon leurs fonds recouvrent le texte qui déborde.
+                              style={droite?.occ && !sameRun ? { position: "relative", zIndex: 5 } : undefined}
                               // Peinture de la plage : appui = ancre, survol = extension.
                               onPointerDown={(e) => {
                                 // Séjour déjà posé ici : c'est peut-être LE VÔTRE → écran « retrouver
@@ -607,18 +649,31 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
                                 if (drag && drag.roomId === r.id && nuitDroite) setDrag((d) => (d ? { ...d, cur: nuitDroite } : d));
                               }}>
                               <div
-                                title={occIci ? `${occIci.occupant || "Réservée"} — cliquez si c’est votre réservation`
+                                title={occIci ? `${occIci.occupant || "Réservée"} · ${ddmm(occIci.from)} → ${ddmm(occIci.to)} — cliquez si c’est votre réservation`
+                                  : !nightInRoomWindow(r, j) && j !== groupe.date_depart ? "Cette chambre n’est pas proposée cette nuit-là"
                                   : !nuitDroite ? "Jour du départ" : "Cliquez ou glissez pour choisir vos nuits"}
-                                className={`flex h-7 ${occIci || (!groupe.closed && nuitDroite) ? "cursor-pointer" : ""}`}
+                                className={`relative flex h-7 ${occIci || (!groupe.closed && nuitDroite) ? "cursor-pointer" : ""}`}
                               >
+
                                 {/* gauche = nuit précédente (les DÉPARTS, on part le matin) ·
                                     droite = nuit qui commence (les ARRIVÉES, on arrive l'aprem).
                                     ⚠️ On n'arrondit QUE les extrémités du séjour : arrondir chaque
                                     moitié donnait un chapelet de gélules au lieu d'une barre. */}
                                 <div className={`w-1/2 h-full transition-colors ${sameRun ? "" : "rounded-r-full"}`}
                                   style={{ background: fill(gauche) }} />
-                                <div className={`w-1/2 h-full transition-colors ${sameRun ? "" : "rounded-l-full"}`}
-                                  style={{ background: fill(droite) }} />
+                                <div className={`relative w-1/2 h-full transition-colors ${sameRun ? "" : "rounded-l-full"}`}
+                                  style={{ background: fill(droite) }}>
+                                  {/* Le nom s'ancre sur la moitié DROITE : c'est là que la barre d'une
+                                      arrivée commence. Ancré au bord de la CELLULE, « Martin » tombait
+                                      sur la moitié gauche transparente et seul « V. » restait lisible.
+                                      Il déborde ensuite sur les nuits suivantes (la barre est faite de
+                                      demi-cellules réparties sur plusieurs colonnes). */}
+                                  {droite?.occ && droite.occ.occupant && !sameRun && (
+                                    <span className="absolute left-2 inset-y-0 flex items-center text-[10px] font-medium text-white whitespace-nowrap pointer-events-none">
+                                      {droite.occ.occupant}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </td>
                           );
@@ -998,6 +1053,9 @@ function ManageView({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [codeKnown, setCodeKnown] = useState(false);
+  // La résa a-t-elle un code ? Facultatif en mode 'pro' → on ne réclame pas un code que
+  // l'invité n'a jamais créé (Martin 2026-07-16). Sans code, le lien magique fait foi.
+  const [hasPin, setHasPin] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [da, setDa] = useState(""); const [dd, setDd] = useState(""); const [lit, setLit] = useState<"double" | "twin">("double");
   const [pax, setPax] = useState(1);
@@ -1015,6 +1073,7 @@ function ManageView({ token }: { token: string }) {
       const d = await res.json();
       if (!d.ok) { setError(d.error || "Réservation introuvable"); return; }
       setResas(d.resas); setGroupe(d.groupe); setPending(d.pendingPayments || []); setCanPay(!!d.canPayOnline);
+      setHasPin(d.hasPin !== false);   // repli : on garde l’ancien comportement si l’API est plus vieille
     } catch { setError("Connexion impossible."); } finally { setLoading(false); }
   }, [token]);
   useEffect(() => { load(); }, [load]);
@@ -1025,7 +1084,14 @@ function ManageView({ token }: { token: string }) {
   if (loading) return <FullLoader />;
   if (error || !groupe) return <Centered title="Lien invalide" text={error || "Cette réservation n'existe pas."} />;
 
-  function ensureCode() { if (!/^\d{4}$/.test(code)) { setMsg("Entrez votre code à 4 chiffres."); return false; } return true; }
+  // Le code n'est exigé que si la résa en a un (facultatif en mode 'pro'). Sans ce
+  // garde-fou, la page bloquait AVANT même d'appeler l'API — le champ était masqué mais
+  // « Enregistrer » réclamait quand même un code introuvable.
+  function ensureCode() {
+    if (!hasPin) return true;
+    if (!/^\d{4}$/.test(code)) { setMsg("Entrez votre code à 4 chiffres."); return false; }
+    return true;
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function startEdit(r: any) { setEditingId(r.id); setDa(r.date_arrivee); setDd(r.date_depart); setLit(r.config_lit === "twin" ? "twin" : "double"); setPax(r.nb_personnes || 1); setMsg(null); }
 
@@ -1065,7 +1131,7 @@ function ManageView({ token }: { token: string }) {
         <p className="uppercase tracking-[0.18em] text-[11px] text-center mb-1" style={{ color: GOLD }}>{groupe.nom}</p>
         <h1 className="font-serif font-semibold text-2xl text-slate-800 text-center mb-5">Ma réservation</h1>
 
-        {!groupe.locked && !codeKnown && (
+        {!groupe.locked && hasPin && !codeKnown && (
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
             <CodeField value={code} onChange={setCode} />
             <p className="text-[11px] text-slate-400 mt-1.5">Demandé pour modifier ou annuler vos chambres.</p>

@@ -13,7 +13,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "JSON invalide" }, { status: 400 }); }
 
   const { groupe_chambre_id, pin } = body;
-  if (!groupe_chambre_id || !pin) return NextResponse.json({ ok: false, error: "Chambre et code requis." }, { status: 400 });
+  if (!groupe_chambre_id) return NextResponse.json({ ok: false, error: "Chambre requise." }, { status: 400 });
 
   const { data: g } = await supabaseServer.from("groupes").select("id").eq("code_acces", code).maybeSingle();
   if (!g) return NextResponse.json({ ok: false, error: "Groupe introuvable" }, { status: 404 });
@@ -27,7 +27,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     .maybeSingle();
 
   if (!r) return NextResponse.json({ ok: false, error: "Aucune réservation active sur cette chambre." }, { status: 404 });
-  if (!r.code_pin || String(pin) !== r.code_pin) return NextResponse.json({ ok: false, error: "Code à 4 chiffres incorrect." }, { status: 403 });
+  // Le code est FACULTATIF depuis le mode 'pro' (Martin 2026-07-16) : « si quelqu'un le
+  // saisit, seul lui pourra gérer sa résa ». Le corollaire assumé : SANS code, la résa
+  // n'est pas verrouillée — quiconque a le lien du groupe peut la gérer.
+  // ⚠️ Le `!r.code_pin` d'origine renvoyait un 403 à tout le monde → une résa sans code
+  // devenait définitivement inaccessible, y compris à son propre auteur.
+  if (r.code_pin && String(pin || "") !== r.code_pin)
+    return NextResponse.json({ ok: false, error: "Code à 4 chiffres incorrect." }, { status: 403 });
 
   return NextResponse.json({ ok: true, ref: r.booking_ref });
 }

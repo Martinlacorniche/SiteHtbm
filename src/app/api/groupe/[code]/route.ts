@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
 
   const { data: rooms } = await supabaseServer
     .from("groupe_chambres")
-    .select("id, tarif_nuit, hotel_id, room_units(numero, pax_max, twinable, room_types(nom)), hotels:hotel_id(nom)")
+    .select("id, tarif_nuit, hotel_id, nuits_exclues, room_units(numero, pax_max, twinable, room_types(nom)), hotels:hotel_id(nom)")
     .eq("groupe_id", g.id);
 
   // Les DATES de chaque résa sont nécessaires au mode 'pro' (calendrier) : une chambre
@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
   // exactement comme la contrainte d'exclusion en base (cf migration 82).
   const { data: resas } = await supabaseServer
     .from("groupe_reservations")
-    .select("groupe_chambre_id, nom, prenom, statut, date_arrivee, date_depart, nb_personnes")
+    .select("groupe_chambre_id, nom, prenom, statut, date_arrivee, date_depart, nb_personnes, code_pin")
     .eq("groupe_id", g.id)
     .in("statut", ["confirmee", "en_attente_paiement", "paiement_differe"]);
 
@@ -55,9 +55,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
       twinable: !!ru?.twinable,
       tarif: Number(rc.tarif_nuit),
       hotel: hotel?.nom ?? null,
+      // Nuits retirées de CETTE chambre (migration 86). Vide → toute la durée du groupe.
+      // Permet d'exclure des nuits isolées, y compris au milieu du séjour.
+      nuitsExclues: (rc.nuits_exclues || []) as string[],
       // `taken` reste le champ du mode 'simple' : là-bas tout le monde réserve la plage
       // entière du groupe, donc « au moins une résa » = « chambre prise ». Inchangé.
       taken: list.length > 0,
+      // La résa de cette chambre est-elle protégée par un code ? (le code est facultatif
+      // en mode 'pro'). On n'expose PAS le code, seulement son existence : la page saurait
+      // ainsi ne pas réclamer un code qui n'existe pas.
+      claimNeedsPin: !!conf?.code_pin,
       occupant: conf && g.plan_visible ? `${conf.prenom || ""} ${(conf.nom || "").charAt(0)}.`.trim() : null,
       // Mode 'pro' : les nuits déjà prises, pour que le calendrier grise au bon endroit.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

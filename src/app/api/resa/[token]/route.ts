@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, statut, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url, mode_paiement, paiement_obligatoire)")
+    .select("id, statut, code_pin, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url, mode_paiement, paiement_obligatoire)")
     .eq("booking_ref", ref);
 
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable" }, { status: 404 });
@@ -103,6 +103,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     resas,
     pendingPayments,
     canPayOnline,
+    // La page ne doit pas réclamer un code que l'invité n'a jamais créé.
+    hasPin: !!rows[0].code_pin,
     groupe: {
       nom: g?.nom, code: g?.code_acces, date_arrivee: g?.date_arrivee, date_depart: g?.date_depart, date_limite: g?.date_limite,
       conditions_annulation: g?.conditions_annulation, cover_image_url: g?.cover_image_url,
@@ -124,9 +126,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     .eq("booking_ref", ref);
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable" }, { status: 404 });
 
-  // Code exigé (sécurité : empêche un tiers d'agir sur la réservation)
+  // Code exigé SEULEMENT si la résa en a un. Il est devenu facultatif en mode 'pro'
+  // (Martin 2026-07-16) et le `!pin` d'origine renvoyait alors un 403 à TOUT LE MONDE :
+  // la réservation devenait ingérable, même avec le lien magique.
+  // Sans code, le TOKEN du lien (32 car. aléatoires, envoyé au seul invité) fait foi —
+  // c'est le même secret qui donne accès à la page de gestion.
   const pin = rows[0].code_pin;
-  if (!pin || String(code || "").trim() !== pin) return NextResponse.json({ ok: false, error: "Code à 4 chiffres incorrect." }, { status: 403 });
+  if (pin && String(code || "").trim() !== pin) return NextResponse.json({ ok: false, error: "Code à 4 chiffres incorrect." }, { status: 403 });
 
   const g = one(rows[0].groupes);
   const today = new Date().toISOString().slice(0, 10);

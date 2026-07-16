@@ -54,7 +54,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const ids = rooms.map((r: { groupe_chambre_id: string }) => r.groupe_chambre_id);
   const { data: gcs } = await supabaseServer
     .from("groupe_chambres")
-    .select("id, groupe_id, hotel_id, tarif_nuit, room_units(numero, pax_max, twinable)")
+    .select("id, groupe_id, hotel_id, tarif_nuit, nuits_exclues, room_units(numero, pax_max, twinable)")
     .in("id", ids);
   const gcMap = new Map((gcs || []).map((x) => [x.id, x]));
 
@@ -64,6 +64,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     const ru = one(gc.room_units);
     const pax = Math.max(1, parseInt(r.nb_personnes) || 1);
     if (ru && pax > ru.pax_max) return NextResponse.json({ ok: false, error: `Une chambre dépasse sa capacité (${ru.pax_max} max).` }, { status: 400 });
+
+    // Dates PROPRES à cette chambre (mode 'pro') ; sinon celles du booking.
+    const rda = r.date_arrivee || da;
+    const rdd = r.date_depart || dd;
+    if (rda < g.date_arrivee || rdd > g.date_depart || rdd <= rda)
+      return NextResponse.json({ ok: false, error: "Dates hors des bornes du séjour." }, { status: 400 });
+    // …et sur des nuits réellement OFFERTES (migration 86) : une chambre du bloc peut
+    // être retirée certaines nuits, y compris au milieu du séjour.
+    const exclues: string[] = gc.nuits_exclues || [];
+    if (exclues.length) {
+      const d = new Date(rda + "T00:00:00"), end = new Date(rdd + "T00:00:00");
+      for (; d < end; d.setDate(d.getDate() + 1)) {
+        const n = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (exclues.includes(n))
+          return NextResponse.json({ ok: false, error: `La chambre ${ru?.numero ?? ""} n'est pas proposée sur ces dates.` }, { status: 400 });
+      }
+    }
   }
 
   const bookingRef = crypto.randomUUID();
@@ -84,10 +101,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const nights = Math.max(1, Math.round((new Date(dd).getTime() - new Date(da).getTime()) / 86400000));
   const nowIso = new Date().toISOString();
 
-  const insertRows = rooms.map((r: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number }) => {
+  const insertRows = rooms.map((r: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number; date_arrivee?: string; date_depart?: string }) => {
     const gc = gcMap.get(r.groupe_chambre_id);
     const ru = one(gc!.room_units);
     const lit = ru?.twinable ? (r.config_lit === "twin" ? "twin" : "double") : null;
+    // Mode 'pro' : chaque chambre porte SES nuits. Mode 'simple' : repli sur da/dd.
+    const rda = r.date_arrivee || da;
+    const rdd = r.date_depart || dd;
     return {
       groupe_id: g.id,
       groupe_chambre_id: r.groupe_chambre_id,
@@ -95,7 +115,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       token: crypto.randomUUID().replace(/-/g, ""),
       code_pin: pinStr || null,
       nom, prenom: prenom || null, email: email || null, tel: tel || null,
-      date_arrivee: da, date_depart: dd,
+      date_arrivee: rda, date_depart: rdd,
       config_lit: lit, nb_personnes: Math.max(1, parseInt(String(r.nb_personnes)) || 1),
       signature_url: sigPath, cgv_acceptees_at: nowIso,
       // immédiat → tenue en attente de paiement ; différé → tenue jusqu'au lien
@@ -215,6 +235,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
 
       // Confirmation au CLIENT — seulement s'il a laissé un email (facultatif en mode 'pro').
       if (email) {
+        // ⚠️ Le mail ne disait NULLE PART dans quel hôtel ni où (Martin 2026-07-16 : « on
+        // voit pas qu'on est à Toulon »). On charge les coordonnées des hôtels du booking.
+        const hotelIds = [...new Set(rooms.map((r: { groupe_chambre_id: string }) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const gc: any = gcMap.get(r.groupe_chambre_id);
+          return gc?.hotel_id;
+        }).filter(Boolean))];
+        const { data: hs } = await supabaseServer.from("hotels").select("id, nom, adresse, telephone, etoiles").in("id", hotelIds);
+        const hotelsInfo = hs || [];
+        // « La Corniche » est le nom INTERNE (switch d'hôtel, back-office). Au client on se
+        // présente sous le nom commercial (Martin 2026-07-16 : « Hôtel la Corniche **** »).
+        // Le classement vient de la base (migration 88) — il était deviné par le nom dans un
+        // `hotelStars()` codé en dur.
+        const nomPublic = (h: { nom: string; etoiles?: number | null }) =>
+          `Hôtel ${h.nom}${h.etoiles ? " " + "★".repeat(h.etoiles) : ""}`;
         const roomRows = roomRowsOf(rooms);
         const origin = req.headers.get("origin") || "";
         const fmtFr = (d: string) => { try { return new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
@@ -239,8 +274,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         const intro = isPro
           ? `<p style="margin:0 0 14px;">Bonjour ${prenom || nom}, votre chambre est réservée pour <strong>${g.nom}</strong>. Voici le récapitulatif :</p>`
           : `<p style="margin:0 0 14px;">Bonjour ${prenom || nom}, votre réservation est confirmée. Voici le récapitulatif :</p>`;
-        const accueil = isPro && g.message_accueil
-          ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f1f5f9;border-radius:10px;"><p style="margin:0;font-size:13px;line-height:1.55;color:#475569;">${g.message_accueil}</p></div>`
+        // À la place : OÙ l'on dort, et comment joindre l'hôtel.
+        const accueil = hotelsInfo.length
+          ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f1f5f9;border-radius:10px;">
+               ${hotelsInfo.map(h => `
+                 <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#1e293b;">${nomPublic(h)}</p>
+                 ${h.adresse ? `<p style="margin:0;font-size:13px;color:#475569;">${h.adresse}</p>` : ""}
+                 ${h.telephone ? `<p style="margin:2px 0 0;font-size:13px;color:#475569;">${h.telephone}</p>` : ""}
+               `).join('<div style="height:10px"></div>')}
+             </div>`
           : "";
         const priseEnCharge = isPro && mode === "aucun"
           ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f0f7f4;border:1px solid #cfe3d8;border-radius:10px;">
@@ -262,6 +304,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
               <div style="background:#004e7c;padding:20px 28px;border-radius:12px 12px 0 0;">
                 <p style="margin:0;color:#C6A972;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">${g.nom}</p>
                 <h1 style="margin:6px 0 0;color:#fff;font-size:20px;">${isPro ? "Chambre réservée" : "Réservation confirmée"}</h1>
+                ${hotelsInfo.length ? `<p style="margin:6px 0 0;color:#cfe0ec;font-size:13px;">${hotelsInfo.map(nomPublic).join(" · ")}</p>` : ""}
               </div>
               <div style="background:#f8fafc;padding:22px 28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
                 ${intro}
