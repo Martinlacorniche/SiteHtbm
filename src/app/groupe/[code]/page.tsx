@@ -25,6 +25,8 @@ const SEA_BG = "/images/pagewifi.jpg";
 interface Periode { from: string; to: string; pax?: number; occupant: string | null }
 interface Room {
   id: string; numero: string; type: string | null; pax_max: number;
+  // Libellé de catégorie traduit (migration 110). null → repli sur `type`.
+  type_en?: string | null; type_es?: string | null;
   twinable: boolean; tarif: number; hotel: string | null; taken: boolean; occupant: string | null;
   periodes?: Periode[];
   // Nuits où cette chambre n'est PAS offerte au groupe (migration 86) : elle peut être
@@ -75,6 +77,15 @@ function euro(n: number) {
 function taxeSejour(hotel: string | null): number {
   return (hotel || "").toLowerCase().includes("voile") ? 1.86 : 2.83;
 }
+// Le libellé de catégorie dans la langue affichée. Saisi par l'hôtel, donc
+// traduit en base et non par le dictionnaire : « Confort, étage, vue ville » n'a
+// pas d'équivalent générique.
+function typeDe(r: Room, lang: Lang): string | null {
+  if (lang === "en") return r.type_en || r.type;
+  if (lang === "es") return r.type_es || r.type;
+  return r.type;
+}
+
 // La taxe qui s'applique à UNE chambre. Elle se lit hôtel par hôtel : un groupe
 // bi-hôtel n'a pas un montant unique (1,86 € aux Voiles, 2,83 € à La Corniche).
 function taxeDeChambre(r: Room, groupeMontant?: number | null): number {
@@ -225,6 +236,7 @@ function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (l: Lang) => voi
 // ============================================================================
 function BookingView({ code }: { code: string }) {
   const t = useT();
+  const lang = useLang();
   const router = useRouter();
   const [groupe, setGroupe] = useState<GroupeMeta | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -297,7 +309,7 @@ function BookingView({ code }: { code: string }) {
     for (const [hotel, rs] of byHotel) {
       const byCat = new Map<string, Room[]>();
       for (const r of rs) {
-        const k = r.type || "Autres";
+        const k = typeDe(r, lang) || "—";
         if (!byCat.has(k)) byCat.set(k, []);
         byCat.get(k)!.push(r);
       }
@@ -307,7 +319,7 @@ function BookingView({ code }: { code: string }) {
       out.push({ hotel, cats });
     }
     return out;
-  }, [rooms, filter, isFree]);
+  }, [rooms, filter, isFree, lang]);
 
   if (loading) return <FullLoader />;
   if (error || !groupe) return <Centered title="Oups" text={error || "{t.noGroup}"} />;
@@ -390,7 +402,7 @@ function BookingView({ code }: { code: string }) {
                   <div className="flex items-baseline gap-2.5 min-w-0">
                     <span aria-hidden className="self-stretch w-[3px] rounded-full shrink-0" style={{ background: GOLD }} />
                     <h3 className="font-serif font-semibold text-2xl leading-tight truncate" style={{ color: NAVY }}>{cat.name}</h3>
-                    <span className="text-xs font-medium text-slate-400 whitespace-nowrap shrink-0">{cat.rooms.filter(r => !r.taken).length} dispo.</span>
+                    <span className="text-xs font-medium text-slate-400 whitespace-nowrap shrink-0">{cat.rooms.filter(r => !r.taken).length} {t.availableShort}</span>
                   </div>
                   {voitPrixPage && <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> {t.perNight}</span></span>}
                 </div>
@@ -414,7 +426,7 @@ function BookingView({ code }: { code: string }) {
           <motion.div initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} transition={{ type: "spring", stiffness: 360, damping: 32 }}
             className="fixed bottom-0 inset-x-0 z-30 p-3">
             <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 flex items-center justify-between pl-4 pr-2 py-2">
-              <span className="text-sm text-slate-600"><b>{selectedRooms.length}</b> chambre{selectedRooms.length > 1 ? "s" : ""} sélectionnée{selectedRooms.length > 1 ? "s" : ""}</span>
+              <span className="text-sm text-slate-600"><b>{selectedRooms.length}</b> {selectedRooms.length > 1 ? t.roomsSelected : t.roomSelected}</span>
               <button onClick={() => setFormOpen(true)} className="h-10 px-5 rounded-full text-white font-semibold text-sm" style={{ background: NAVY }}>{t.book}</button>
             </div>
           </motion.div>
@@ -720,7 +732,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
                                 if (drag && drag.roomId === r.id && nuitDroite) setDrag((d) => (d ? { ...d, cur: nuitDroite } : d));
                               }}>
                               <div
-                                title={occIci ? `${occIci.occupant || "Réservée"} · ${ddmm(occIci.from)} → ${ddmm(occIci.to)} — cliquez si c’est votre réservation`
+                                title={occIci ? `${occIci.occupant || t.booked} · ${ddmm(occIci.from)} → ${ddmm(occIci.to)} — ${t.clickIfYours}`
                                   : !nightInRoomWindow(r, j) && j !== groupe.date_depart ? "{t.roomNotThatNight}"
                                   : !nuitDroite ? "Jour du départ" : "Cliquez ou glissez pour choisir vos nuits"}
                                 className={`relative flex h-7 ${occIci || (!groupe.closed && nuitDroite) ? "cursor-pointer" : ""}`}
@@ -815,11 +827,11 @@ function RoomBubble({ room, index, selected, planVisible, disabled, free, onClic
       </div>
       <div className="mt-2 pt-2 border-t border-slate-100">
         {room.taken
-          ? <span className="text-[11px] text-slate-400">{planVisible && room.occupant ? room.occupant : "Réservée"}</span>
+          ? <span className="text-[11px] text-slate-400">{planVisible && room.occupant ? room.occupant : t.booked}</span>
           : !free
           // Ni réservée ni libre : le staff a retiré des nuits du bloc sur cette chambre.
           ? <span className="text-[11px] text-slate-400">{t.notOffered}</span>
-          : <span className="text-[11px] font-medium" style={{ color: NAVY }}>{selected ? "Sélectionnée" : "Disponible"}</span>}
+          : <span className="text-[11px] font-medium" style={{ color: NAVY }}>{selected ? t.selected : t.available}</span>}
       </div>
     </motion.button>
   );
@@ -960,7 +972,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
           {rooms.map(r => (
             <div key={r.id} className="flex items-baseline justify-between gap-3">
               <span className="font-serif font-semibold text-base leading-tight truncate" style={{ color: NAVY }}>
-                {r.type || "Chambre"}
+                {typeDe(r, lang) || t.room}
                 <span className="ml-1.5 text-xs font-normal text-slate-400">n° {r.numero}</span>
               </span>
               {voitPrixF && (
@@ -1017,7 +1029,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
             <div key={r.id} className="rounded-xl border border-slate-200 p-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-medium text-slate-800">
-                  {r.numero}{r.type ? <span className="text-xs text-slate-400 font-normal"> · {r.type}</span> : null}
+                  {r.numero}{typeDe(r, lang) ? <span className="text-xs text-slate-400 font-normal"> · {typeDe(r, lang)}</span> : null}
                   {/* En 'pro' chaque chambre a SES nuits → on les montre ici, il n'y a plus de
                       couple Arrivée/Départ global qui vaudrait pour tout le monde. */}
                   {picks?.[r.id] && (
@@ -1355,7 +1367,7 @@ function ManageView({ token }: { token: string }) {
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
                   <div>
                     <span className="font-serif font-semibold text-lg text-slate-800">{r.numero}</span>
-                    {r.type && <span className="text-xs text-slate-400"> · {r.type}</span>}
+                    {typeDe(r, lang) && <span className="text-xs text-slate-400"> · {typeDe(r, lang)}</span>}
                   </div>
                   {annulee
                     ? <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-600 border border-rose-200">{t.statusCanceled}</span>

@@ -59,6 +59,9 @@ export type Dict = {
   cancelRoom: string; cancelDefinitive: string; modified: string;
   statusCanceled: string; statusPending: string; statusConfirmed: string;
   yourPinLabel: string; clear: string;
+  // — statuts d'une chambre, sous chaque carte
+  available: string; selected: string; booked: string; availableShort: string;
+  roomSelected: string; roomsSelected: string; clickIfYours: string;
 };
 
 export const T: Record<Lang, Dict> = {
@@ -115,6 +118,9 @@ export const T: Record<Lang, Dict> = {
     modified: "Modifié ✓",
     statusCanceled: "Annulée", statusPending: "En attente de paiement", statusConfirmed: "Confirmée",
     yourPinLabel: "Votre code à 4 chiffres", clear: "Effacer",
+    available: "Disponible", selected: "Sélectionnée", booked: "Réservée", availableShort: "dispo.",
+    roomSelected: "chambre sélectionnée", roomsSelected: "chambres sélectionnées",
+    clickIfYours: "cliquez si c’est votre réservation",
   },
   en: {
     oups: "Oops", closed: "Bookings are closed for this group.",
@@ -169,6 +175,9 @@ export const T: Record<Lang, Dict> = {
     modified: "Updated ✓",
     statusCanceled: "Cancelled", statusPending: "Awaiting payment", statusConfirmed: "Confirmed",
     yourPinLabel: "Your 4-digit code", clear: "Clear",
+    available: "Available", selected: "Selected", booked: "Booked", availableShort: "left",
+    roomSelected: "room selected", roomsSelected: "rooms selected",
+    clickIfYours: "click if this is your booking",
   },
   es: {
     oups: "Vaya", closed: "Las inscripciones están cerradas para este grupo.",
@@ -223,6 +232,9 @@ export const T: Record<Lang, Dict> = {
     modified: "Modificado ✓",
     statusCanceled: "Cancelada", statusPending: "Pendiente de pago", statusConfirmed: "Confirmada",
     yourPinLabel: "Su código de 4 cifras", clear: "Borrar",
+    available: "Disponible", selected: "Seleccionada", booked: "Reservada", availableShort: "disp.",
+    roomSelected: "habitación seleccionada", roomsSelected: "habitaciones seleccionadas",
+    clickIfYours: "haga clic si es su reserva",
   },
 };
 

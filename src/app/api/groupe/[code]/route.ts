@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
 
   const { data: rooms } = await supabaseServer
     .from("groupe_chambres")
-    .select("id, tarif_nuit, hotel_id, nuits_exclues, room_units(numero, pax_max, twinable, room_types(nom)), hotels:hotel_id(nom)")
+    .select("id, tarif_nuit, hotel_id, nuits_exclues, room_units(numero, pax_max, twinable, room_types(nom, nom_en, nom_es)), hotels:hotel_id(nom)")
     .eq("groupe_id", g.id);
 
   // Les DATES de chaque résa sont nécessaires au mode 'pro' (calendrier) : une chambre
@@ -65,6 +65,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
       id: rc.id,
       numero: ru?.numero ?? "—",
       type: rt?.nom ?? null,
+      // Les trois langues partent ensemble : la page choisit. Passer par un
+      // ?lang= côté API obligerait à recharger à chaque changement de langue.
+      type_en: rt?.nom_en ?? null,
+      type_es: rt?.nom_es ?? null,
       pax_max: ru?.pax_max ?? 2,
       twinable: !!ru?.twinable,
       tarif: Number(rc.tarif_nuit),
