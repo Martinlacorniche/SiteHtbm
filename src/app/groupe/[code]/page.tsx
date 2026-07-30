@@ -1,11 +1,18 @@
 "use client";
 
-import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BedDouble, Users, Check, Loader2, X, Calendar, Lock, Pencil, Trash2, KeyRound, ArrowLeft,
 } from "lucide-react";
+import { LANGS, LOCALE, T, detectLang, rememberLang, type Dict, type Lang } from "./i18n";
+
+// La langue traverse toute la page (une dizaine de composants) : un contexte évite
+// de faire descendre `t` de props en props jusqu'au moindre bouton.
+const LangCtx = createContext<{ lang: Lang; t: Dict }>({ lang: "fr", t: T.fr });
+const useT = () => useContext(LangCtx).t;
+const useLang = () => useContext(LangCtx).lang;
 
 const NAVY = "#004e7c";
 const GOLD = "#C6A972";
@@ -49,9 +56,9 @@ interface GroupeMeta {
 type Filter = "all" | "free" | "taken";
 
 // ---------- Helpers ----------
-function fmt(d?: string) {
+function fmt(d?: string, lang: Lang = "fr") {
   if (!d) return "";
-  return new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  return new Date(d + "T00:00:00").toLocaleDateString(LOCALE[lang], { day: "numeric", month: "long", year: "numeric" });
 }
 // ⚠️ NE PAS ARRONDIR (Martin 2026-07-16) : `maximumFractionDigits: 0` affichait « 458 € »
 // pour 458,49 € — invisible tant que les tarifs étaient ronds, faux dès que la taxe de
@@ -174,14 +181,50 @@ function GroupeInner() {
   const search = useSearchParams();
   const code = String(params.code || "");
   const token = search.get("r");
-  if (token) return <ManageView token={token} />;
-  return <BookingView code={code} />;
+  // Un mariage international, c'est la moitié des invités qui ne lit pas le
+  // français. La langue se devine (?lang=, choix mémorisé, navigateur) et reste
+  // changeable à tout moment — sans jamais recharger ni perdre la saisie en cours.
+  const [lang, setLangState] = useState<Lang>("fr");
+  useEffect(() => { setLangState(detectLang()); }, []);
+  const setLang = useCallback((l: Lang) => { setLangState(l); rememberLang(l); }, []);
+  const value = useMemo(() => ({ lang, t: T[lang] }), [lang]);
+  return (
+    <LangCtx.Provider value={value}>
+      <LangSwitch lang={lang} onChange={setLang} />
+      {token ? <ManageView token={token} /> : <BookingView code={code} />}
+    </LangCtx.Provider>
+  );
+}
+
+// Sélecteur discret, en haut à droite et au-dessus de tout : il doit rester
+// atteignable depuis la fiche de réservation comme depuis le calendrier.
+function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (l: Lang) => void }) {
+  return (
+    <div className="fixed top-3 right-3 z-[60] flex items-center gap-0.5 rounded-full bg-white/85 backdrop-blur px-1 py-1 shadow-sm border border-slate-200">
+      {LANGS.map((l) => (
+        <button
+          key={l.code}
+          type="button"
+          onClick={() => onChange(l.code)}
+          aria-label={l.label}
+          aria-pressed={lang === l.code}
+          className="h-7 px-2 rounded-full text-[11px] font-semibold uppercase tracking-wide transition"
+          style={lang === l.code
+            ? { background: NAVY, color: "#fff" }
+            : { color: "#94a3b8" }}
+        >
+          {l.code}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 // ============================================================================
 // Réservation
 // ============================================================================
 function BookingView({ code }: { code: string }) {
+  const t = useT();
   const router = useRouter();
   const [groupe, setGroupe] = useState<GroupeMeta | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -267,7 +310,7 @@ function BookingView({ code }: { code: string }) {
   }, [rooms, filter, isFree]);
 
   if (loading) return <FullLoader />;
-  if (error || !groupe) return <Centered title="Oups" text={error || "Ce lien ne correspond à aucun groupe."} />;
+  if (error || !groupe) return <Centered title="Oups" text={error || "{t.noGroup}"} />;
   if (pay) return <PaymentScreen payments={pay} groupe={groupe} />;
   if (done) return <Confirmation code={code} refId={done.ref} pin={done.pin} groupe={groupe} />;
 
@@ -317,7 +360,7 @@ function BookingView({ code }: { code: string }) {
       <Hero groupe={groupe} />
 
       <div className="max-w-5xl mx-auto px-4 mt-6">
-        {groupe.closed && <Banner>Les inscriptions sont closes pour ce groupe.</Banner>}
+        {groupe.closed && <Banner>{t.closed}</Banner>}
 
         {/* Mode 'pro' : chacun pose ses dates, puis choisit une chambre libre SUR CES NUITS. */}
         {isPro && range && (
@@ -333,9 +376,9 @@ function BookingView({ code }: { code: string }) {
             de sens (une chambre est libre CERTAINES nuits). */}
         {!isPro && (<>
         <div className="flex items-center justify-center gap-2 mb-5">
-          <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>Toutes <b>{counts.all}</b></FilterChip>
-          <FilterChip active={filter === "free"} onClick={() => setFilter("free")}>Disponibles <b>{counts.free}</b></FilterChip>
-          <FilterChip active={filter === "taken"} onClick={() => setFilter("taken")}>Réservées <b>{counts.taken}</b></FilterChip>
+          <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>{t.filterAll} <b>{counts.all}</b></FilterChip>
+          <FilterChip active={filter === "free"} onClick={() => setFilter("free")}>{t.filterFree} <b>{counts.free}</b></FilterChip>
+          <FilterChip active={filter === "taken"} onClick={() => setFilter("taken")}>{t.filterTaken} <b>{counts.taken}</b></FilterChip>
         </div>
 
         {sections.map((sec) => (
@@ -349,7 +392,7 @@ function BookingView({ code }: { code: string }) {
                     <h3 className="font-serif font-semibold text-2xl leading-tight truncate" style={{ color: NAVY }}>{cat.name}</h3>
                     <span className="text-xs font-medium text-slate-400 whitespace-nowrap shrink-0">{cat.rooms.filter(r => !r.taken).length} dispo.</span>
                   </div>
-                  {voitPrixPage && <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span></span>}
+                  {voitPrixPage && <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> {t.perNight}</span></span>}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                   {cat.rooms.map((r, i) => (
@@ -361,7 +404,7 @@ function BookingView({ code }: { code: string }) {
             ))}
           </div>
         ))}
-        {sections.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Aucune chambre dans ce filtre.</p>}
+        {sections.length === 0 && <p className="text-center text-slate-400 text-sm py-8">{t.noRoomInFilter}</p>}
         </>)}
       </div>
 
@@ -372,7 +415,7 @@ function BookingView({ code }: { code: string }) {
             className="fixed bottom-0 inset-x-0 z-30 p-3">
             <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 flex items-center justify-between pl-4 pr-2 py-2">
               <span className="text-sm text-slate-600"><b>{selectedRooms.length}</b> chambre{selectedRooms.length > 1 ? "s" : ""} sélectionnée{selectedRooms.length > 1 ? "s" : ""}</span>
-              <button onClick={() => setFormOpen(true)} className="h-10 px-5 rounded-full text-white font-semibold text-sm" style={{ background: NAVY }}>Réserver →</button>
+              <button onClick={() => setFormOpen(true)} className="h-10 px-5 rounded-full text-white font-semibold text-sm" style={{ background: NAVY }}>{t.book}</button>
             </div>
           </motion.div>
         )}
@@ -419,6 +462,8 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
   onClaim: (r: Room) => void;
   counts: { all: number; free: number; taken: number };
 }) {
+  const t = useT();
+  const lang = useLang();
   // Sélection « à la PMS » : on peint sa plage directement sur la ligne de la chambre
   // (Martin 2026-07-16 : la vue allait, le parcours non — poser ses dates en haut PUIS
   // cliquer une ligne, c'est un formulaire déguisé en calendrier).
@@ -528,7 +573,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
              chaque chambre porte désormais ses propres nuits. */}
       <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-4 mb-4 shadow-sm">
         <p className="text-sm font-medium mb-1" style={{ color: NAVY }}>
-          Glissez sur la ligne d’une chambre pour choisir vos nuits.
+          {t.dragHint}
         </p>
         <p className="text-xs text-slate-500">
           Un clic = une nuit. Vous pouvez enchaîner plusieurs chambres, chacune à ses dates.
@@ -540,7 +585,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
               <span key={room.id} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
                 style={{ background: "rgba(0,78,124,.08)", color: NAVY }}>
                 Ch. {room.numero} · {ddmm(p.from)} → {ddmm(p.to)}
-                <button type="button" onClick={() => onToggle(room)} aria-label="Retirer"
+                <button type="button" onClick={() => onToggle(room)} aria-label={t.remove}
                   className="opacity-50 hover:opacity-100">✕</button>
               </span>
             ))}
@@ -552,7 +597,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
       {voitBudget && (
       <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-4 mb-4 shadow-sm">
         <div className="flex items-baseline justify-between gap-3 mb-2">
-          <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: GOLD }}>Le bloc</p>
+          <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: GOLD }}>{t.block}</p>
           <p className="text-sm">
             <b style={{ color: NAVY }}>{euro(budget.engage + budget.moi)}</b>
             <span className="text-slate-400"> / {euro(budget.enveloppe)}</span>
@@ -568,7 +613,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
           {groupe.taxe_sejour_mode === "incluse"
             ? "Hébergement du bloc, taxe de séjour incluse dans le tarif."
             : "Hébergement du bloc, taxe de séjour comprise."}
-          {budget.moi > 0 && <> Dont <b style={{ color: GOLD }}>{euro(budget.moi)}</b> pour votre sélection en cours.</>}
+          {budget.moi > 0 && <> {t.ofWhich} <b style={{ color: GOLD }}>{euro(budget.moi)}</b> {t.forYourSelection}</>}
         </p>
       </div>
       )}
@@ -578,7 +623,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="sticky left-0 top-0 z-30 bg-white text-left px-3 py-2 font-medium text-slate-400 text-xs">Chambre</th>
+              <th className="sticky left-0 top-0 z-30 bg-white text-left px-3 py-2 font-medium text-slate-400 text-xs">{t.room}</th>
               {jours.map((j) => {
                 const d = new Date(j + "T00:00:00");
                 const we = d.getDay() === 0 || d.getDay() === 6;
@@ -586,9 +631,9 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
                   <th key={j} className="sticky top-0 z-20 bg-white px-0 py-2 font-medium text-[10px] whitespace-nowrap min-w-[38px]"
                     style={{ color: we ? NAVY : "#94a3b8" }}>
                     <span className="block text-[9px] font-normal opacity-70">
-                      {d.toLocaleDateString("fr-FR", { weekday: "narrow" })}
+                      {d.toLocaleDateString(LOCALE[lang], { weekday: "narrow" })}
                     </span>
-                    {d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                    {d.toLocaleDateString(LOCALE[lang], { day: "2-digit", month: "2-digit" })}
                   </th>
                 );
               })}
@@ -676,7 +721,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
                               }}>
                               <div
                                 title={occIci ? `${occIci.occupant || "Réservée"} · ${ddmm(occIci.from)} → ${ddmm(occIci.to)} — cliquez si c’est votre réservation`
-                                  : !nightInRoomWindow(r, j) && j !== groupe.date_depart ? "Cette chambre n’est pas proposée cette nuit-là"
+                                  : !nightInRoomWindow(r, j) && j !== groupe.date_depart ? "{t.roomNotThatNight}"
                                   : !nuitDroite ? "Jour du départ" : "Cliquez ou glissez pour choisir vos nuits"}
                                 className={`relative flex h-7 ${occIci || (!groupe.closed && nuitDroite) ? "cursor-pointer" : ""}`}
                               >
@@ -721,12 +766,13 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
 }
 
 function Hero({ groupe }: { groupe: GroupeMeta }) {
+  const lang = useLang();
   return (
     <div className="max-w-2xl mx-auto px-4 pt-9 md:pt-12 text-center">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <p className="uppercase tracking-[0.18em] text-[11px] mb-2" style={{ color: GOLD }}>Hôtels Toulon Bord de Mer</p>
         <h1 className="font-serif font-semibold text-3xl md:text-4xl leading-tight text-slate-800">{groupe.nom}</h1>
-        <p className="mt-2 text-sm text-slate-500 inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {fmt(groupe.date_arrivee)} → {fmt(groupe.date_depart)}</p>
+        <p className="mt-2 text-sm text-slate-500 inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {fmt(groupe.date_arrivee, lang)} → {fmt(groupe.date_depart, lang)}</p>
       </motion.div>
 
       {groupe.cover_image_url && (
@@ -748,6 +794,7 @@ function Hero({ groupe }: { groupe: GroupeMeta }) {
 function RoomBubble({ room, index, selected, planVisible, disabled, free, onClick }: {
   room: Room; index: number; selected: boolean; planVisible: boolean; disabled: boolean; free: boolean; onClick: () => void;
 }) {
+  const t = useT();
   const muted = room.taken || disabled || !free;
   return (
     <motion.button type="button" onClick={onClick} disabled={disabled && !room.taken}
@@ -764,14 +811,14 @@ function RoomBubble({ room, index, selected, planVisible, disabled, free, onClic
       <p className="font-serif font-semibold text-lg text-slate-800 leading-none">{room.numero}</p>
       <div className="flex items-center gap-1 mt-2 flex-wrap">
         <Pill><Users className="w-3 h-3" /> {room.pax_max}</Pill>
-        {room.twinable && <Pill><BedDouble className="w-3 h-3" /> twin</Pill>}
+        {room.twinable && <Pill><BedDouble className="w-3 h-3" /> {t.twin}</Pill>}
       </div>
       <div className="mt-2 pt-2 border-t border-slate-100">
         {room.taken
           ? <span className="text-[11px] text-slate-400">{planVisible && room.occupant ? room.occupant : "Réservée"}</span>
           : !free
           // Ni réservée ni libre : le staff a retiré des nuits du bloc sur cette chambre.
-          ? <span className="text-[11px] text-slate-400">Non proposée</span>
+          ? <span className="text-[11px] text-slate-400">{t.notOffered}</span>
           : <span className="text-[11px] font-medium" style={{ color: NAVY }}>{selected ? "Sélectionnée" : "Disponible"}</span>}
       </div>
     </motion.button>
@@ -788,6 +835,8 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
   onPay: (payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]) => void;
   onConflict: () => void;
 }) {
+  const t = useT();
+  const lang = useLang();
   const [nom, setNom] = useState(""); const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState(""); const [tel, setTel] = useState("");
   const [emailAck, setEmailAck] = useState(false);
@@ -869,15 +918,15 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
     // individuelle à 18 comédiens dont la production gère déjà tout. Email/tél/code facultatifs
     // — mais s'ils sont renseignés, ils restent validés.
     // Un paiement en ligne redemande l'email : Stripe le lui envoie.
-    if (!nom.trim()) return setErr("Merci d'indiquer votre nom.");
-    if (emailRequis && !email.trim()) return setErr("Nom et email sont requis.");
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setErr("Adresse e-mail invalide.");
-    if (email.trim() && [...email].some(c => c.charCodeAt(0) > 127) && !emailAck) { setEmailAck(true); return setErr("Votre e-mail contient un caractère accentué (ex. « é »). Vérifiez l'adresse, ou cliquez à nouveau pour confirmer."); }
-    if (!isPro && !/^\d{4}$/.test(pin)) return setErr("Choisissez un code à 4 chiffres.");
-    if (pin && !/^\d{4}$/.test(pin)) return setErr("Le code doit faire 4 chiffres.");
-    if (pin && pin !== pin2) return setErr("Les deux codes ne correspondent pas.");
-    if (!cgv) return setErr("Merci d'accepter les conditions.");
-    if (!signature) return setErr("Merci de signer.");
+    if (!nom.trim()) return setErr(t.errName);
+    if (emailRequis && !email.trim()) return setErr(t.errNameEmail);
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setErr(t.errEmail);
+    if (email.trim() && [...email].some(c => c.charCodeAt(0) > 127) && !emailAck) { setEmailAck(true); return setErr(t.errEmailAccent); }
+    if (!isPro && !/^\d{4}$/.test(pin)) return setErr(t.errPin4);
+    if (pin && !/^\d{4}$/.test(pin)) return setErr(t.errPinDigits);
+    if (pin && pin !== pin2) return setErr(t.errPinMatch);
+    if (!cgv) return setErr(t.errTerms);
+    if (!signature) return setErr(t.errSign);
     setSubmitting(true);
     try {
       const res = await fetch(`/api/groupe/${code}/reserve`, {
@@ -899,7 +948,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
       if (!data.ok) { if (res.status === 409) { setErr(data.error); setTimeout(onConflict, 1600); return; } setErr(data.error || "Erreur."); return; }
       if (data.requirePayment && Array.isArray(data.payments) && data.payments.length) onPay(data.payments);
       else onDone(data.ref, pin);
-    } catch { setErr("Connexion impossible."); }
+    } catch { setErr(t.errConnection); }
     finally { setSubmitting(false); }
   }
 
@@ -916,7 +965,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
               </span>
               {voitPrixF && (
                 <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>
-                  {euro(r.tarif)}<span className="text-[11px] text-slate-400 font-normal"> / nuit</span>
+                  {euro(r.tarif)}<span className="text-[11px] text-slate-400 font-normal"> {t.perNight}</span>
                 </span>
               )}
             </div>
@@ -926,13 +975,13 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
           {voitPrixF && (
           <div className="flex items-baseline justify-between gap-3 pt-2 border-t" style={{ borderColor: "rgba(0,78,124,.1)" }}>
             <span className="text-sm font-semibold" style={{ color: NAVY }}>
-              Total {tsMode === "ajoutee" ? "séjour" : "hébergement"}
-              <span className="ml-1.5 text-[11px] font-normal text-slate-400">{nights} nuit{nights > 1 ? "s" : ""}{rooms.length > 1 ? ` · ${rooms.length} ch.` : ""}</span>
+              {tsMode === "ajoutee" ? t.totalStay : t.totalAccommodation}
+              <span className="ml-1.5 text-[11px] font-normal text-slate-400">{nights} {nights > 1 ? t.nights : t.night}{rooms.length > 1 ? ` · ${rooms.length} ${t.rooms}` : ""}</span>
               {/* Le petit-déjeuner entre dans le total, donc il se dit dans le total :
                   un supplément qui n'apparaît qu'au moment de payer est une mauvaise
                   surprise. */}
               {totalPdj > 0 && (
-                <span className="block text-[11px] font-normal text-slate-400 mt-0.5">dont petit-déjeuner {euro2(totalPdj)}</span>
+                <span className="block text-[11px] font-normal text-slate-400 mt-0.5">{t.ofWhichBreakfast} {euro2(totalPdj)}</span>
               )}
             </span>
             <span className="text-base font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(totalHebergement + totalTaxe + totalPdj)}</span>
@@ -940,30 +989,30 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
           )}
           {voitPrixF && (
           <div className="text-[11px] text-slate-500 leading-relaxed">
-            <span className="font-medium text-slate-600">Taxe de séjour</span>{" "}
+            <span className="font-medium text-slate-600">{t.taxeSejour}</span>{" "}
             {tsMode === "incluse"
-              ? <>incluse dans le tarif — rien à régler en plus.</>
-              : <>comprise dans le total ci-dessus : {euro2(tsMontant)} par personne et par nuit.</>}
+              ? <>{t.taxeIncluded}</>
+              : <>{t.taxeAdded} {euro2(tsMontant)}</>}
           </div>
           )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <FInput label="Prénom" value={prenom} onChange={setPrenom} placeholder="Léa" />
-          <FInput label="Nom *" value={nom} onChange={setNom} placeholder="Dupont" />
+          <FInput label={t.firstName} value={prenom} onChange={setPrenom} placeholder="Léa" />
+          <FInput label={t.lastName} value={nom} onChange={setNom} placeholder="Dupont" />
         </div>
-        <FInput label={emailRequis ? "Email *" : "Email (facultatif)"} value={email} onChange={(v) => { setEmail(v); setEmailAck(false); }} placeholder="lea@exemple.fr" type="email" />
-        <FInput label="Téléphone" value={tel} onChange={setTel} placeholder="06 12 34 56 78" type="tel" />
+        <FInput label={emailRequis ? t.email : t.emailOptional} value={email} onChange={(v) => { setEmail(v); setEmailAck(false); }} placeholder="lea@exemple.fr" type="email" />
+        <FInput label={t.phone} value={tel} onChange={setTel} placeholder="06 12 34 56 78" type="tel" />
         {!isPro && (
           <div className="grid grid-cols-2 gap-3">
-            <FDate label="Arrivée" value={da} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDa} />
-            <FDate label="Départ" value={dd} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDd} />
+            <FDate label={t.arrival} value={da} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDa} />
+            <FDate label={t.departure} value={dd} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDd} />
           </div>
         )}
 
         {/* Détail par chambre */}
         <div className="space-y-2">
-          <Label>Vos chambres</Label>
+          <Label>{t.yourRooms}</Label>
           {rooms.map(r => (
             <div key={r.id} className="rounded-xl border border-slate-200 p-3">
               <div className="flex items-center justify-between gap-3">
@@ -973,14 +1022,14 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
                       couple Arrivée/Départ global qui vaudrait pour tout le monde. */}
                   {picks?.[r.id] && (
                     <span className="block text-[11px] font-normal mt-0.5" style={{ color: NAVY }}>
-                      {fmt(picks[r.id].from)} → {fmt(picks[r.id].to)}
+                      {fmt(picks[r.id].from, lang)} → {fmt(picks[r.id].to, lang)}
                       <span className="text-slate-400"> · {nightsOf(r)} nuit{nightsOf(r) > 1 ? "s" : ""}</span>
                     </span>
                   )}
                 </span>
                 {/* Le pas « − 1 + » n'avait AUCUN libellé (Martin : « c'est quoi le +1 ? »). */}
                 <span className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] text-slate-400">Personnes</span>
+                  <span className="text-[11px] text-slate-400">{t.persons}</span>
                   <Stepper value={cfg[r.id]?.pax ?? 1} min={1} max={r.pax_max} onChange={(v) => setRoomCfg(r.id, { pax: v })} />
                 </span>
               </div>
@@ -989,7 +1038,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
                   {(["double", "twin"] as const).map(opt => (
                     <button key={opt} type="button" onClick={() => setRoomCfg(r.id, { lit: opt })} className="h-9 rounded-lg border text-xs font-medium"
                       style={cfg[r.id]?.lit === opt ? { borderColor: NAVY, background: "rgba(0,78,124,.06)", color: NAVY } : { borderColor: "#e2e8f0", color: "#64748b" }}>
-                      {opt === "double" ? "1 grand lit" : "2 lits séparés"}
+                      {opt === "double" ? t.oneBed : t.twoBeds}
                     </button>
                   ))}
                 </div>
@@ -1001,13 +1050,13 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
                 <div className="mt-2.5 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-[11px] font-medium text-slate-600">
-                      Petit-déjeuner
+                      {t.breakfast}
                       {voitPrixF && (r.pdjPrix > 0
-                        ? <span className="text-slate-400 font-normal"> · {euro2(r.pdjPrix)} / personne</span>
-                        : <span className="text-slate-400 font-normal"> · offert</span>)}
+                        ? <span className="text-slate-400 font-normal"> · {euro2(r.pdjPrix)} / {t.persons.toLowerCase()}</span>
+                        : <span className="text-slate-400 font-normal"> · {t.breakfastFree}</span>)}
                     </span>
                     <button type="button" onClick={() => togglePdjTout(r)} className="text-[11px] font-semibold shrink-0" style={{ color: NAVY }}>
-                      {pdjDe(r).length >= nuitsDe(r).length ? "Tout retirer" : "Tous les matins"}
+                      {pdjDe(r).length >= nuitsDe(r).length ? t.removeAll : t.allMornings}
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -1024,7 +1073,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
                   </div>
                   {pdjDe(r).length > 0 && voitPrixF && r.pdjPrix > 0 && (
                     <p className="text-[11px] text-slate-400 mt-2">
-                      {pdjDe(r).length} matin{pdjDe(r).length > 1 ? "s" : ""} × {cfg[r.id]?.pax ?? 1} pers. ={" "}
+                      {pdjDe(r).length} {pdjDe(r).length > 1 ? t.mornings : t.morning} × {cfg[r.id]?.pax ?? 1} · ={" "}
                       <span className="font-semibold text-slate-600">{euro2(r.pdjPrix * pdjDe(r).length * (cfg[r.id]?.pax ?? 1))}</span>
                     </p>
                   )}
@@ -1035,25 +1084,25 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>{isPro ? "Code à 4 chiffres (facultatif)" : "Créez un code à 4 chiffres"}</Label><PinInput value={pin} onChange={setPin} /></div>
-          <div><Label>Confirmez le code</Label><PinInput value={pin2} onChange={setPin2} /></div>
+          <div><Label>{isPro ? t.pinOptional : t.pinCreate}</Label><PinInput value={pin} onChange={setPin} /></div>
+          <div><Label>{t.pinConfirm}</Label><PinInput value={pin2} onChange={setPin2} /></div>
         </div>
-        <p className="text-[11px] text-slate-400 -mt-2">{isPro ? "Facultatif : avec un code, vous seul pourrez modifier ou annuler votre réservation." : "Ce code vous servira à modifier ou annuler votre réservation."}</p>
+        <p className="text-[11px] text-slate-400 -mt-2">{isPro ? t.pinHintOptional : t.pinHintRequired}</p>
 
         {groupe.conditions_annulation && (
           <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-xs text-slate-500 leading-relaxed">
-            <span className="font-medium text-slate-600">Conditions d'annulation : </span>{groupe.conditions_annulation}
+            <span className="font-medium text-slate-600">{t.cancellationTerms} </span>{groupe.conditions_annulation}
           </div>
         )}
         <label className="flex items-start gap-2 cursor-pointer select-none">
           <input type="checkbox" checked={cgv} onChange={e => setCgv(e.target.checked)} className="w-5 h-5 mt-0.5" style={{ accentColor: NAVY }} />
-          <span className="text-sm text-slate-600">J'accepte les conditions de réservation et d'annulation.</span>
+          <span className="text-sm text-slate-600">{t.acceptTerms}</span>
         </label>
-        <div><Label>Signature</Label><SignaturePad onChange={setSignature} /></div>
+        <div><Label>{t.signature}</Label><SignaturePad onChange={setSignature} /></div>
 
         {err && <p className="text-sm text-rose-600">{err}</p>}
         <button onClick={submit} disabled={submitting} className="w-full h-12 rounded-full text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-60" style={{ background: NAVY }}>
-          {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Valider ma réservation <Check className="w-4 h-4" /></>}
+          {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <>{t.validate} <Check className="w-4 h-4" /></>}
         </button>
       </div>
     </Sheet>
@@ -1062,9 +1111,10 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
 
 // ---------- Réclamer une chambre déjà réservée (depuis l'accueil) ----------
 function ClaimModal({ code, room, onClose, onAccess }: { code: string; room: Room; onClose: () => void; onAccess: (ref: string) => void }) {
+  const t = useT();
   const [pin, setPin] = useState(""); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
   async function go() {
-    if (!/^\d{4}$/.test(pin)) return setErr("Entrez votre code à 4 chiffres.");
+    if (!/^\d{4}$/.test(pin)) return setErr(t.enterPin);
     setBusy(true); setErr(null);
     try {
       const res = await fetch(`/api/groupe/${code}/access`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ groupe_chambre_id: room.id, pin }) });
@@ -1072,16 +1122,16 @@ function ClaimModal({ code, room, onClose, onAccess }: { code: string; room: Roo
       if (!d.ok) { setErr(d.error); return; }
       try { sessionStorage.setItem(`pin_${d.ref}`, pin); } catch {}
       onAccess(d.ref);
-    } catch { setErr("Connexion impossible."); } finally { setBusy(false); }
+    } catch { setErr(t.errConnection); } finally { setBusy(false); }
   }
   return (
     <Sheet onClose={onClose} title={room.numero} subtitle="Gérer ma réservation">
       <div className="px-5 py-5 space-y-4">
-        <p className="text-sm text-slate-600">Cette chambre est réservée. Si c'est la vôtre, entrez votre code à 4 chiffres pour la gérer.</p>
+        <p className="text-sm text-slate-600">{t.roomTakenEnterPin}</p>
         <PinInput value={pin} onChange={setPin} />
         {err && <p className="text-sm text-rose-600">{err}</p>}
         <button onClick={go} disabled={busy} className="w-full h-12 rounded-full text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-60" style={{ background: NAVY }}>
-          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <><KeyRound className="w-4 h-4" /> Accéder</>}
+          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <><KeyRound className="w-4 h-4" /> {t.access}</>}
         </button>
       </div>
     </Sheet>
@@ -1091,15 +1141,16 @@ function ClaimModal({ code, room, onClose, onAccess }: { code: string; room: Roo
 // ---------- Confirmation ----------
 // Paiement obligatoire : écran « finalisez votre paiement » (1 bouton par hôtel).
 function PaymentScreen({ payments, groupe }: { payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]; groupe: GroupeMeta }) {
+  const t = useT();
   const euro = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
   const multi = payments.length > 1;
   return (
     <main className="min-h-screen flex items-center justify-center px-5">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-lg max-w-md w-full p-7 text-center">
         <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{ background: "rgba(0,78,124,.08)", color: NAVY }}><Check className="w-7 h-7" /></div>
-        <h1 className="font-serif font-semibold text-2xl text-slate-800 mt-4">Plus qu'une étape</h1>
+        <h1 className="font-serif font-semibold text-2xl text-slate-800 mt-4">{t.payTitle}</h1>
         <p className="text-slate-500 text-sm mt-2">Votre réservation pour « {groupe.nom} » est en attente de paiement. Réglez pour la confirmer.</p>
-        {multi && <p className="text-[11px] text-slate-400 mt-1">Deux établissements = deux paiements distincts.</p>}
+        {multi && <p className="text-[11px] text-slate-400 mt-1">{t.payTwoHotels}</p>}
         <div className="mt-5 space-y-2.5 text-left">
           {payments.map((p) => (
             <div key={p.hotel_id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-3">
@@ -1113,13 +1164,14 @@ function PaymentScreen({ payments, groupe }: { payments: { hotel_id: string; hot
             </div>
           ))}
         </div>
-        <p className="text-[11px] text-slate-400 mt-4">Paiement sécurisé par Stripe. Vos chambres sont tenues 30 minutes ; passé ce délai sans paiement, elles sont relibérées.</p>
+        <p className="text-[11px] text-slate-400 mt-4">{t.payStripeNote}</p>
       </motion.div>
     </main>
   );
 }
 
 function Confirmation({ code, refId, pin, groupe }: { code: string; refId: string; pin: string; groupe: GroupeMeta }) {
+  const t = useT();
   const [link, setLink] = useState(""); const [copied, setCopied] = useState(false);
   useEffect(() => {
     setLink(`${window.location.origin}/groupe/${code}?r=${refId}`);
@@ -1129,21 +1181,21 @@ function Confirmation({ code, refId, pin, groupe }: { code: string; refId: strin
     <main className="min-h-screen flex items-center justify-center px-5">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-lg max-w-md w-full p-7 text-center">
         <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{ background: "rgba(0,78,124,.08)", color: NAVY }}><Check className="w-7 h-7" /></div>
-        <h1 className="font-serif font-semibold text-2xl text-slate-800 mt-4">C'est réservé !</h1>
+        <h1 className="font-serif font-semibold text-2xl text-slate-800 mt-4">{t.roomTaken}</h1>
         <p className="text-slate-500 text-sm mt-2">Votre réservation pour « {groupe.nom} » est confirmée.</p>
         <div className="mt-5 rounded-2xl p-4" style={{ background: "rgba(0,78,124,.06)", border: "1px solid rgba(0,78,124,.15)" }}>
-          <p className="text-xs text-slate-500">Votre code personnel</p>
+          <p className="text-xs text-slate-500">{t.yourPin}</p>
           <p className="font-serif font-bold text-3xl tracking-[0.3em] mt-1" style={{ color: NAVY }}>{pin}</p>
-          <p className="text-[11px] text-slate-500 mt-1.5">Gardez-le : il est demandé pour modifier ou annuler.</p>
+          <p className="text-[11px] text-slate-500 mt-1.5">{t.keepPin}</p>
         </div>
         <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left">
-          <p className="text-xs text-slate-500 mb-2">Votre lien personnel :</p>
+          <p className="text-xs text-slate-500 mb-2">{t.yourLink}</p>
           <div className="flex items-center gap-2">
             <input readOnly value={link} className="flex-1 text-xs bg-white border border-slate-200 rounded-lg px-2 h-9 text-slate-600" />
             <button onClick={() => navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })} className="h-9 px-3 rounded-lg text-white text-xs font-medium" style={{ background: NAVY }}>{copied ? "Copié" : "Copier"}</button>
           </div>
         </div>
-        <a href={link} className="inline-block mt-4 text-sm font-medium" style={{ color: NAVY }}>Voir / gérer ma réservation →</a>
+        <a href={link} className="inline-block mt-4 text-sm font-medium" style={{ color: NAVY }}>{t.manageLink}</a>
       </motion.div>
     </main>
   );
@@ -1153,6 +1205,8 @@ function Confirmation({ code, refId, pin, groupe }: { code: string; refId: strin
 // Gestion (lien perso = booking_ref)
 // ============================================================================
 function ManageView({ token }: { token: string }) {
+  const t = useT();
+  const lang = useLang();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [resas, setResas] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1190,7 +1244,7 @@ function ManageView({ token }: { token: string }) {
   }, [token]);
 
   if (loading) return <FullLoader />;
-  if (error || !groupe) return <Centered title="Lien invalide" text={error || "Cette réservation n'existe pas."} />;
+  if (error || !groupe) return <Centered title="Lien invalide" text={error || "{t.noResa}"} />;
 
   // Le code n'est exigé que si la résa en a un (facultatif en mode 'pro'). Sans ce
   // garde-fou, la page bloquait AVANT même d'appeler l'API — le champ était masqué mais
@@ -1208,7 +1262,7 @@ function ManageView({ token }: { token: string }) {
     try {
       const res = await fetch(`/api/resa/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", resa_id: id, code, date_arrivee: da, date_depart: dd, config_lit: lit, nb_personnes: pax }) });
       const d = await res.json(); if (!d.ok) { setMsg(d.error); if (typeof d.error === "string" && d.error.includes("Code")) { setCodeKnown(false); try { sessionStorage.removeItem(`pin_${token}`); } catch {} } return; }
-      setEditingId(null); await load(); setMsg("Modifié ✓");
+      setEditingId(null); await load(); setMsg(t.modified);
     } finally { setBusy(false); }
   }
   async function doCancel() {
@@ -1237,19 +1291,19 @@ function ManageView({ token }: { token: string }) {
           <ArrowLeft className="w-4 h-4" /> Retour aux chambres
         </a>
         <p className="uppercase tracking-[0.18em] text-[11px] text-center mb-1" style={{ color: GOLD }}>{groupe.nom}</p>
-        <h1 className="font-serif font-semibold text-2xl text-slate-800 text-center mb-5">Ma réservation</h1>
+        <h1 className="font-serif font-semibold text-2xl text-slate-800 text-center mb-5">{t.myResa}</h1>
 
         {!groupe.locked && hasPin && !codeKnown && (
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
             <CodeField value={code} onChange={setCode} />
-            <p className="text-[11px] text-slate-400 mt-1.5">Demandé pour modifier ou annuler vos chambres.</p>
+            <p className="text-[11px] text-slate-400 mt-1.5">{t.pinAsked}</p>
           </div>
         )}
-        {groupe.locked && <Banner>La date limite est passée. Pour toute modification, contactez l'hôtel.</Banner>}
+        {groupe.locked && <Banner>{t.deadlinePassed}</Banner>}
 
         {pending.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 border-2" style={{ borderColor: NAVY }}>
-            <p className="font-serif font-semibold text-slate-800">Finalisez votre paiement</p>
+            <p className="font-serif font-semibold text-slate-800">{t.payTitle}</p>
             <p className="text-xs text-slate-500 mt-0.5 mb-3">Vos chambres sont tenues 30 minutes.{pending.length > 1 ? " Un paiement par établissement." : ""}</p>
             <div className="space-y-2">
               {pending.map((p) => (
@@ -1258,7 +1312,7 @@ function ManageView({ token }: { token: string }) {
                     {pending.length > 1 && <div className="text-[11px] text-slate-400 truncate">{p.hotelNom}</div>}
                     <div className="text-xl font-bold leading-none" style={{ color: NAVY }}>{euro(p.amount)}</div>
                   </div>
-                  <a href={p.url} className="h-10 px-5 rounded-full font-semibold flex items-center shrink-0" style={{ background: NAVY, color: "#fff" }}>Payer</a>
+                  <a href={p.url} className="h-10 px-5 rounded-full font-semibold flex items-center shrink-0" style={{ background: NAVY, color: "#fff" }}>{t.pay}</a>
                 </div>
               ))}
             </div>
@@ -1269,22 +1323,22 @@ function ManageView({ token }: { token: string }) {
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 border" style={{ borderColor: GOLD }}>
             {!payLinks ? (
               <>
-                <p className="font-serif font-semibold text-slate-800">Régler en ligne</p>
-                <p className="text-xs text-slate-500 mt-0.5 mb-3">Payez votre séjour dès maintenant, en toute sécurité (sinon, règlement à l&apos;hôtel).</p>
+                <p className="font-serif font-semibold text-slate-800">{t.payOnline}</p>
+                <p className="text-xs text-slate-500 mt-0.5 mb-3">{t.payOnlineNote}</p>
                 <button onClick={startPay} disabled={payBusy} className="w-full h-11 rounded-full font-semibold text-white disabled:opacity-60" style={{ background: NAVY }}>
                   {payBusy ? "…" : "Payer en ligne"}
                 </button>
               </>
             ) : (
               <div className="space-y-2">
-                <p className="font-serif font-semibold text-slate-800 mb-1">Finalisez votre paiement</p>
+                <p className="font-serif font-semibold text-slate-800 mb-1">{t.payTitle}</p>
                 {payLinks.map((p, i) => (
                   <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
                     <div className="min-w-0">
                       {payLinks.length > 1 && <div className="text-[11px] text-slate-400 truncate">{p.hotelNom}</div>}
                       <div className="text-xl font-bold leading-none" style={{ color: NAVY }}>{euro(p.amount)}</div>
                     </div>
-                    <a href={p.url} className="h-10 px-5 rounded-full font-semibold flex items-center shrink-0" style={{ background: NAVY, color: "#fff" }}>Payer</a>
+                    <a href={p.url} className="h-10 px-5 rounded-full font-semibold flex items-center shrink-0" style={{ background: NAVY, color: "#fff" }}>{t.pay}</a>
                   </div>
                 ))}
               </div>
@@ -1304,25 +1358,25 @@ function ManageView({ token }: { token: string }) {
                     {r.type && <span className="text-xs text-slate-400"> · {r.type}</span>}
                   </div>
                   {annulee
-                    ? <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-600 border border-rose-200">Annulée</span>
+                    ? <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-600 border border-rose-200">{t.statusCanceled}</span>
                     : r.statut === "en_attente_paiement"
-                      ? <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">En attente de paiement</span>
-                      : <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Confirmée</span>}
+                      ? <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">{t.statusPending}</span>
+                      : <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">{t.statusConfirmed}</span>}
                 </div>
                 {!annulee && (
                   <div className="px-5 py-4 space-y-3">
                     {!editing ? (
                       <>
-                        <Row icon={<Calendar className="w-4 h-4" />} label="Séjour" value={`${fmt(r.date_arrivee)} → ${fmt(r.date_depart)}`} />
-                        {r.twinable && <Row icon={<BedDouble className="w-4 h-4" />} label="Lits" value={r.config_lit === "twin" ? "2 lits" : "1 grand lit"} />}
+                        <Row icon={<Calendar className="w-4 h-4" />} label={t.stay} value={`${fmt(r.date_arrivee, lang)} → ${fmt(r.date_depart, lang)}`} />
+                        {r.twinable && <Row icon={<BedDouble className="w-4 h-4" />} label={t.beds} value={r.config_lit === "twin" ? "2 lits" : "1 grand lit"} />}
                         <Row icon={<Users className="w-4 h-4" />} label="Personnes" value={String(r.nb_personnes)} />
                         {r.statut === "en_attente_paiement" && (
-                          <p className="text-[11px] text-amber-600 pt-1">Réglez ci-dessus pour confirmer cette chambre.</p>
+                          <p className="text-[11px] text-amber-600 pt-1">{t.payToConfirm}</p>
                         )}
                         {!groupe.locked && r.statut === "confirmee" && (
                           <div className="flex gap-2 pt-1">
-                            <button onClick={() => startEdit(r)} className="flex-1 h-10 rounded-full text-white font-medium text-sm inline-flex items-center justify-center gap-1.5" style={{ background: NAVY }}><Pencil className="w-4 h-4" /> Modifier</button>
-                            <button onClick={() => { if (ensureCode()) setCancelTarget({ id: r.id, numero: r.numero }); }} disabled={busy} className="h-10 px-4 rounded-full border border-rose-200 text-rose-600 font-medium text-sm inline-flex items-center justify-center gap-1.5"><Trash2 className="w-4 h-4" /> Annuler</button>
+                            <button onClick={() => startEdit(r)} className="flex-1 h-10 rounded-full text-white font-medium text-sm inline-flex items-center justify-center gap-1.5" style={{ background: NAVY }}><Pencil className="w-4 h-4" /> {t.edit}</button>
+                            <button onClick={() => { if (ensureCode()) setCancelTarget({ id: r.id, numero: r.numero }); }} disabled={busy} className="h-10 px-4 rounded-full border border-rose-200 text-rose-600 font-medium text-sm inline-flex items-center justify-center gap-1.5"><Trash2 className="w-4 h-4" /> {t.cancel}</button>
                           </div>
                         )}
                       </>
@@ -1334,7 +1388,7 @@ function ManageView({ token }: { token: string }) {
                         </div>
                         {r.twinable && (
                           <div>
-                            <Label>Lits</Label>
+                            <Label>{t.beds}</Label>
                             <div className="grid grid-cols-2 gap-2">
                               {(["double", "twin"] as const).map(opt => (
                                 <button key={opt} type="button" onClick={() => setLit(opt)} className="h-10 rounded-lg border text-sm font-medium" style={lit === opt ? { borderColor: NAVY, background: "rgba(0,78,124,.06)", color: NAVY } : { borderColor: "#e2e8f0", color: "#64748b" }}>{opt === "double" ? "1 grand lit" : "2 lits"}</button>
@@ -1347,8 +1401,8 @@ function ManageView({ token }: { token: string }) {
                           <Stepper value={pax} min={1} max={r.pax_max} onChange={setPax} />
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => setEditingId(null)} className="h-10 px-4 rounded-full border border-slate-200 text-slate-600 font-medium text-sm">Retour</button>
-                          <button onClick={() => save(r.id)} disabled={busy} className="flex-1 h-10 rounded-full text-white font-medium text-sm inline-flex items-center justify-center gap-1.5" style={{ background: NAVY }}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Enregistrer</>}</button>
+                          <button onClick={() => setEditingId(null)} className="h-10 px-4 rounded-full border border-slate-200 text-slate-600 font-medium text-sm">{t.back}</button>
+                          <button onClick={() => save(r.id)} disabled={busy} className="flex-1 h-10 rounded-full text-white font-medium text-sm inline-flex items-center justify-center gap-1.5" style={{ background: NAVY }}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> {t.save}</>}</button>
                         </div>
                       </>
                     )}
@@ -1367,13 +1421,13 @@ function ManageView({ token }: { token: string }) {
           onClick={(e) => { if (e.target === e.currentTarget && !busy) setCancelTarget(null); }}>
           <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-xl max-w-sm w-full p-6 text-center">
             <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center bg-rose-50 text-rose-600"><Trash2 className="w-6 h-6" /></div>
-            <h2 className="font-serif font-semibold text-xl text-slate-800 mt-3">Annuler cette chambre ?</h2>
-            <p className="text-sm text-slate-500 mt-1.5">Chambre <b>{cancelTarget.numero}</b> — cette action est définitive.</p>
+            <h2 className="font-serif font-semibold text-xl text-slate-800 mt-3">{t.cancelRoom}</h2>
+            <p className="text-sm text-slate-500 mt-1.5">{t.room} <b>{cancelTarget.numero}</b> {t.cancelDefinitive}</p>
             {groupe.conditions_annulation && (
               <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">{groupe.conditions_annulation}</p>
             )}
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setCancelTarget(null)} disabled={busy} className="flex-1 h-11 rounded-full border border-slate-200 text-slate-600 font-medium text-sm">Retour</button>
+              <button onClick={() => setCancelTarget(null)} disabled={busy} className="flex-1 h-11 rounded-full border border-slate-200 text-slate-600 font-medium text-sm">{t.back}</button>
               <button onClick={doCancel} disabled={busy} className="flex-1 h-11 rounded-full text-white font-semibold text-sm inline-flex items-center justify-center gap-1.5" style={{ background: "#e11d48" }}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmer"}
               </button>
@@ -1439,7 +1493,8 @@ function PinInput({ value, onChange }: { value: string; onChange: (v: string) =>
   return <input inputMode="numeric" maxLength={4} value={value} onChange={e => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="1234" className="w-full border border-slate-200 rounded-xl px-3 h-11 text-center tracking-[0.4em] font-semibold text-slate-800 bg-white outline-none focus:border-slate-400 placeholder:text-slate-300 placeholder:font-normal placeholder:tracking-normal" />;
 }
 function CodeField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return <label className="block"><Label>Votre code à 4 chiffres</Label><PinInput value={value} onChange={onChange} /></label>;
+  const t = useT();
+  return <label className="block"><Label>{t.yourPinLabel}</Label><PinInput value={value} onChange={onChange} /></label>;
 }
 function Stepper({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
   return <div className="inline-flex items-center rounded-xl border border-slate-200 overflow-hidden"><button type="button" onClick={() => onChange(Math.max(min, value - 1))} className="w-9 h-10 text-lg text-slate-500">−</button><span className="w-8 text-center font-medium text-slate-800">{value}</span><button type="button" onClick={() => onChange(Math.min(max, value + 1))} className="w-9 h-10 text-lg text-slate-500">+</button></div>;
@@ -1456,6 +1511,7 @@ function Centered({ title, text }: { title: string; text: string }) {
 
 // ---------- Signature (canvas, sans dépendance) ----------
 function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false); const hasInk = useRef(false);
   useEffect(() => {
@@ -1473,7 +1529,7 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
   return (
     <div>
       <canvas ref={canvasRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up} className="w-full h-36 rounded-xl border border-slate-200 bg-white touch-none" style={{ touchAction: "none" }} />
-      <button type="button" onClick={clear} className="text-xs text-slate-400 mt-1.5 hover:text-slate-600">Effacer</button>
+      <button type="button" onClick={clear} className="text-xs text-slate-400 mt-1.5 hover:text-slate-600">{t.clear}</button>
     </div>
   );
 }
