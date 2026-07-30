@@ -106,7 +106,36 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const tsAjoutee = g.taxe_sejour_mode === "ajoutee";
   const tsMontant = Number(g.taxe_sejour_montant) || 0;
 
-  const insertRows = rooms.map((r: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number; date_arrivee?: string; date_depart?: string }) => {
+  // Petit-déjeuner : le tarif vient de la BASE, jamais du navigateur. Le client
+  // n'envoie que les nuits qu'il a cochées ; le prix, lui, est celui négocié pour
+  // le groupe dans CET hôtel.
+  const { data: tarifRows } = await supabaseServer
+    .from("groupe_tarifs_hotel").select("hotel_id, pdj_actif, pdj_prix, taxe_sejour_montant").eq("groupe_id", g.id);
+  const pdjParHotel = new Map<string, number>(
+    (tarifRows || []).filter((t) => t.pdj_actif).map((t) => [t.hotel_id, Number(t.pdj_prix) || 0]));
+  // Taxe de séjour PAR HÔTEL : 1,86 € aux Voiles, 2,83 € à La Corniche. Le montant
+  // du groupe ne sert plus que de repli pour un hôtel sans ligne propre.
+  const taxeParHotel = new Map<string, number>(
+    (tarifRows || []).filter((t) => t.taxe_sejour_montant != null).map((t) => [t.hotel_id, Number(t.taxe_sejour_montant)]));
+  const taxeDe = (hotelId: string) => taxeParHotel.get(hotelId) ?? tsMontant;
+
+  // Nuits retenues pour une chambre : celles cochées par l'invité, MAIS bornées à
+  // son séjour et au fait que l'hôtel propose le petit-déjeuner. Une nuit hors
+  // séjour ou un hôtel sans petit-déjeuner ne doit rien facturer.
+  const nuitsDuSejour = (from: string, to: string): string[] => {
+    const out: string[] = [];
+    for (let t = new Date(from + "T12:00:00Z").getTime(); t < new Date(to + "T12:00:00Z").getTime(); t += 86400000) {
+      out.push(new Date(t).toISOString().slice(0, 10));
+    }
+    return out;
+  };
+  const pdjRetenu = (hotelId: string, demandees: unknown, from: string, to: string): string[] => {
+    if (!pdjParHotel.has(hotelId)) return [];
+    const dispo = new Set(nuitsDuSejour(from, to));
+    return [...new Set((Array.isArray(demandees) ? demandees : []).map(String))].filter((n) => dispo.has(n)).sort();
+  };
+
+  const insertRows = rooms.map((r: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number; date_arrivee?: string; date_depart?: string; pdj_nuits?: unknown }) => {
     const gc = gcMap.get(r.groupe_chambre_id);
     const ru = one(gc!.room_units);
     const lit = ru?.twinable ? (r.config_lit === "twin" ? "twin" : "double") : null;
@@ -127,6 +156,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       // envoyé + 48h ; optionnel/aucun → confirmée directement.
       statut: immediat ? "en_attente_paiement" : differe ? "paiement_differe" : "confirmee",
       derniere_action: "creation", vu_backoffice: false,
+      // Le tarif est FIGÉ ici : renégocier le petit-déjeuner du groupe plus tard ne
+      // doit pas réécrire le montant d'une réservation déjà payée.
+      pdj_nuits: pdjRetenu(gc!.hotel_id as string, r.pdj_nuits, rda, rdd),
+      pdj_prix_unitaire: pdjParHotel.get(gc!.hotel_id as string) ?? null,
     };
   });
 
@@ -163,18 +196,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       h.resaIds.push(ins.id);
       h.lines.push({ name: `${g.nom} · Ch. ${ru?.numero ?? "?"} · ${rn} nuit(s)`, amount });
       h.total += amount;
+      // Petit-déjeuner : prix × personnes × nuits cochées. Une ligne par chambre,
+      // pour que le client retrouve son choix sur le reçu Stripe.
+      const pdjNuits = (row?.pdj_nuits || []) as string[];
+      const pdjPrix = Number(row?.pdj_prix_unitaire) || 0;
+      if (pdjNuits.length && pdjPrix > 0) {
+        const montantPdj = Math.round(pdjPrix * pdjNuits.length * pax * 100);
+        h.lines.push({ name: `Petit-déjeuner · Ch. ${ru?.numero ?? "?"} · ${pdjNuits.length} matin(s) × ${pax} pers.`, amount: montantPdj });
+        h.total += montantPdj;
+      }
       // Taxe de séjour : ENCAISSÉE si la réception l'a déclarée « à rajouter » —
       // le mode où la page l'annonce « comprise dans le total ». 'incluse' = déjà
       // dans le tarif/nuit, rien à ajouter. (2 modes, migration 89.)
       if (tsAjoutee) {
-        h.taxe += Math.round(tsMontant * rn * pax * 100);
+        h.taxe += Math.round(taxeDe(gc.hotel_id) * rn * pax * 100);
         h.taxePax += pax * rn;
       }
       byHotel.set(gc.hotel_id, h);
     }
-    for (const h of byHotel.values()) {
+    for (const [hid, h] of byHotel.entries()) {
       if (h.taxe > 0) {
-        h.lines.push({ name: `Taxe de séjour · ${h.taxePax} nuitée(s) × ${tsMontant.toFixed(2)} €`, amount: h.taxe });
+        h.lines.push({ name: `Taxe de séjour · ${h.taxePax} nuitée(s) × ${taxeDe(hid).toFixed(2)} €`, amount: h.taxe });
         h.total += h.taxe;
       }
     }

@@ -37,6 +37,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
     byRoom.set(r.groupe_chambre_id, list);
   }
 
+  // Montants propres à chaque hôtel du bloc : petit-déjeuner (proposé ou non, et à
+  // quel prix) et taxe de séjour (1,86 € aux Voiles, 2,83 € à La Corniche — une
+  // valeur unique par groupe surfacturait un des deux côtés).
+  const { data: tarifs } = await supabaseServer
+    .from("groupe_tarifs_hotel")
+    .select("hotel_id, pdj_actif, pdj_prix, taxe_sejour_montant")
+    .eq("groupe_id", g.id);
+  const pdjParHotel: Record<string, number> = {};
+  const taxeParHotel: Record<string, number> = {};
+  for (const t of tarifs || []) {
+    if (t.pdj_actif) pdjParHotel[t.hotel_id] = Number(t.pdj_prix) || 0;
+    if (t.taxe_sejour_montant != null) taxeParHotel[t.hotel_id] = Number(t.taxe_sejour_montant);
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   const closed = g.statut !== "actif" || today > g.date_limite;
 
@@ -55,6 +69,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
       twinable: !!ru?.twinable,
       tarif: Number(rc.tarif_nuit),
       hotel: hotel?.nom ?? null,
+      hotel_id: rc.hotel_id,
+      // Tarif du petit-déjeuner pour l'hôtel de CETTE chambre, par personne et par
+      // nuit. `null` = pas proposé ici (un groupe bi-hôtel peut ne l'offrir que d'un côté).
+      pdjPrix: rc.hotel_id in pdjParHotel ? pdjParHotel[rc.hotel_id] : null,
+      // Taxe de séjour de CET hôtel. `null` → la page retombe sur le montant du
+      // groupe, puis sur son barème par défaut.
+      taxeMontant: rc.hotel_id in taxeParHotel ? taxeParHotel[rc.hotel_id] : null,
       // Nuits retirées de CETTE chambre (migration 86). Vide → toute la durée du groupe.
       // Permet d'exclure des nuits isolées, y compris au milieu du séjour.
       nuitsExclues: (rc.nuits_exclues || []) as string[],

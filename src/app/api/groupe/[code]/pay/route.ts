@@ -35,7 +35,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   // Chambres du booking encore « tenues » (confirmée sur place, ou en attente du lien programmé).
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, email, nom, prenom, date_arrivee, date_depart, nb_personnes, statut, stripe_checkout_id, groupe_chambres!inner(hotel_id, tarif_nuit, room_units(numero))")
+    .select("id, email, nom, prenom, date_arrivee, date_depart, nb_personnes, statut, stripe_checkout_id, pdj_nuits, pdj_prix_unitaire, groupe_chambres!inner(hotel_id, tarif_nuit, room_units(numero))")
     .eq("booking_ref", ref).eq("groupe_id", g.id).in("statut", ["confirmee", "paiement_differe"]);
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable." }, { status: 404 });
 
@@ -52,6 +52,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const first = unpaid[0];
   const origin = req.headers.get("origin") || "";
 
+  // Montants par hôtel du bloc : la taxe de séjour n'est pas la même d'un
+  // établissement à l'autre, et le petit-déjeuner se négocie hôtel par hôtel.
+  const { data: tarifRows } = await supabaseServer
+    .from("groupe_tarifs_hotel").select("hotel_id, taxe_sejour_montant").eq("groupe_id", g.id);
+  const taxeParHotel = new Map<string, number>(
+    (tarifRows || []).filter((t) => t.taxe_sejour_montant != null).map((t) => [t.hotel_id, Number(t.taxe_sejour_montant)]));
+  const taxeDe = (hotelId: string) => taxeParHotel.get(hotelId) ?? tsMontant;
+
   // Une session par hôtel (comptes Stripe distincts).
   type HG = { ids: string[]; lines: { name: string; amount: number }[]; total: number; taxe: number; taxePax: number };
   const byHotel = new Map<string, HG>();
@@ -66,12 +74,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     h.ids.push(r.id);
     h.lines.push({ name: `${g.nom} · Ch. ${one(gc.room_units)?.numero ?? "?"} · ${n} nuit(s)`, amount });
     h.total += amount;
-    if (tsAjoutee) { h.taxe += Math.round(tsMontant * n * pax * 100); h.taxePax += pax * n; }
+    // Petit-déjeuner déjà choisi à la réservation : il se règle avec le reste.
+    const pdjNuits = (r.pdj_nuits || []) as string[];
+    const pdjPrix = Number(r.pdj_prix_unitaire) || 0;
+    if (pdjNuits.length && pdjPrix > 0) {
+      const montantPdj = Math.round(pdjPrix * pdjNuits.length * pax * 100);
+      h.lines.push({ name: `Petit-déjeuner · Ch. ${one(gc.room_units)?.numero ?? "?"} · ${pdjNuits.length} matin(s) × ${pax} pers.`, amount: montantPdj });
+      h.total += montantPdj;
+    }
+    if (tsAjoutee) { h.taxe += Math.round(taxeDe(hid) * n * pax * 100); h.taxePax += pax * n; }
     byHotel.set(hid, h);
   }
-  for (const h of byHotel.values()) {
+  for (const [hid, h] of byHotel.entries()) {
     if (h.taxe > 0) {
-      h.lines.push({ name: `Taxe de séjour · ${h.taxePax} nuitée(s) × ${tsMontant.toFixed(2)} €`, amount: h.taxe });
+      h.lines.push({ name: `Taxe de séjour · ${h.taxePax} nuitée(s) × ${taxeDe(hid).toFixed(2)} €`, amount: h.taxe });
       h.total += h.taxe;
     }
   }

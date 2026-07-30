@@ -23,6 +23,12 @@ interface Room {
   // Nuits où cette chambre n'est PAS offerte au groupe (migration 86) : elle peut être
   // déjà vendue certaines nuits, y compris au milieu du séjour.
   nuitsExclues?: string[];
+  // Tarif du petit-déjeuner pour l'hôtel de cette chambre (par personne et par
+  // nuit), ou null s'il n'est pas proposé ici.
+  pdjPrix?: number | null;
+  // Taxe de séjour de l'hôtel de cette chambre (par personne et par nuit).
+  // null → repli sur le montant du groupe, puis sur le barème par défaut.
+  taxeMontant?: number | null;
   // La résa de cette chambre exige-t-elle un code ? (facultatif en mode 'pro')
   claimNeedsPin?: boolean;
 }
@@ -58,9 +64,15 @@ function euro(n: number) {
     maximumFractionDigits: 2,
   });
 }
-// Taxe de séjour réglée sur place (par personne et par nuit)
+// Barème par défaut, dernier filet si rien n'est saisi (par personne et par nuit).
 function taxeSejour(hotel: string | null): number {
   return (hotel || "").toLowerCase().includes("voile") ? 1.86 : 2.83;
+}
+// La taxe qui s'applique à UNE chambre. Elle se lit hôtel par hôtel : un groupe
+// bi-hôtel n'a pas un montant unique (1,86 € aux Voiles, 2,83 € à La Corniche).
+function taxeDeChambre(r: Room, groupeMontant?: number | null): number {
+  if (r.taxeMontant != null) return r.taxeMontant;
+  return groupeMontant || taxeSejour(r.hotel ?? null);
 }
 function euro2(n: number) {
   return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
@@ -467,7 +479,8 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
   // « à rajouter » ; « incluse » = déjà dans le tarif/nuit → on n'ajoute rien.
   // (« sur place » a été supprimé, migration 89 : c'est mode_paiement qui dit OÙ
   //  l'on règle, pas le mode de taxe.)
-  const ts = groupe.taxe_sejour_mode === "ajoutee" ? (groupe.taxe_sejour_montant || 0) : 0;
+  // La taxe se prend chambre par chambre (elle diffère d'un hôtel à l'autre).
+  const tsDe = (r: Room) => groupe.taxe_sejour_mode === "ajoutee" ? taxeDeChambre(r, groupe.taxe_sejour_montant) : 0;
   // Interrupteur staff (migration 84) : complet = prix + budget · budget = budget seul
   // (vue organisateur) · masque = rien (groupe pris en charge, cf CACTUS).
   const aff = groupe.affichage_tarifs || "complet";
@@ -479,6 +492,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
     for (const r of rooms) {
       // Enveloppe : le bloc rempli à fond. Une personne par chambre (single use) — c'est une
       // borne haute indicative, pas une facture.
+      const ts = tsDe(r);
       enveloppe += (r.tarif + ts) * nGroupe;
       for (const p of r.periodes || []) {
         const n = nightsBetween(p.from, p.to).length;
@@ -489,7 +503,8 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
       if (mine) moi += (r.tarif + ts) * nightsBetween(mine.from, mine.to).length;
     }
     return { enveloppe, engage, moi, pct: enveloppe ? Math.min(100, ((engage + moi) / enveloppe) * 100) : 0 };
-  }, [rooms, nuits, picks, ts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rooms, nuits, picks, groupe.taxe_sejour_mode, groupe.taxe_sejour_montant]);
 
   // Garde-fou de saisie : départ toujours après l'arrivée, et on reste dans les bornes.
   function setFrom(v: string) {
@@ -789,9 +804,41 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
   );
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Petit-déjeuner : les nuits COCHÉES, chambre par chambre. Rien de coché au
+  // départ — une option payante pré-cochée n'a rien à faire dans un tunnel de
+  // réservation, et c'est aussi ce qu'impose le droit de la consommation.
+  const [pdjNuits, setPdjNuits] = useState<Record<string, string[]>>({});
 
   function setRoomCfg(id: string, patch: Partial<{ lit: "double" | "twin"; pax: number }>) {
     setCfg(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+  }
+
+  // Les nuits d'une chambre : celles du calendrier en 'pro', celles du couple
+  // Arrivée/Départ du formulaire en 'simple'.
+  function nuitsDe(r: Room): string[] {
+    const p = picks?.[r.id];
+    return p ? nightsBetween(p.from, p.to) : nightsBetween(da, dd);
+  }
+
+  // Nuits réellement facturables : l'intersection avec le séjour du moment. En
+  // 'simple' l'invité peut reculer ses dates APRÈS avoir coché — sans ce filtre on
+  // facturerait un petit-déjeuner une nuit qu'il ne passe plus à l'hôtel.
+  function pdjDe(r: Room): string[] {
+    if (r.pdjPrix == null) return [];
+    const dispo = new Set(nuitsDe(r));
+    return (pdjNuits[r.id] || []).filter(n => dispo.has(n));
+  }
+
+  function togglePdj(r: Room, nuit: string) {
+    setPdjNuits(prev => {
+      const cur = prev[r.id] || [];
+      return { ...prev, [r.id]: cur.includes(nuit) ? cur.filter(n => n !== nuit) : [...cur, nuit] };
+    });
+  }
+
+  function togglePdjTout(r: Room) {
+    const toutes = nuitsDe(r);
+    setPdjNuits(prev => ({ ...prev, [r.id]: (prev[r.id] || []).length >= toutes.length ? [] : toutes }));
   }
 
   const nights = Math.max(1, Math.round((new Date(dd + "T00:00:00").getTime() - new Date(da + "T00:00:00").getTime()) / 86400000));
@@ -806,11 +853,15 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
   const affF = groupe.affichage_tarifs || "complet";
   const voitPrixF = affF === "complet";
   const tsMode = groupe.taxe_sejour_mode || "ajoutee";
-  const tsMontant = groupe.taxe_sejour_montant || taxeSejour(rooms[0]?.hotel ?? null);
+  // Montant indicatif pour la PHRASE d'explication (une seule ligne de texte) : on
+  // prend celui de la première chambre. Les CALCULS, eux, sont par chambre.
+  const tsMontant = taxeDeChambre(rooms[0], groupe.taxe_sejour_montant);
   const totalPax = rooms.reduce((s, r) => s + (cfg[r.id]?.pax ?? 1), 0);
   const totalTaxe = tsMode === "ajoutee"
-    ? rooms.reduce((s, r) => s + tsMontant * nightsOf(r) * (cfg[r.id]?.pax ?? 1), 0)
+    ? rooms.reduce((s, r) => s + taxeDeChambre(r, groupe.taxe_sejour_montant) * nightsOf(r) * (cfg[r.id]?.pax ?? 1), 0)
     : 0;
+  // Petit-déjeuner : prix × personnes × nuits COCHÉES (pas la durée du séjour).
+  const totalPdj = rooms.reduce((s, r) => s + (r.pdjPrix ?? 0) * pdjDe(r).length * (cfg[r.id]?.pax ?? 1), 0);
 
   async function submit() {
     setErr(null);
@@ -836,6 +887,9 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
             groupe_chambre_id: r.id, config_lit: cfg[r.id]?.lit, nb_personnes: cfg[r.id]?.pax,
             // 'pro' : dates propres à la chambre · 'simple' : le serveur retombe sur da/dd.
             date_arrivee: picks?.[r.id]?.from, date_depart: picks?.[r.id]?.to,
+            // Nuits avec petit-déjeuner. Le serveur revalide le tarif et les nuits :
+            // ce que le navigateur envoie ne fait jamais foi sur un montant.
+            pdj_nuits: pdjDe(r),
           })),
           nom: nom.trim(), prenom: prenom.trim(), email: email.trim(), tel: tel.trim(),
           date_arrivee: da, date_depart: dd, pin, cgv, signature,
@@ -874,8 +928,14 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
             <span className="text-sm font-semibold" style={{ color: NAVY }}>
               Total {tsMode === "ajoutee" ? "séjour" : "hébergement"}
               <span className="ml-1.5 text-[11px] font-normal text-slate-400">{nights} nuit{nights > 1 ? "s" : ""}{rooms.length > 1 ? ` · ${rooms.length} ch.` : ""}</span>
+              {/* Le petit-déjeuner entre dans le total, donc il se dit dans le total :
+                  un supplément qui n'apparaît qu'au moment de payer est une mauvaise
+                  surprise. */}
+              {totalPdj > 0 && (
+                <span className="block text-[11px] font-normal text-slate-400 mt-0.5">dont petit-déjeuner {euro2(totalPdj)}</span>
+              )}
             </span>
-            <span className="text-base font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(totalHebergement + totalTaxe)}</span>
+            <span className="text-base font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(totalHebergement + totalTaxe + totalPdj)}</span>
           </div>
           )}
           {voitPrixF && (
@@ -932,6 +992,42 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
                       {opt === "double" ? "1 grand lit" : "2 lits séparés"}
                     </button>
                   ))}
+                </div>
+              )}
+              {/* Petit-déjeuner : une case par NUIT, parce qu'on ne le prend pas
+                  forcément tous les matins. La nuit du 25 vaut le petit-déjeuner du
+                  matin du 26 — d'où le libellé en date de service. */}
+              {r.pdjPrix != null && nuitsDe(r).length > 0 && (
+                <div className="mt-2.5 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[11px] font-medium text-slate-600">
+                      Petit-déjeuner
+                      {voitPrixF && (r.pdjPrix > 0
+                        ? <span className="text-slate-400 font-normal"> · {euro2(r.pdjPrix)} / personne</span>
+                        : <span className="text-slate-400 font-normal"> · offert</span>)}
+                    </span>
+                    <button type="button" onClick={() => togglePdjTout(r)} className="text-[11px] font-semibold shrink-0" style={{ color: NAVY }}>
+                      {pdjDe(r).length >= nuitsDe(r).length ? "Tout retirer" : "Tous les matins"}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {nuitsDe(r).map(n => {
+                      const on = pdjDe(r).includes(n);
+                      return (
+                        <button key={n} type="button" onClick={() => togglePdj(r, n)}
+                          className="h-8 px-2.5 rounded-lg border text-[11px] font-medium transition"
+                          style={on ? { borderColor: NAVY, background: "rgba(0,78,124,.08)", color: NAVY } : { borderColor: "#e2e8f0", color: "#94a3b8", background: "#fff" }}>
+                          {ddmm(nextDay(n))}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {pdjDe(r).length > 0 && voitPrixF && r.pdjPrix > 0 && (
+                    <p className="text-[11px] text-slate-400 mt-2">
+                      {pdjDe(r).length} matin{pdjDe(r).length > 1 ? "s" : ""} × {cfg[r.id]?.pax ?? 1} pers. ={" "}
+                      <span className="font-semibold text-slate-600">{euro2(r.pdjPrix * pdjDe(r).length * (cfg[r.id]?.pax ?? 1))}</span>
+                    </p>
+                  )}
                 </div>
               )}
             </div>
