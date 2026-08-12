@@ -33,7 +33,7 @@ export type Dict = {
   // — formulaire
   firstName: string; lastName: string; email: string; emailOptional: string;
   phone: string; arrival: string; departure: string; yourRooms: string;
-  persons: string; oneBed: string; twoBeds: string; breakfast: string;
+  persons: string; perPerson: string; oneBed: string; twoBeds: string; breakfast: string;
   breakfastFree: string; allMornings: string; removeAll: string;
   morning: string; mornings: string; ofWhichBreakfast: string;
   pinCreate: string; pinOptional: string; pinConfirm: string;
@@ -77,7 +77,7 @@ export const T: Record<Lang, Dict> = {
     roomNotThatNight: "Cette chambre n’est pas proposée cette nuit-là", remove: "Retirer",
     firstName: "Prénom", lastName: "Nom *", email: "Email *", emailOptional: "Email (facultatif)",
     phone: "Téléphone", arrival: "Arrivée", departure: "Départ", yourRooms: "Vos chambres",
-    persons: "Personnes", oneBed: "1 grand lit", twoBeds: "2 lits séparés",
+    persons: "Personnes", perPerson: "par personne", oneBed: "1 grand lit", twoBeds: "2 lits séparés",
     breakfast: "Petit-déjeuner", breakfastFree: "offert",
     allMornings: "Tous les matins", removeAll: "Tout retirer",
     morning: "matin", mornings: "matins", ofWhichBreakfast: "dont petit-déjeuner",
@@ -134,7 +134,7 @@ export const T: Record<Lang, Dict> = {
     roomNotThatNight: "This room isn't available that night", remove: "Remove",
     firstName: "First name", lastName: "Last name *", email: "Email *", emailOptional: "Email (optional)",
     phone: "Phone", arrival: "Arrival", departure: "Departure", yourRooms: "Your rooms",
-    persons: "Guests", oneBed: "1 double bed", twoBeds: "2 single beds",
+    persons: "Guests", perPerson: "per person", oneBed: "1 double bed", twoBeds: "2 single beds",
     breakfast: "Breakfast", breakfastFree: "complimentary",
     allMornings: "Every morning", removeAll: "Remove all",
     morning: "morning", mornings: "mornings", ofWhichBreakfast: "including breakfast",
@@ -191,7 +191,7 @@ export const T: Record<Lang, Dict> = {
     roomNotThatNight: "Esta habitación no está disponible esa noche", remove: "Quitar",
     firstName: "Nombre", lastName: "Apellidos *", email: "Correo *", emailOptional: "Correo (opcional)",
     phone: "Teléfono", arrival: "Llegada", departure: "Salida", yourRooms: "Sus habitaciones",
-    persons: "Personas", oneBed: "1 cama grande", twoBeds: "2 camas separadas",
+    persons: "Personas", perPerson: "por persona", oneBed: "1 cama grande", twoBeds: "2 camas separadas",
     breakfast: "Desayuno", breakfastFree: "cortesía",
     allMornings: "Todas las mañanas", removeAll: "Quitar todo",
     morning: "mañana", mornings: "mañanas", ofWhichBreakfast: "desayuno incluido",

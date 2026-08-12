@@ -1064,7 +1064,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
                     <span className="text-[11px] font-medium text-slate-600">
                       {t.breakfast}
                       {voitPrixF && (r.pdjPrix > 0
-                        ? <span className="text-slate-400 font-normal"> · {euro2(r.pdjPrix)} / {t.persons.toLowerCase()}</span>
+                        ? <span className="text-slate-400 font-normal"> · {euro2(r.pdjPrix)} {t.perPerson}</span>
                         : <span className="text-slate-400 font-normal"> · {t.breakfastFree}</span>)}
                     </span>
                     <button type="button" onClick={() => togglePdjTout(r)} className="text-[11px] font-semibold shrink-0" style={{ color: NAVY }}>
