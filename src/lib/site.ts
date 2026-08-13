@@ -17,6 +17,11 @@ export const LANG_CLUSTERS: LangCluster[] = [
     de: "/de/wo-in-toulon-ubernachten",
   },
   {
+    // Le tunnel de réservation directe des Voiles.
+    fr: "/reserver",
+    en: "/en/book",
+  },
+  {
     fr: "/hotel-bord-de-mer-toulon",
     en: "/en/seafront-hotel-toulon",
   },
