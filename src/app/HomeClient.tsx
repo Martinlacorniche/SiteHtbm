@@ -567,9 +567,12 @@ export default function PageUltimeV15() {
                             <MapPin className="w-4 h-4"/> <span>{t.viewMap}</span>
                         </a>
                     </div>
-                    <div className="bg-white text-slate-900 px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform">
+                    {/* Toute la carte est recouverte par le lien vers /wifi : sans
+                        `pointer-events-auto relative z-20`, ce bouton se ferait
+                        avaler par l'overlay et « Réserver » mènerait au wifi. */}
+                    <a href={lienReservation("corniche", lang)} className="pointer-events-auto relative z-20 bg-white text-slate-900 px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform">
                         {t.book} <ArrowRight className="w-4 h-4" />
-                    </div>
+                    </a>
                 </div>
             </div>
         </div>
@@ -656,9 +659,11 @@ export default function PageUltimeV15() {
                   🍸 {lang === "en" ? "Discover the Rooftop" : "Découvrir le Rooftop"} <ArrowRight className="w-4 h-4" />
                 </Link>
               )}
-              <div className="bg-white text-slate-900 px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform">
+              {/* Même précaution que sur la Corniche : l'overlay /wifiv couvre la
+                  carte entière, le bouton doit repasser au-dessus. */}
+              <a href={lienReservation("voiles", lang)} className="pointer-events-auto relative z-20 bg-white text-slate-900 px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform">
                 {t.book} <ArrowRight className="w-4 h-4" />
-              </div>
+              </a>
             </div>
           </div>
         </div>
