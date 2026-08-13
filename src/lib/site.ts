@@ -57,3 +57,49 @@ export function alternatesFor(path: string) {
     languages: hreflangFor(path),
   };
 }
+
+/* ─────────────────────────── Liens de réservation ───────────────────────────
+ * Un seul endroit pour décider où part un bouton « Réserver ».
+ *
+ * Aujourd'hui les deux hôtels partent chez D-EDGE. Demain Les Voiles passera
+ * sur notre propre moteur (Mews Booking Engine) pendant que La Corniche restera
+ * chez D-EDGE en attendant l'ouverture de l'OpenAPI HotSoft : la bascule doit
+ * donc pouvoir se faire hôtel par hôtel, sans toucher aux pages.
+ *
+ * D'où cette table plutôt qu'une constante : changer `moteur` d'un hôtel suffit.
+ */
+
+export type Hotel = "corniche" | "voiles";
+export type Locale = "fr" | "en";
+
+type Moteur =
+  | { type: "dedge"; slug: string; code: string }
+  | { type: "maison"; chemin: string };
+
+const MOTEURS: Record<Hotel, Moteur> = {
+  // Best Western Plus La Corniche — « Hotels Toulon Bord De Mer » chez D-EDGE.
+  corniche: { type: "dedge", slug: "Hotels-Toulon-Bord-De-Mer", code: "JJ8R" },
+  voiles: { type: "dedge", slug: "Hotel-Les-Voiles", code: "JJ8J" },
+};
+
+// D-EDGE veut une locale complète (`fr-FR`), pas un code à deux lettres.
+const LOCALE_DEDGE: Record<Locale, string> = { fr: "fr-FR", en: "en-US" };
+
+/**
+ * L'URL vers laquelle envoyer un bouton « Réserver ».
+ *
+ * Retourne une URL absolue tant qu'on est chez D-EDGE, un chemin relatif une
+ * fois le moteur maison en place — les deux se passent tels quels à `href`.
+ */
+export function lienReservation(hotel: Hotel, locale: Locale = "fr"): string {
+  const moteur = MOTEURS[hotel];
+  if (moteur.type === "maison") {
+    return locale === "fr" ? moteur.chemin : `/${locale}${moteur.chemin}`;
+  }
+  return `https://www.secure-hotel-booking.com/d-edge/${moteur.slug}/${moteur.code}/${LOCALE_DEDGE[locale]}`;
+}
+
+/** Vrai quand l'hôtel est passé sur notre moteur : le lien reste alors interne. */
+export function reservationInterne(hotel: Hotel): boolean {
+  return MOTEURS[hotel].type === "maison";
+}

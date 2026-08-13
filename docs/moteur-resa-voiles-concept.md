@@ -3,6 +3,12 @@ _Dernière mise à jour : 2026-03-27_
 
 ---
 
+> **Archive du 2026-08-13.** Ces notes viennent du prototype `/reservation-voiles`,
+> supprimé le même jour (« full test »). Le code est jeté, la conception est gardée :
+> c'est la seule trace du tunnel imaginé pour le moteur de réservation maison, au
+> moment où on ouvre le chantier pour de bon sur la Booking Engine API de Mews.
+
+
 ## Concept général
 
 Remplacer l'interface D-edge (obsolète) par un tunnel de réservation sur mesure pour l'Hôtel Les Voiles.

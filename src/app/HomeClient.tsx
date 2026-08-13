@@ -9,6 +9,7 @@ import { ArrowRight, MapPin, Star, Wind, Thermometer, Menu, X, Phone, Building2,
 import { Playfair_Display, Inter } from 'next/font/google';
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { lienReservation } from "@/lib/site";
 
 // --- TYPOGRAPHIE ---
 const serif = Playfair_Display({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-serif' });
@@ -83,7 +84,7 @@ const CONFIG = {
     address: "17 Littoral Frédéric Mistral, 83000 Toulon",
     phone: "04 94 41 35 12",
     email: "contact-corniche@htbm.fr",
-    bookingUrl: "https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR",
+    bookingUrl: lienReservation("corniche", "fr"),
     video: "https://ia601600.us.archive.org/2/items/20250828-141235-118/20250828_141235_118.mp4", 
     image: "/images/corniche.jpg",
   },
@@ -104,7 +105,7 @@ const CONFIG = {
     address: "124 rue Gubler, 83000 Toulon",
     phone: "04 94 41 36 23",
     email: "contact-lesvoiles@htbm.fr",
-    bookingUrl: "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR",
+    bookingUrl: lienReservation("voiles", "fr"),
     video: "https://ia601000.us.archive.org/31/items/20250828-142116-547_202509/20250828_142116_547.mp4",
     image: "/images/voiles.jpg",
   },

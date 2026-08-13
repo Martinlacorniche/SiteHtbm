@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { alternatesFor } from "@/lib/site";
+import { alternatesFor, lienReservation } from "@/lib/site";
 import Link from "next/link";
 import SiteBrand from "@/components/SiteBrand";
 
@@ -50,7 +50,7 @@ export default function Page() {
           </p>
           <p>
             <a
-              href="https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR"
+              href={lienReservation("corniche", "fr")}
               target="_blank"
               rel="noreferrer"
               className="text-sky-700 underline underline-offset-2"
@@ -77,7 +77,7 @@ export default function Page() {
           </p>
           <p>
             <a
-              href="https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR"
+              href={lienReservation("voiles", "fr")}
               target="_blank"
               rel="noreferrer"
               className="text-sky-700 underline underline-offset-2"

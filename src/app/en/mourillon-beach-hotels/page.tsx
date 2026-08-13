@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { alternatesFor } from "@/lib/site";
+import { alternatesFor, lienReservation } from "@/lib/site";
 import SiteBrand from "@/components/SiteBrand";
 
 export const metadata: Metadata = {
@@ -40,7 +40,7 @@ export default function Page() {
           </p>
           <p>
             <a
-              href="https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/en-US"
+              href={lienReservation("corniche", "en")}
               className="text-sky-700 underline underline-offset-2"
               target="_blank"
               rel="noreferrer"
@@ -61,7 +61,7 @@ export default function Page() {
           </p>
           <p>
             <a
-              href="https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/en-US"
+              href={lienReservation("voiles", "en")}
               className="text-sky-700 underline underline-offset-2"
               target="_blank"
               rel="noreferrer"

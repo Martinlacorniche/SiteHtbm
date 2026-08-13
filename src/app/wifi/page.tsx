@@ -7,6 +7,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import { Wifi, Instagram, Facebook, Star, X, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { lienReservation } from "@/lib/site";
 
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -543,7 +544,7 @@ export default function WifiPage() {
           transition={{ delay: 0.45 }}
         >
           <a
-            href="https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR"
+            href={lienReservation("corniche", "fr")}
             target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 w-full md:flex-1 py-3.5 rounded-2xl font-semibold text-sm text-slate-900 bg-white border border-slate-200 shadow-sm active:scale-95 transition-transform"
             style={{ fontFamily: "var(--font-sans)" }}

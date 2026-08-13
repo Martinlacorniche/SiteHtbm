@@ -7,6 +7,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import { Star, X, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { lienReservation } from "@/lib/site";
 
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -163,7 +164,7 @@ const T: Record<"fr" | "en", Translations> = {
     info: "Les Voiles · Info",
     ok: "OK",
     book: "Réserver un séjour",
-    bookUrl: "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/fr-FR",
+    bookUrl: lienReservation("voiles", "fr"),
   },
   en: {
     welcome: "Welcome home",
@@ -198,7 +199,7 @@ const T: Record<"fr" | "en", Translations> = {
     info: "Les Voiles · Info",
     ok: "OK",
     book: "Book a stay",
-    bookUrl: "https://www.secure-hotel-booking.com/d-edge/Hotel-Les-Voiles/JJ8J/en-US",
+    bookUrl: lienReservation("voiles", "en"),
   },
 };
 type Lang = keyof typeof T;

@@ -19,7 +19,6 @@ const STATIC_PATHS: { path: string; priority: number; changeFreq: MetadataRoute.
   { path: "/villa-les-voiles-toulon", priority: 0.8, changeFreq: "monthly" },
   { path: "/rooftop-les-voiles", priority: 0.8, changeFreq: "monthly" },
   { path: "/group-packages", priority: 0.6, changeFreq: "monthly" },
-  { path: "/reservation-voiles", priority: 0.6, changeFreq: "monthly" },
   { path: "/journal", priority: 0.6, changeFreq: "weekly" },
   // Versions multilingues
   { path: "/en/where-to-stay-in-toulon", priority: 0.8, changeFreq: "monthly" },
