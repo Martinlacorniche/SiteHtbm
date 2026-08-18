@@ -85,7 +85,7 @@ const CONFIG = {
     phone: "04 94 41 35 12",
     email: "contact-corniche@htbm.fr",
     bookingUrl: lienReservation("corniche", "fr"),
-    video: "https://ia601600.us.archive.org/2/items/20250828-141235-118/20250828_141235_118.mp4", 
+    video: "/media/corniche.mp4",
     image: "/images/corniche.jpg",
   },
 
@@ -106,7 +106,7 @@ const CONFIG = {
     phone: "04 94 41 36 23",
     email: "contact-lesvoiles@htbm.fr",
     bookingUrl: lienReservation("voiles", "fr"),
-    video: "https://ia601000.us.archive.org/31/items/20250828-142116-547_202509/20250828_142116_547.mp4",
+    video: "/media/voiles.mp4",
     image: "/images/voiles.jpg",
   },
 
@@ -236,15 +236,38 @@ export default function PageUltimeV15() {
   const vidRefLeft = useRef<HTMLVideoElement>(null);
   const vidRefRight = useRef<HTMLVideoElement>(null);
 
+  // Les vidéos de survol ne sont montées que sur un appareil qui a un vrai
+  // survol. Avant, elles étaient chargées ET jouées en boucle au montage sur
+  // tous les appareils, masquées par opacity:0 — soit 37 Mo streamés à chaque
+  // visite, y compris sur mobile où le survol n'existe pas et où l'effet ne
+  // pouvait donc jamais être vu.
+  const [survolDisponible, setSurvolDisponible] = useState(false);
+
   useEffect(() => {
-    [vidRefLeft, vidRefRight].forEach(ref => {
-      if (ref.current) {
-          ref.current.defaultMuted = true;
-          ref.current.muted = true;
-          ref.current.play().catch(e => console.log("Autoplay prevented:", e));
-      }
-    });
+    const survol = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const sobre = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const relire = () => setSurvolDisponible(survol.matches && !sobre.matches);
+    relire();
+    survol.addEventListener("change", relire);
+    sobre.addEventListener("change", relire);
+    return () => {
+      survol.removeEventListener("change", relire);
+      sobre.removeEventListener("change", relire);
+    };
   }, []);
+
+  // On ne lance la lecture qu'au survol de la carte concernée, et on met en
+  // pause dès qu'on en sort : plus rien ne tourne dans le vide.
+  useEffect(() => {
+    ([[vidRefLeft, "corniche"], [vidRefRight, "voiles"]] as const).forEach(([ref, id]) => {
+      const v = ref.current;
+      if (!v) return;
+      v.defaultMuted = true;
+      v.muted = true;
+      if (hoveredSection === id) v.play().catch(() => {});
+      else v.pause();
+    });
+  }, [hoveredSection, survolDisponible]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -509,7 +532,9 @@ export default function PageUltimeV15() {
             
             <div className="absolute inset-0 pointer-events-none">
                 <Image src={CONFIG.corniche.image} alt="Corniche" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
-                <video ref={vidRefLeft} src={CONFIG.corniche.video} poster={CONFIG.corniche.image} muted loop playsInline className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: hoveredSection === 'corniche' ? 1 : 0 }} />
+                {survolDisponible && (
+                  <video ref={vidRefLeft} src={CONFIG.corniche.video} poster={CONFIG.corniche.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: hoveredSection === 'corniche' ? 1 : 0 }} />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/60 z-20" />
             </div>
 
@@ -591,7 +616,9 @@ export default function PageUltimeV15() {
            
            <div className="absolute inset-0 pointer-events-none">
              <Image src={CONFIG.voiles.image} alt="Voiles" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
-             <video ref={vidRefRight} src={CONFIG.voiles.video} poster={CONFIG.voiles.image} muted loop playsInline className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: hoveredSection === 'voiles' ? 1 : 0 }} />
+             {survolDisponible && (
+               <video ref={vidRefRight} src={CONFIG.voiles.video} poster={CONFIG.voiles.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: hoveredSection === 'voiles' ? 1 : 0 }} />
+             )}
              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/60 z-20" />
           </div>
 
