@@ -236,17 +236,21 @@ export default function PageUltimeV15() {
   const vidRefLeft = useRef<HTMLVideoElement>(null);
   const vidRefRight = useRef<HTMLVideoElement>(null);
 
-  // Les vidéos de survol ne sont montées que sur un appareil qui a un vrai
-  // survol. Avant, elles étaient chargées ET jouées en boucle au montage sur
-  // tous les appareils, masquées par opacity:0 — soit 37 Mo streamés à chaque
-  // visite, y compris sur mobile où le survol n'existe pas et où l'effet ne
-  // pouvait donc jamais être vu.
+  // Les vidéos étaient chargées ET jouées en boucle au montage sur tous les
+  // appareils, masquées par opacity:0 : 37 Mo streamés depuis archive.org à
+  // chaque visite. Désormais elles ne se montent et ne se lancent que sur une
+  // action de l'utilisateur — le survol de la carte sur desktop, le bouton
+  // « + » qui déplie le cartouche sur mobile. Ce dernier cas est le
+  // comportement historique : au tap, le navigateur mobile émet un
+  // mouseenter, ce qui lançait la vidéo. On le garde, mais sans rien
+  // précharger tant que personne n'a rien demandé.
   const [survolDisponible, setSurvolDisponible] = useState(false);
+  const [mouvementReduit, setMouvementReduit] = useState(false);
 
   useEffect(() => {
     const survol = window.matchMedia("(hover: hover) and (pointer: fine)");
     const sobre = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const relire = () => setSurvolDisponible(survol.matches && !sobre.matches);
+    const relire = () => { setSurvolDisponible(survol.matches); setMouvementReduit(sobre.matches); };
     relire();
     survol.addEventListener("change", relire);
     sobre.addEventListener("change", relire);
@@ -256,18 +260,29 @@ export default function PageUltimeV15() {
     };
   }, []);
 
-  // On ne lance la lecture qu'au survol de la carte concernée, et on met en
-  // pause dès qu'on en sort : plus rien ne tourne dans le vide.
+  // Ce qui doit jouer maintenant, et ce qui doit exister dans le DOM.
+  // Sur desktop la balise reste montée (preload="none", donc gratuite) pour
+  // que le survol soit instantané ; sur mobile elle n'apparaît qu'au dépliage.
+  const videoActive = {
+    corniche: !mouvementReduit && (survolDisponible ? hoveredSection === "corniche" : mobileExpandLeft),
+    voiles:   !mouvementReduit && (survolDisponible ? hoveredSection === "voiles"   : mobileExpandRight),
+  };
+  const videoMontee = {
+    corniche: !mouvementReduit && (survolDisponible || mobileExpandLeft),
+    voiles:   !mouvementReduit && (survolDisponible || mobileExpandRight),
+  };
+
   useEffect(() => {
-    ([[vidRefLeft, "corniche"], [vidRefRight, "voiles"]] as const).forEach(([ref, id]) => {
-      const v = ref.current;
-      if (!v) return;
-      v.defaultMuted = true;
-      v.muted = true;
-      if (hoveredSection === id) v.play().catch(() => {});
-      else v.pause();
-    });
-  }, [hoveredSection, survolDisponible]);
+    ([[vidRefLeft, videoActive.corniche], [vidRefRight, videoActive.voiles]] as const)
+      .forEach(([ref, actif]) => {
+        const v = ref.current;
+        if (!v) return;
+        v.defaultMuted = true;
+        v.muted = true;
+        if (actif) v.play().catch(() => {});
+        else v.pause();
+      });
+  }, [videoActive.corniche, videoActive.voiles]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -532,8 +547,8 @@ export default function PageUltimeV15() {
             
             <div className="absolute inset-0 pointer-events-none">
                 <Image src={CONFIG.corniche.image} alt="Corniche" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
-                {survolDisponible && (
-                  <video ref={vidRefLeft} src={CONFIG.corniche.video} poster={CONFIG.corniche.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: hoveredSection === 'corniche' ? 1 : 0 }} />
+                {videoMontee.corniche && (
+                  <video ref={vidRefLeft} src={CONFIG.corniche.video} poster={CONFIG.corniche.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: videoActive.corniche ? 1 : 0 }} />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/60 z-20" />
             </div>
@@ -616,8 +631,8 @@ export default function PageUltimeV15() {
            
            <div className="absolute inset-0 pointer-events-none">
              <Image src={CONFIG.voiles.image} alt="Voiles" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
-             {survolDisponible && (
-               <video ref={vidRefRight} src={CONFIG.voiles.video} poster={CONFIG.voiles.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: hoveredSection === 'voiles' ? 1 : 0 }} />
+             {videoMontee.voiles && (
+               <video ref={vidRefRight} src={CONFIG.voiles.video} poster={CONFIG.voiles.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: videoActive.voiles ? 1 : 0 }} />
              )}
              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/60 z-20" />
           </div>
