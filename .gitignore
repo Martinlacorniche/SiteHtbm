@@ -9,6 +9,14 @@ public/media/
 *.webm
 *.mov
 
+# Exception : les deux boucles de survol de la home. Elles pesaient 18 Mo
+# pièce et vivaient sur archive.org — d'où les règles ci-dessus. Réencodées
+# à 2,2 et 1,7 Mo, elles ont leur place dans le dépôt : sans ça elles ne
+# partent pas au déploiement et l'effet disparaît en production.
+!public/media/
+!public/media/corniche.mp4
+!public/media/voiles.mp4
+
 # secrets & build
 .env.local
 tsconfig.tsbuildinfo
