@@ -271,7 +271,8 @@ export default function WifiVPage() {
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <div className="flex justify-center gap-1 mb-3">
-            {Array.from({ length: 4 }).map((_, i) => <Star key={i} size={11} fill="#C6A972" stroke="none" />)}
+            {/* Les Voiles est classé 3★ — la page reprenait le 4 de la Corniche. */}
+            {Array.from({ length: 3 }).map((_, i) => <Star key={i} size={11} fill="#C6A972" stroke="none" />)}
           </div>
           <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-2" style={{ fontFamily: "var(--font-sans)" }}>
             Les Voiles · Toulon
