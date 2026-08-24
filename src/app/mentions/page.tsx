@@ -1,9 +1,16 @@
 // src/app/mentions/page.tsx
-"use client";
-
+import type { Metadata } from "next";
 import React from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { alternatesFor } from "@/lib/site";
+
+export const metadata: Metadata = {
+  alternates: alternatesFor("/mentions"),
+  title: "Mentions légales — Hôtels Toulon Bord de Mer",
+  description:
+    "Éditeur, hébergement, propriété intellectuelle et données personnelles du site des Hôtels Toulon Bord de Mer.",
+};
 
 export default function MentionsLegales() {
   return (

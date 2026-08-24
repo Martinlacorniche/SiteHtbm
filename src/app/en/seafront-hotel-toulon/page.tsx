@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { alternatesFor, lienReservation } from "@/lib/site";
 import SiteBrand from "@/components/SiteBrand";
 
@@ -76,9 +77,9 @@ export default function Page() {
           <p>
             Or return to our main page:
             <span> </span>
-            <a href="/" className="text-sky-700 underline underline-offset-2">
+            <Link href="/" className="text-sky-700 underline underline-offset-2">
               Toulon Seafront Hotels
-            </a>
+            </Link>
           </p>
         </section>
       </article>

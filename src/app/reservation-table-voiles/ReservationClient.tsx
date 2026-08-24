@@ -34,6 +34,9 @@ export default function ReservationClient() {
   const [viewM, setViewM] = useState(now.getMonth());
   const [avail, setAvail] = useState<Record<string, boolean>>({});
   const [loadingCal, setLoadingCal] = useState(true);
+  // Si la disponibilite ne repond pas, tous les jours retombent "ni libre ni
+  // complet" — donc grises, sans un mot. Le client croyait le rooftop plein.
+  const [calErr, setCalErr] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   // Étape 3 — contact
@@ -55,13 +58,27 @@ export default function ReservationClient() {
     const start = ymd(viewY, viewM, 1);
     const end = ymd(viewY, viewM, daysInMonth(viewY, viewM));
     setLoadingCal(true);
-    supabase.rpc("rooftop_day_availability", { p_hotel: VOILES_ID, p_pax: pax, p_start: start, p_end: end })
-      .then(({ data }) => {
+    let annule = false;
+    (async () => {
+      try {
+        const { data, error: rpcErr } = await supabase.rpc("rooftop_day_availability",
+          { p_hotel: VOILES_ID, p_pax: pax, p_start: start, p_end: end });
+        if (rpcErr) throw rpcErr;
+        if (annule) return;
         const map: Record<string, boolean> = {};
         ((data as { day: string; available: boolean }[]) || []).forEach(r => { map[r.day] = r.available; });
         setAvail(map);
-        setLoadingCal(false);
-      });
+        setCalErr(false);
+      } catch (e) {
+        if (annule) return;
+        console.error("rooftop_day_availability", e instanceof Error ? e.message : e);
+        setAvail({});
+        setCalErr(true);
+      } finally {
+        if (!annule) setLoadingCal(false);
+      }
+    })();
+    return () => { annule = true; };
   }, [viewY, viewM, pax, reloadKey]);
 
   const curY = now.getFullYear();
@@ -151,7 +168,7 @@ export default function ReservationClient() {
             <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
               La réservation en ligne n’est pas disponible pour cette demande. Un petit coup de fil et on s’occupe de vous&nbsp;:
             </p>
-            <a href={`tel:${VOILES_PHONE.replace(/\s/g, "")}`} style={{ color: "#fff" }} className="btn btn-or mt-6 px-7 py-3 shadow-lg">
+            <a href={`tel:${VOILES_PHONE.replace(/\s/g, "")}`} className="btn btn-or mt-6 px-7 py-3 shadow-lg">
               <Phone size={17} /> {VOILES_PHONE}
             </a>
           </motion.div>
@@ -165,7 +182,7 @@ export default function ReservationClient() {
               {bookedTable ? <>La table <span className="font-semibold text-slate-700">{bookedTable}</span> vous attend </> : "Votre table vous attend "}
               le <span className="font-semibold text-slate-700">{selectedDate ? prettyDate(selectedDate) : ""}</span> à {heure}, pour {pax} personne{pax > 1 ? "s" : ""}. À très vite sur le rooftop&nbsp;!
             </p>
-            <Link href="/rooftop-les-voiles" style={{ color: "#fff" }} className="mt-6 inline-flex rounded-full bg-gold px-7 py-3 font-semibold text-white shadow-lg transition hover:bg-gold-dark">Revoir la carte</Link>
+            <Link href="/rooftop-les-voiles" className="btn btn-or mt-6 px-7 py-3 shadow-lg">Revoir la carte</Link>
           </motion.div>
         ) : selectedDate ? (
           /* ---------- ÉTAPE 3 : CONTACT ---------- */
@@ -269,7 +286,7 @@ export default function ReservationClient() {
                       className={[
                         "aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition relative",
                         isAvailable
-                          ? "bg-emerald-50 text-emerald-700 font-semibold hover:bg-gold hover:text-white cursor-pointer ring-1 ring-emerald-100"
+                          ? "bg-emerald-50 text-emerald-700 font-semibold hover:bg-gold hover:text-navy-deep cursor-pointer ring-1 ring-emerald-100"
                           : isComplet
                             ? "bg-slate-50 text-slate-300 line-through cursor-not-allowed"
                             : "text-slate-300 cursor-not-allowed",
@@ -280,6 +297,14 @@ export default function ReservationClient() {
                   );
                 })}
               </div>
+
+              {/* La disponibilite n'a pas repondu : on le dit, avec la sortie de secours. */}
+              {calErr && (
+                <p className="mt-4 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-center text-xs leading-relaxed text-amber-800">
+                  Le calendrier ne répond pas pour le moment. Appelez-nous au{" "}
+                  <a href={`tel:${VOILES_PHONE.replace(/\s/g, "")}`} className="font-semibold underline">{VOILES_PHONE}</a>, on vous place.
+                </p>
+              )}
 
               {/* Légende */}
               <div className="mt-4 flex items-center justify-center gap-4 text-[11px] text-slate-400">

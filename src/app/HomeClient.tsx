@@ -444,12 +444,12 @@ export default function PageUltimeV15() {
               <X className="w-8 h-8" />
             </button>
             <div className="flex flex-col gap-4 md:gap-6 text-center font-serif text-3xl md:text-5xl">
-              <a href="/group-packages" className="hover:text-amber-300 transition-colors">Packages Groupes</a>
-              <a href={CONFIG.corniche.bookingUrl} className="hover:text-blue-300 transition-colors">{CONFIG.corniche.title}</a>
-              <a href={CONFIG.voiles.bookingUrl} className="hover:text-green-300 transition-colors">{CONFIG.voiles.title}</a>
-              <a href={CONFIG.villa.bookingUrl} className="hover:text-amber-300 transition-colors">{CONFIG.villa.title}</a>
-              {rooftopOn && <Link href="/rooftop-les-voiles" className="hover:text-amber-300 transition-colors">Le Rooftop</Link>}
-              <Link href="/journal" className="text-2xl md:text-4xl italic text-white/60 hover:text-white transition-colors mt-2">
+              <a href="/group-packages" className="text-cream hover:text-gold transition-colors">Packages Groupes</a>
+              <a href={CONFIG.corniche.bookingUrl} className="text-cream hover:text-gold transition-colors">{CONFIG.corniche.title}</a>
+              <a href={CONFIG.voiles.bookingUrl} className="text-cream hover:text-gold transition-colors">{CONFIG.voiles.title}</a>
+              <a href={CONFIG.villa.bookingUrl} className="text-cream hover:text-gold transition-colors">{CONFIG.villa.title}</a>
+              {rooftopOn && <Link href="/rooftop-les-voiles" className="text-cream hover:text-gold transition-colors">Le Rooftop</Link>}
+              <Link href="/journal" className="text-2xl md:text-4xl italic text-cream/70 hover:text-cream transition-colors mt-2">
                   Le Journal
               </Link>
               <div className="h-px w-24 bg-white/20 mx-auto my-4"/>
@@ -457,7 +457,7 @@ export default function PageUltimeV15() {
                   <button onClick={() => { setMenuOpen(false); openSeminarForm(); }} className="hover:text-white flex items-center justify-center gap-2">
                       <Building2 className="w-5 h-5"/> {t.menu_pro}
                   </button>
-                  <a href={`mailto:${CONFIG.corniche.email}`} className="hover:text-white flex items-center justify-center gap-2">
+                  <a href={`mailto:${CONFIG.corniche.email}`} className="text-cream hover:text-gold flex items-center justify-center gap-2">
                       <Mail className="w-5 h-5"/> {t.menu_contact}
                   </a>
               </div>
@@ -492,6 +492,7 @@ export default function PageUltimeV15() {
                     src={CONFIG.popup.image}
                     alt={`${CONFIG.popup.title[lang]} — ${CONFIG.popup.tagline[lang]}`}
                     fill
+                    sizes="(max-width: 448px) 100vw, 448px"
                     className="object-cover object-center transition-transform duration-[1400ms] group-hover:scale-105"
                   />
                   {/* Dégradés haut + bas pour la lisibilité du texte, cocktails visibles au milieu */}
@@ -708,7 +709,7 @@ export default function PageUltimeV15() {
                  </a>
               </div>
               {rooftopOn && (
-                <Link href="/rooftop-les-voiles" style={{ color: "#fff" }} className="pointer-events-auto relative z-20 bg-gold text-white px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:bg-gold-dark hover:scale-105 transition-all">
+                <Link href="/rooftop-les-voiles" className="btn btn-or pointer-events-auto relative z-20 w-fit px-8 py-4 font-bold tracking-wide shadow-lg hover:scale-105">
                   🍸 {lang === "en" ? "Discover the Rooftop" : "Découvrir le Rooftop"} <ArrowRight className="w-4 h-4" />
                 </Link>
               )}
@@ -820,6 +821,7 @@ export default function PageUltimeV15() {
                         src={CONFIG.pro.image}
                         alt="Espace Pro" 
                         fill 
+                        sizes="(max-width: 768px) 100vw, 33vw"
                         className="object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" 
                       />
                       <div className="absolute inset-0 bg-slate-900/10 mix-blend-multiply" />

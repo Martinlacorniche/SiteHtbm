@@ -16,7 +16,6 @@
      c'est ce qui avait produit trois cremes concurrents, deux dores et un or
      illisible en texte.                                                     */
   --color-gold:       #C6A972;  /* filets, aplats, or sur fond sombre */
-  --color-gold-dark:  #b8975e;  /* survol des aplats dores */
   --color-gold-ink:   #8C6F39;  /* OR EN TEXTE sur fond clair : 4.7:1 sur blanc,
                                    4.6:1 sur le creme. L'or d'origine plafonne a
                                    2.25:1 et echoue le seuil AA de 4.5:1.      */
@@ -37,12 +36,28 @@
   --off-white: var(--color-cream);
 }
 
-/* ---------- FOND ET TYPO ---------- */
-body {
-  background-color: var(--color-cream);
-  color: #222;
-  font-family: var(--font-sans);
-  line-height: 1.6;
+/* ---------- FOND, TYPO ET LIENS ----------
+   Ces regles DOIVENT rester dans @layer base. Ecrites hors couche, elles
+   l'emportent sur tous les utilitaires Tailwind (une declaration sans couche
+   bat n'importe quelle couche) : le a { color } ci-dessous ecrasait alors les
+   43 liens du site qui portent un text-*, dont tout le menu de l'accueil —
+   bleu nuit sur fond noir, 1,6:1, illisible — et les liens sky-700 du journal. */
+@layer base {
+  body {
+    background-color: var(--color-cream);
+    color: #222;
+    font-family: var(--font-sans);
+    line-height: 1.6;
+  }
+
+  /* Couleur par defaut d'un lien, quand rien d'autre n'est precise. */
+  a {
+    color: var(--color-navy);
+    transition: color 0.3s ease;
+  }
+  a:hover {
+    color: var(--color-gold-ink);
+  }
 }
 
 /* ---------- BOUTONS ----------
@@ -61,7 +76,12 @@ body {
            disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-or {
-    @apply bg-gold text-white hover:bg-gold-dark;
+    /* Texte bleu nuit, pas blanc : blanc sur or plafonne a 2,25:1, tres en
+       dessous du seuil AA de 4,5:1 — et c'est le bouton principal du site.
+       Le bleu nuit sur or donne 5,3:1, et c'est deja ce que fait le grand
+       bouton du rooftop. Le survol eclaircit l'or au lieu de l'assombrir :
+       assombrir aurait ramene le contraste sous le seuil.                   */
+    @apply bg-gold text-navy-deep hover:brightness-105;
   }
   .btn-clair {
     @apply border border-slate-200 bg-white text-slate-900 hover:bg-slate-50;
@@ -81,20 +101,13 @@ body {
 }
 
 /* ---------- CARTES ---------- */
-.card-luxe {
-  @apply p-6 rounded-xl shadow-lg transition-all duration-500;
-  background-color: white;
-}
-.card-luxe:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-}
-
-/* ---------- LIENS ---------- */
-a {
-  color: var(--color-navy);
-  transition: color 0.3s ease;
-}
-a:hover {
-  color: var(--color-gold-ink);
+@layer components {
+  .card-luxe {
+    @apply p-6 rounded-xl shadow-lg transition-all duration-500;
+    background-color: white;
+  }
+  .card-luxe:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+  }
 }

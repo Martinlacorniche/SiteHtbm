@@ -64,7 +64,7 @@ const TEXTES = {
     taxeMention: (m: string) => `+ ${m} € de taxe de séjour par adulte et par nuit, à régler sur place`,
     totalSejour: "Total du séjour", surPlace: "À régler sur place",
     payer: "Réserver et payer",
-    paiementAVenir: "Le paiement n'est pas encore branché : c'est la prochaine étape du chantier.",
+    paiementAVenir: "Le règlement en ligne ouvre très bientôt sur cette page.",
   },
   en: {
     titre: "Book at Les Voiles",
@@ -96,7 +96,7 @@ const TEXTES = {
     taxeMention: (m: string) => `+ €${m} city tax per adult per night, payable at the hotel`,
     totalSejour: "Stay total", surPlace: "Payable at the hotel",
     payer: "Book and pay",
-    paiementAVenir: "Payment is not wired up yet: that is the next step of the build.",
+    paiementAVenir: "Online payment opens on this page very soon.",
   },
 } as const;
 
@@ -342,7 +342,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             type="button"
             disabled={!voyage || nuits < 1 || chargement}
             onClick={() => chercher(adultes)}
-            className="mt-4 w-full shrink-0 rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-white transition-colors hover:bg-[#b3955f] disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
+            className="mt-4 w-full shrink-0 rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-navy-deep transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
           >
             {chargement ? T.recherche : voyage ? T.chercher : T.choisir}
           </button>

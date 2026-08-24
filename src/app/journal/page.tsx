@@ -1,5 +1,4 @@
-"use client";
-
+import type { Metadata } from "next";
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,10 +6,18 @@ import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import { Playfair_Display, Inter } from 'next/font/google';
 import { cn } from "@/lib/utils";
 // C'est cette ligne qui va chercher tes articles dans le fichier articles.tsx
-import { PUBLISHED } from "./articles"; 
+import { PUBLISHED } from "./articles";
+import { alternatesFor } from "@/lib/site";
 
 const serif = Playfair_Display({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-serif' });
 const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
+
+export const metadata: Metadata = {
+  alternates: alternatesFor("/journal"),
+  title: "Le Journal — Hôtels Toulon Bord de Mer",
+  description:
+    "Nos adresses, nos saisons et nos coulisses au Mourillon : le journal des Hôtels Toulon Bord de Mer.",
+};
 
 export default function JournalPage() {
   return (

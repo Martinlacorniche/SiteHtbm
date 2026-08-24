@@ -291,7 +291,7 @@ export default function WifiVPage() {
                 if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
                 return next;
               })}
-              className="text-[10px] font-semibold tracking-widest text-gold-ink/90 hover:text-gold-ink transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-gold-ink hover:text-navy transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}

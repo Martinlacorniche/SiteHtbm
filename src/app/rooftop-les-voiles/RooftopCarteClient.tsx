@@ -254,13 +254,13 @@ export default function RooftopCarteClient() {
               {/* Séparateur "+" — vertical sur desktop (position figée, ne bouge pas quand on change salé/sucré) */}
               <div className="hidden lg:flex flex-col items-center self-start pt-10">
                 <div className="h-16 w-px bg-gold/30" />
-                <span className="my-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold text-white font-serif text-2xl shadow-lg shrink-0">+</span>
+                <span className="my-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold text-navy-deep font-serif text-2xl shadow-lg shrink-0">+</span>
                 <div className="h-16 w-px bg-gold/30" />
               </div>
               {/* Séparateur "+" — horizontal sur mobile */}
               <div className="flex lg:hidden items-center justify-center gap-4">
                 <div className="h-px flex-1 bg-gold/30" />
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold text-white font-serif text-2xl shadow-lg shrink-0">+</span>
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold text-navy-deep font-serif text-2xl shadow-lg shrink-0">+</span>
                 <div className="h-px flex-1 bg-gold/30" />
               </div>
 
@@ -271,13 +271,13 @@ export default function RooftopCarteClient() {
                 <div className="flex flex-wrap gap-2">
                   {sale.length > 0 && (
                     <button onClick={() => setFoodTab("sale")}
-                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sale" ? "bg-gold text-white shadow-sm" : "border border-gold/40 text-[var(--deep-blue)] hover:border-gold"}`}>
+                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sale" ? "bg-gold text-navy-deep shadow-sm" : "border border-gold/40 text-[var(--deep-blue)] hover:border-gold"}`}>
                       {t.sale}
                     </button>
                   )}
                   {sucre.length > 0 && (
                     <button onClick={() => setFoodTab("sucre")}
-                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sucre" ? "bg-gold text-white shadow-sm" : "border border-gold/40 text-[var(--deep-blue)] hover:border-gold"}`}>
+                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sucre" ? "bg-gold text-navy-deep shadow-sm" : "border border-gold/40 text-[var(--deep-blue)] hover:border-gold"}`}>
                       {t.sucre}
                     </button>
                   )}
@@ -314,7 +314,7 @@ function FormulaBadge({ icon, label, highlight }: { icon: React.ReactNode; label
   return (
     <div className="flex flex-col items-center gap-2">
       <span className={`flex h-16 w-16 items-center justify-center rounded-full shadow-md ${
-        highlight ? "bg-gold text-white ring-2 ring-gold/40" : "bg-white text-[var(--deep-blue)] ring-1 ring-gold/30"
+        highlight ? "bg-gold text-navy-deep ring-2 ring-gold/40" : "bg-white text-[var(--deep-blue)] ring-1 ring-gold/30"
       }`}>
         {icon}
       </span>
@@ -326,7 +326,7 @@ function FormulaBadge({ icon, label, highlight }: { icon: React.ReactNode; label
 function StepHead({ num, title, sub }: { num: number; title: string; sub: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold font-serif text-lg text-white shadow-sm">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold font-serif text-lg text-navy-deep shadow-sm">
         {num}
       </span>
       <div className="leading-tight">
