@@ -52,8 +52,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // Langue par défaut
-    <html lang="fr"> 
-      <body className={`${inter.variable} ${playfair.variable} font-sans`}>{children}</body>
+    <html lang="fr" className={`${inter.variable} ${playfair.variable}`}> 
+      <body className="font-sans">{children}</body>
     </html>
   );
 }

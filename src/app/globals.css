@@ -1,6 +1,17 @@
 /* Import Tailwind layers */
 @import "tailwindcss";
 
+/* ---------- THEME TAILWIND v4 ----------
+   Remplace l'ancien tailwind.config.js, qui n'etait plus charge depuis le
+   passage a Tailwind 4 : les utilitaires font-sans / font-serif retombaient
+   sur les piles systeme (d'ou les titres en Times au lieu de Playfair).
+   Les variables --font-inter / --font-playfair sont posees sur <html> par
+   next/font dans layout.tsx.                                              */
+@theme {
+  --font-sans:  var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
+}
+
 /* (garde le reste de ton CSS tel quel : .glass, .gradient-border, etc.) */
 
 
@@ -17,7 +28,7 @@
 body {
   background-color: var(--off-white);
   color: #222;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.6;
 }
 
