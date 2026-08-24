@@ -65,7 +65,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
         {/* IMAGE */}
         <div className="relative w-full h-[50vh] md:h-[70vh] mb-16">
-            <Image src={post.image} alt={post.title} fill className="object-cover" priority />
+            <Image src={post.image} alt={post.title} fill sizes="100vw" className="object-cover" priority />
         </div>
 
         {/* CONTENU TEXTE */}

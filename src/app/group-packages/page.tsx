@@ -221,7 +221,7 @@ export default function GroupPackagesPage() {
       )}>
         <Link href="/" className="flex items-center gap-3 z-50 relative group">
              <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden shadow-sm border border-white/20 bg-white">
-                <Image src="/logos/logo-bleu.png" alt="Logo HTBM Hôtels Toulon Bord de Mer" fill className="object-cover p-1" />
+                <Image src="/logos/logo-bleu.png" alt="Logo HTBM Hôtels Toulon Bord de Mer" fill sizes="48px" className="object-cover p-1" />
              </div>
              <div className="flex flex-col">
                 <span className="font-serif font-bold text-sm md:text-base tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">

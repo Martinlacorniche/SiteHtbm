@@ -10,6 +10,7 @@ import { Playfair_Display, Inter } from 'next/font/google';
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { lienReservation } from "@/lib/site";
+import { useModale } from "@/hooks/useModale";
 
 // --- TYPOGRAPHIE ---
 const serif = Playfair_Display({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-serif' });
@@ -29,6 +30,7 @@ const CONFIG = {
       cowork: "Espace Coworking",
       menu_pro: "Espace Pro",
       menu_contact: "Contact",
+      menu_close: "Fermer",
       reopening_may1: "Réouverture ce 1er Mai",
       villa_push: "Disponible en Villa (Privatisation)",
       pro_title: "Professionnels",
@@ -43,6 +45,7 @@ const CONFIG = {
       cowork: "Coworking Space",
       menu_pro: "Business",
       menu_contact: "Contact",
+      menu_close: "Close",
       reopening_may1: "Reopening May 1st",
       villa_push: "Available as Villa (Private Rental)",
       pro_title: "Business & Events",
@@ -318,6 +321,12 @@ export default function PageUltimeV15() {
   localStorage.setItem("popup_rooftop_seen", "true");
 };
 
+  // Échap, piège à focus et verrou de défilement pour les quatre modales.
+  const refMenu = useModale<HTMLDivElement>(menuOpen, () => setMenuOpen(false));
+  const refPopup = useModale<HTMLDivElement>(showPopup, closePopup);
+  const refCowork = useModale<HTMLDivElement>(showCoworkModal, () => setShowCoworkModal(false));
+  const refSeminaire = useModale<HTMLDivElement>(showSeminarForm, () => setShowSeminarForm(false));
+
   const getFlexClass = (id: "corniche" | "voiles" | "villa") => {
     if (hoveredSection === null) return "md:flex-1";
     return hoveredSection === id ? "md:flex-[2]" : "md:flex-[1]";
@@ -397,7 +406,7 @@ export default function PageUltimeV15() {
         
         <Link href="/" className="flex items-center gap-3 z-50 relative group">
              <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden shadow-sm border border-white/20 bg-white">
-                <Image src="/images/cigale-or-512.png" alt="Logo Hôtels Toulon Bord de Mer" fill className="object-contain p-1.5" />
+                <Image src="/images/cigale-or-512.png" alt="Logo Hôtels Toulon Bord de Mer" fill sizes="48px" className="object-contain p-1.5" />
              </div>
              <div className="flex flex-col">
                 <span className="font-serif font-bold text-sm md:text-base tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
@@ -427,10 +436,11 @@ export default function PageUltimeV15() {
       <AnimatePresence>
         {menuOpen && (
           <motion.div 
+            ref={refMenu} role="dialog" aria-modal="true" aria-label="Menu" tabIndex={-1}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] bg-slate-900 text-[#FDFCF8] flex flex-col justify-center items-center p-4"
           >
-            <button onClick={() => setMenuOpen(false)} className="absolute top-6 right-6 p-4 hover:rotate-90 transition-transform duration-500">
+            <button onClick={() => setMenuOpen(false)} aria-label={t.menu_close} className="absolute top-6 right-6 p-4 hover:rotate-90 transition-transform duration-500">
               <X className="w-8 h-8" />
             </button>
             <div className="flex flex-col gap-4 md:gap-6 text-center font-serif text-3xl md:text-5xl">
@@ -464,6 +474,7 @@ export default function PageUltimeV15() {
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           >
             <motion.div
+              ref={refPopup} role="dialog" aria-modal="true" aria-label={CONFIG.popup.title[lang]} tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -543,10 +554,10 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("corniche")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-            <Link href="/wifi" className="absolute inset-0 z-10" aria-label="L'Horizon – WiFi" />
+            <Link href="/wifi" className="absolute inset-0 z-10" aria-label="Best Western Plus La Corniche — espace client" />
             
             <div className="absolute inset-0 pointer-events-none">
-                <Image src={CONFIG.corniche.image} alt="Corniche" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
+                <Image src={CONFIG.corniche.image} alt="Corniche" fill sizes="(max-width: 768px) 100vw, (max-width: 1900px) 50vw, 950px" className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
                 {videoMontee.corniche && (
                   <video ref={vidRefLeft} src={CONFIG.corniche.video} poster={CONFIG.corniche.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: videoActive.corniche ? 1 : 0 }} />
                 )}
@@ -627,10 +638,10 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("voiles")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-           <Link href="/wifiv" className="absolute inset-0 z-10" aria-label="Découvrir Les Voiles" />
+           <Link href="/wifiv" className="absolute inset-0 z-10" aria-label="Hôtel Les Voiles — espace client" />
            
            <div className="absolute inset-0 pointer-events-none">
-             <Image src={CONFIG.voiles.image} alt="Voiles" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
+             <Image src={CONFIG.voiles.image} alt="Voiles" fill sizes="(max-width: 768px) 100vw, (max-width: 1900px) 50vw, 950px" className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
              {videoMontee.voiles && (
                <video ref={vidRefRight} src={CONFIG.voiles.video} poster={CONFIG.voiles.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: videoActive.voiles ? 1 : 0 }} />
              )}
@@ -720,10 +731,10 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("villa")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-           <Link href={CONFIG.villa.bookingUrl} target="_blank" className="absolute inset-0 z-10" aria-label="Book Villa" />
+           <Link href={CONFIG.villa.bookingUrl} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-10" aria-label="Villa Les Voiles — l'annonce de location (nouvel onglet)" />
            
            <div className="absolute inset-0 pointer-events-none">
-             <Image src={CONFIG.villa.image} alt="Villa" fill className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
+             <Image src={CONFIG.villa.image} alt="Villa" fill sizes="(max-width: 768px) 100vw, (max-width: 1900px) 50vw, 950px" className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/60 z-20" />
           </div>
 
@@ -778,9 +789,14 @@ export default function PageUltimeV15() {
                  </a>
               </div>
               <div className="flex gap-2">
-                <div className="bg-amber-100 text-slate-900 px-6 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform">
+                <a
+                  href={CONFIG.villa.bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pointer-events-auto bg-amber-100 text-slate-900 px-6 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform"
+                >
                     Privatiser <ArrowRight className="w-4 h-4" />
-                </div>
+                </a>
                  <a href={CONFIG.villa.infoUrl} target="_blank" className="pointer-events-auto inline-flex items-center gap-2 border border-white/30 text-white px-6 py-4 rounded-full text-sm font-bold hover:bg-white/10 transition-colors backdrop-blur-sm" style={{color:'white'}}>
                     <FileText className="w-4 h-4"/> {t.info}
                 </a>
@@ -865,13 +881,14 @@ export default function PageUltimeV15() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.97 }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              ref={refCowork} role="dialog" aria-modal="true" aria-label="Coworking au Best Western Plus La Corniche" tabIndex={-1}
               className="bg-white rounded-3xl max-w-sm w-full relative overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
               <div className="relative px-8 pt-8 pb-6 text-center overflow-hidden" style={{ backgroundImage: "url('/images/pagewifi.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
                 <div className="absolute inset-0 bg-black/50" />
-                <button onClick={() => setShowCoworkModal(false)} className="absolute top-5 right-5 text-white/60 hover:text-white transition-colors z-10">
+                <button onClick={() => setShowCoworkModal(false)} aria-label={t.menu_close} className="absolute top-5 right-5 text-white/60 hover:text-white transition-colors z-10">
                   <X className="w-5 h-5" />
                 </button>
                 <div className="relative z-10">
@@ -943,12 +960,14 @@ export default function PageUltimeV15() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.97 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            ref={refSeminaire} role="dialog" aria-modal="true" aria-label="Demande pour un séminaire" tabIndex={-1}
             className="bg-white rounded-3xl p-10 max-w-md w-full relative overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             {/* Fermer */}
             <button
               onClick={() => setShowSeminarForm(false)}
+              aria-label={t.menu_close}
               className="absolute top-6 right-6 text-slate-300 hover:text-slate-700 transition-colors"
             >
               <X className="w-5 h-5" />

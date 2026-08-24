@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useModale } from "@/hooks/useModale";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -1242,6 +1243,8 @@ function ManageView({ token }: { token: string }) {
   const [canPay, setCanPay] = useState(false);
   const [payLinks, setPayLinks] = useState<{ hotelNom: string; amount: number; url: string }[] | null>(null);
   const [payBusy, setPayBusy] = useState(false);
+  const fermerAnnulation = useCallback(() => { if (!busy) setCancelTarget(null); }, [busy]);
+  const refAnnulation = useModale<HTMLDivElement>(cancelTarget !== null, fermerAnnulation);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1448,7 +1451,8 @@ function ManageView({ token }: { token: string }) {
       {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-5" style={{ background: "rgba(15,23,42,.45)" }}
           onClick={(e) => { if (e.target === e.currentTarget && !busy) setCancelTarget(null); }}>
-          <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-xl max-w-sm w-full p-6 text-center">
+          <motion.div ref={refAnnulation} role="dialog" aria-modal="true" aria-label={t.cancelRoom} tabIndex={-1}
+            initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-xl max-w-sm w-full p-6 text-center">
             <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center bg-rose-50 text-rose-600"><Trash2 className="w-6 h-6" /></div>
             <h2 className="font-serif font-semibold text-xl text-slate-800 mt-3">{t.cancelRoom}</h2>
             <p className="text-sm text-slate-500 mt-1.5">{t.room} <b>{cancelTarget.numero}</b> {t.cancelDefinitive}</p>
@@ -1472,14 +1476,19 @@ function ManageView({ token }: { token: string }) {
 // UI partagée
 // ============================================================================
 function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: React.ReactNode }) {
+  const t = useT();
+  // La feuille n'est montée que lorsqu'elle est ouverte : Échap la ferme, le
+  // focus y reste, et la page derrière ne défile plus sous les doigts.
+  const ref = useModale<HTMLDivElement>(true, onClose);
   return (
     <motion.div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 360, damping: 34 }}
+      <motion.div ref={ref} role="dialog" aria-modal="true" aria-label={`${subtitle} — ${title}`} tabIndex={-1}
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 360, damping: 34 }}
         className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]">
         <div className="sticky top-0 bg-white/95 backdrop-blur px-5 py-4 flex items-center justify-between border-b border-slate-100 z-10">
           <div><p className="text-[11px] uppercase tracking-widest text-slate-400">{subtitle}</p><h2 className="font-serif font-semibold text-xl text-slate-800">{title}</h2></div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} aria-label={t.close} className="text-slate-400 hover:text-slate-700"><X className="w-5 h-5" /></button>
         </div>
         {children}
       </motion.div>

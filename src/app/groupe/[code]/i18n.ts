@@ -56,7 +56,7 @@ export type Dict = {
   // — accès / gestion
   enterPin: string; manageResa: string; roomTakenEnterPin: string; access: string;
   myResa: string; pinAsked: string; deadlinePassed: string;
-  stay: string; beds: string; edit: string; cancel: string; back: string; save: string;
+  stay: string; beds: string; edit: string; cancel: string; back: string; save: string; close: string;
   cancelRoom: string; cancelDefinitive: string; modified: string;
   statusCanceled: string; statusPending: string; statusConfirmed: string;
   yourPinLabel: string;
@@ -115,7 +115,7 @@ export const T: Record<Lang, Dict> = {
     pinAsked: "Demandé pour modifier ou annuler vos chambres.",
     deadlinePassed: "La date limite est passée. Pour toute modification, contactez l'hôtel.",
     stay: "Séjour", beds: "Lits", edit: "Modifier", cancel: "Annuler",
-    back: "Retour", save: "Enregistrer",
+    back: "Retour", save: "Enregistrer", close: "Fermer",
     cancelRoom: "Annuler cette chambre ?", cancelDefinitive: "— cette action est définitive.",
     modified: "Modifié ✓",
     statusCanceled: "Annulée", statusPending: "En attente de paiement", statusConfirmed: "Confirmée",
@@ -173,7 +173,7 @@ export const T: Record<Lang, Dict> = {
     pinAsked: "Required to change or cancel your rooms.",
     deadlinePassed: "The deadline has passed. For any change, please contact the hotel.",
     stay: "Stay", beds: "Beds", edit: "Change", cancel: "Cancel",
-    back: "Back", save: "Save",
+    back: "Back", save: "Save", close: "Close",
     cancelRoom: "Cancel this room?", cancelDefinitive: "— this cannot be undone.",
     modified: "Updated ✓",
     statusCanceled: "Cancelled", statusPending: "Awaiting payment", statusConfirmed: "Confirmed",
@@ -231,7 +231,7 @@ export const T: Record<Lang, Dict> = {
     pinAsked: "Se pide para modificar o cancelar sus habitaciones.",
     deadlinePassed: "La fecha límite ha pasado. Para cualquier cambio, contacte con el hotel.",
     stay: "Estancia", beds: "Camas", edit: "Modificar", cancel: "Cancelar",
-    back: "Volver", save: "Guardar",
+    back: "Volver", save: "Guardar", close: "Cerrar",
     cancelRoom: "¿Cancelar esta habitación?", cancelDefinitive: "— esta acción es definitiva.",
     modified: "Modificado ✓",
     statusCanceled: "Cancelada", statusPending: "Pendiente de pago", statusConfirmed: "Confirmada",
