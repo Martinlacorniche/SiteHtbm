@@ -254,7 +254,7 @@ function renderContent(tile: DbTile, weather: WeatherState, lang: Lang): React.R
   }
 }
 
-const HREFS: Record<string, string> = { menu: "/wifi/menu", curiosites: "/wifi/curiosites", bar: "/wifi/bar" };
+const HREFS: Record<string, string> = { menu: "/wifi/menu", curiosites: "/wifi/curiosites", bar: "/wifi/bar", plage: "/wifi/plage" };
 
 const FALLBACK_GRADIENTS: Record<string, string> = {
   reception:  "linear-gradient(145deg, #004e7c, #0077b6)",
