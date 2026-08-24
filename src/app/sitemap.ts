@@ -1,13 +1,8 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL, hreflangFor } from "@/lib/site";
-
-// Slugs des articles du journal (à garder synchro avec journal/articles.tsx)
-const JOURNAL_SLUGS = [
-  "criques-mitre-toulon",
-  "art-figue",
-  "le-mourillon-quartier-plage-toulon",
-  "renovation-villa",
-];
+// Derive de la meme source que les pages : plus de liste a garder synchro a la main,
+// et un brouillon ne peut plus se retrouver dans le sitemap.
+import { PUBLISHED_SLUGS as JOURNAL_SLUGS } from "./journal/articles";
 
 // Pages de contenu indexables, avec priorité indicative.
 const STATIC_PATHS: { path: string; priority: number; changeFreq: MetadataRoute.Sitemap[number]["changeFrequency"] }[] = [

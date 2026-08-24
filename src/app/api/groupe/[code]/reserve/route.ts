@@ -233,7 +233,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         customer_email: email,
         metadata: { type: "groupe_resa", groupe_id: g.id, hotel_id: hotelId, booking_ref: bookingRef },
         success_url: `${origin}/groupe/${code}?r=${bookingRef}&paye=1`,
-        cancel_url: `${origin}/groupe/${code}`,
+        // Sans ?r=, l'abandon de paiement renvoyait le client sur la grille des chambres,
+        // sans aucun moyen de retrouver la resa qui le tient 30 minutes. Il repartait a zero
+        // et risquait de payer deux fois.
+        cancel_url: `${origin}/groupe/${code}?r=${bookingRef}`,
         expires_at: Math.floor(Date.now() / 1000) + 31 * 60, // ~30 min de blocage
       });
       await supabaseServer.from("groupe_reservations").update({ stripe_checkout_id: session.id }).in("id", h.resaIds);

@@ -7,7 +7,7 @@ import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import { Playfair_Display, Inter } from 'next/font/google';
 import { cn } from "@/lib/utils";
 // C'est cette ligne qui va chercher tes articles dans le fichier articles.tsx
-import { ARTICLES } from "./articles"; 
+import { PUBLISHED } from "./articles"; 
 
 const serif = Playfair_Display({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-serif' });
 const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -38,7 +38,7 @@ export default function JournalPage() {
       {/* --- GRILLE ARTICLES --- */}
       <section className="px-4 pb-24">
         <div className="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
-           {ARTICLES.map((post) => (
+           {PUBLISHED.map((post) => (
              <Link href={`/journal/${post.slug}`} key={post.id} className="group cursor-pointer flex flex-col gap-4">
                 {/* Image avec effet zoom */}
                 <div className="relative aspect-[3/2] overflow-hidden rounded-2xl bg-slate-100 shadow-sm">

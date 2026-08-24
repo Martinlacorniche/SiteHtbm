@@ -6,20 +6,20 @@ import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import { Playfair_Display, Inter } from "next/font/google";
 import { SITE_URL } from "@/lib/site";
 // Note les ".." pour remonter chercher les données
-import { ARTICLES } from "../articles";
+import { PUBLISHED } from "../articles";
 
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 // Pré-génère une page statique par article (bon pour le SEO et la perf)
 export function generateStaticParams() {
-  return ARTICLES.map((a) => ({ slug: a.slug }));
+  return PUBLISHED.map((a) => ({ slug: a.slug }));
 }
 
 // Métadonnées propres à chaque article (titre, description, canonical, OpenGraph)
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const post = ARTICLES.find((a) => a.slug === slug);
+  const post = PUBLISHED.find((a) => a.slug === slug);
   if (!post) return { title: "Article introuvable" };
   return {
     title: post.title,
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   // On cherche l'article qui correspond au slug dans l'URL
-  const post = ARTICLES.find((a) => a.slug === slug);
+  const post = PUBLISHED.find((a) => a.slug === slug);
   if (!post) notFound();
 
   return (

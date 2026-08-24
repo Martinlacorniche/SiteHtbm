@@ -49,6 +49,7 @@ export type Dict = {
   // — paiement
   payTitle: string; payTwoHotels: string; payStripeNote: string; pay: string;
   payOnline: string; payOnlineNote: string; payToConfirm: string;
+  payThanks: string; payThanksNote: string;
   // — confirmation
   confirmed: string; yourPin: string; keepPin: string; yourLink: string;
   manageLink: string; copied: string;
@@ -99,6 +100,7 @@ export const T: Record<Lang, Dict> = {
     errPinMatch: "Les deux codes ne correspondent pas.",
     errTerms: "Merci d'accepter les conditions.", errSign: "Merci de signer.",
     errConnection: "Connexion impossible.",
+    payThanks: "Paiement bien reçu", payThanksNote: "On enregistre votre règlement — le statut se met à jour dans quelques secondes, et vous recevez la confirmation par email.",
     payTitle: "Plus qu'une étape", payTwoHotels: "Deux établissements = deux paiements distincts.",
     payStripeNote: "Paiement sécurisé par Stripe. Vos chambres sont tenues 30 minutes ; passé ce délai sans paiement, elles sont relibérées.",
     pay: "Payer", payOnline: "Régler en ligne",
@@ -156,6 +158,7 @@ export const T: Record<Lang, Dict> = {
     errPinMatch: "The two codes don't match.",
     errTerms: "Please accept the terms.", errSign: "Please sign.",
     errConnection: "Connection failed.",
+    payThanks: "Payment received", payThanksNote: "We are recording your payment — the status updates in a few seconds and you will get a confirmation email.",
     payTitle: "One last step", payTwoHotels: "Two properties = two separate payments.",
     payStripeNote: "Secure payment by Stripe. Your rooms are held for 30 minutes; after that, without payment, they are released.",
     pay: "Pay", payOnline: "Pay online",
@@ -213,6 +216,7 @@ export const T: Record<Lang, Dict> = {
     errPinMatch: "Los dos códigos no coinciden.",
     errTerms: "Acepte las condiciones, por favor.", errSign: "Firme, por favor.",
     errConnection: "Conexión imposible.",
+    payThanks: "Pago recibido", payThanksNote: "Estamos registrando su pago — el estado se actualiza en unos segundos y recibirá un correo de confirmación.",
     payTitle: "Un último paso", payTwoHotels: "Dos establecimientos = dos pagos distintos.",
     payStripeNote: "Pago seguro con Stripe. Sus habitaciones se mantienen 30 minutos; pasado ese plazo sin pago, se liberan.",
     pay: "Pagar", payOnline: "Pagar en línea",

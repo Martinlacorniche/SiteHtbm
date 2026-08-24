@@ -1,6 +1,20 @@
 import React from "react";
 
-export const ARTICLES = [
+export type Article = {
+  id: number;
+  slug: string;
+  category: string;
+  date: string;
+  readTime: string;
+  title: string;
+  excerpt: string;
+  image: string;
+  content: React.ReactNode;
+  /** Brouillon : ni liste, ni page, ni sitemap. */
+  draft?: boolean;
+};
+
+export const ARTICLES: Article[] = [
   {
     id: 1,
     slug: "criques-mitre-toulon", // C'est ça qui fait l'URL (ex: /journal/criques-mitre-toulon)
@@ -125,6 +139,13 @@ export const ARTICLES = [
     title: "Rénover une villa historique : Les coulisses",
     excerpt: "Comment garder l'âme d'une maison de famille tout en apportant le confort...",
     image: "/images/villa.jpg",
-    content: <p>Contenu à venir...</p>
+    content: <p>Contenu à venir...</p>,
+    // Brouillon : le texte n'est pas ecrit. Tant que draft vaut true, l'article
+    // ne parait nulle part — c'est ce qui evite de re-indexer « Contenu a venir... ».
+    draft: true,
   }
 ];
+
+/** Source unique pour la liste, les pages et le sitemap. */
+export const PUBLISHED: Article[] = ARTICLES.filter((a) => !a.draft);
+export const PUBLISHED_SLUGS: string[] = PUBLISHED.map((a) => a.slug);

@@ -322,7 +322,7 @@ function BookingView({ code }: { code: string }) {
   }, [rooms, filter, isFree, lang]);
 
   if (loading) return <FullLoader />;
-  if (error || !groupe) return <Centered title="Oups" text={error || "{t.noGroup}"} />;
+  if (error || !groupe) return <Centered title="Oups" text={error || t.noGroup} />;
   if (pay) return <PaymentScreen payments={pay} groupe={groupe} />;
   if (done) return <Confirmation code={code} refId={done.ref} pin={done.pin} groupe={groupe} />;
 
@@ -733,7 +733,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
                               }}>
                               <div
                                 title={occIci ? `${occIci.occupant || t.booked} · ${ddmm(occIci.from)} → ${ddmm(occIci.to)} — ${t.clickIfYours}`
-                                  : !nightInRoomWindow(r, j) && j !== groupe.date_depart ? "{t.roomNotThatNight}"
+                                  : !nightInRoomWindow(r, j) && j !== groupe.date_depart ? t.roomNotThatNight
                                   : !nuitDroite ? "Jour du départ" : "Cliquez ou glissez pour choisir vos nuits"}
                                 className={`relative flex h-7 ${occIci || (!groupe.closed && nuitDroite) ? "cursor-pointer" : ""}`}
                               >
@@ -1154,7 +1154,7 @@ function ClaimModal({ code, room, onClose, onAccess }: { code: string; room: Roo
 // Paiement obligatoire : écran « finalisez votre paiement » (1 bouton par hôtel).
 function PaymentScreen({ payments, groupe }: { payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]; groupe: GroupeMeta }) {
   const t = useT();
-  const euro = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  // Utilise le euro() global : ne pas redeclarer ici, cf. avertissement en haut du fichier.
   const multi = payments.length > 1;
   return (
     <main className="min-h-screen flex items-center justify-center px-5">
@@ -1219,6 +1219,10 @@ function Confirmation({ code, refId, pin, groupe }: { code: string; refId: strin
 function ManageView({ token }: { token: string }) {
   const t = useT();
   const lang = useLang();
+  // Retour de Stripe : success_url ajoute &paye=1. Ce parametre ne PROUVE rien
+  // (n'importe qui peut l'ecrire), il sert juste a expliquer l'attente pendant que
+  // le webhook bascule le statut. La verite reste ce que renvoie l'API.
+  const justPaid = useSearchParams().get("paye") === "1";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [resas, setResas] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1251,12 +1255,19 @@ function ManageView({ token }: { token: string }) {
     } catch { setError("Connexion impossible."); } finally { setLoading(false); }
   }, [token]);
   useEffect(() => { load(); }, [load]);
+  // Le webhook Stripe met quelques secondes a confirmer. Sans ces relances, le client
+  // qui vient de payer voit « en attente de paiement » et croit avoir paye dans le vide.
+  useEffect(() => {
+    if (!justPaid) return;
+    const timers = [2000, 5000, 9000].map((ms) => setTimeout(() => { load(); }, ms));
+    return () => timers.forEach(clearTimeout);
+  }, [justPaid, load]);
   useEffect(() => {
     try { const saved = sessionStorage.getItem(`pin_${token}`); if (saved && /^\d{4}$/.test(saved)) { setCode(saved); setCodeKnown(true); } } catch {}
   }, [token]);
 
   if (loading) return <FullLoader />;
-  if (error || !groupe) return <Centered title="Lien invalide" text={error || "{t.noResa}"} />;
+  if (error || !groupe) return <Centered title="Lien invalide" text={error || t.noResa} />;
 
   // Le code n'est exigé que si la résa en a un (facultatif en mode 'pro'). Sans ce
   // garde-fou, la page bloquait AVANT même d'appeler l'API — le champ était masqué mais
@@ -1312,6 +1323,13 @@ function ManageView({ token }: { token: string }) {
           </div>
         )}
         {groupe.locked && <Banner>{t.deadlinePassed}</Banner>}
+
+        {justPaid && pending.length === 0 && (
+          <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 mb-4">
+            <p className="font-serif font-semibold text-emerald-800">{t.payThanks}</p>
+            <p className="text-xs text-emerald-700/80 mt-1">{t.payThanksNote}</p>
+          </div>
+        )}
 
         {pending.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 border-2" style={{ borderColor: NAVY }}>

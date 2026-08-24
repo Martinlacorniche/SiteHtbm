@@ -151,6 +151,23 @@ export default function Page() {
           </p>
         </section>
 
+        {/* FAQ — rendue à l'écran, sinon le balisage FAQPage ci-dessus enfreint
+            les consignes Google (une FAQ balisée doit être visible du visiteur). */}
+        <section className="space-y-3">
+          <h2 className="font-serif text-2xl text-slate-900">Questions fréquentes</h2>
+          <div className="divide-y divide-slate-200 border-t border-slate-200">
+            {FAQ.map((item) => (
+              <details key={item.q} className="group py-3">
+                <summary className="cursor-pointer list-none font-medium text-slate-900 marker:hidden flex items-start justify-between gap-3">
+                  <span>{item.q}</span>
+                  <span aria-hidden="true" className="mt-1 shrink-0 text-slate-400 transition-transform group-open:rotate-45">+</span>
+                </summary>
+                <p className="mt-2 text-slate-700">{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
       </article>
     </main>
   );

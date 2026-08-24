@@ -76,7 +76,7 @@ export default function Page() {
           <p>
             Or return to our main page:
             <span> </span>
-            <a href="/en" className="text-sky-700 underline underline-offset-2">
+            <a href="/" className="text-sky-700 underline underline-offset-2">
               Toulon Seafront Hotels
             </a>
           </p>
