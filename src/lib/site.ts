@@ -108,3 +108,35 @@ export function lienReservation(hotel: Hotel, locale: Locale = "fr"): string {
 export function reservationInterne(hotel: Hotel): boolean {
   return MOTEURS[hotel].type === "maison";
 }
+
+/* ─────────────────────────────── Coordonnees ────────────────────────────────
+ * Nom, adresse et telephone des deux etablissements, au meme endroit que les
+ * liens de reservation. Le pied de page les affiche sur tout le site : c'est
+ * ce que Google recoupe (coherence NAP) et ce qu'un client cherche en premier.
+ */
+export const ETABLISSEMENTS = [
+  {
+    hotel: "corniche" as Hotel,
+    nom: "Best Western Plus La Corniche",
+    etoiles: 4,
+    adresse: "17 Littoral Frédéric Mistral, 83000 Toulon",
+    telephone: "04 94 41 35 12",
+    email: "contact-corniche@htbm.fr",
+    page: "/hotel-bord-de-mer-toulon",
+  },
+  {
+    hotel: "voiles" as Hotel,
+    nom: "Hôtel Les Voiles",
+    etoiles: 3,
+    adresse: "124 rue Gubler, 83000 Toulon",
+    telephone: "04 94 41 36 23",
+    email: "contact-lesvoiles@htbm.fr",
+    page: "/hotel-plage-mourillon",
+  },
+];
+
+/** Les comptes existaient dans le code depuis le debut sans jamais etre rendus. */
+export const RESEAUX = {
+  instagram: "https://www.instagram.com/hotels_toulon_mer/",
+  facebook: "https://www.facebook.com/hotelstbm",
+};

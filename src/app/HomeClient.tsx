@@ -10,6 +10,7 @@ import { Playfair_Display, Inter } from 'next/font/google';
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { lienReservation } from "@/lib/site";
+import PiedDePage from "@/components/PiedDePage";
 import { useModale } from "@/hooks/useModale";
 
 // --- TYPOGRAPHIE ---
@@ -137,10 +138,6 @@ const CONFIG = {
   pro: {
     image: "/images/business.jpg",
   },
-  socials: {
-    instagram: "https://www.instagram.com/hotels_toulon_mer/",
-    facebook: "https://www.facebook.com/hotelstbm",
-  }
 };
 
 export default function PageUltimeV15() {
@@ -856,19 +853,8 @@ export default function PageUltimeV15() {
          </div>
       </section>
 
-      {/* --- FOOTER --- */}
-      <footer className="bg-cream pt-10 pb-6 px-6 border-t border-slate-100">
-        <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-xs">
-            <div className="flex flex-col md:flex-row gap-4 md:gap-8">
-    <a href="/mentions" className="hover:text-slate-900">Mentions Légales</a>
-    <a href="mailto:contact-corniche@htbm.fr" className="hover:text-slate-900">contact-corniche@htbm.fr</a>
-    <a href="tel:0494413512" className="hover:text-slate-900 font-bold">04 94 41 35 12</a>
-</div>
-            <div className="font-serif italic opacity-50">
-                Designed in Toulon.
-            </div>
-        </div>
-      </footer>
+      {/* --- FOOTER (commun a tout le site) --- */}
+      <PiedDePage />
 
       {/* ── MODAL COWORKING ── */}
       <AnimatePresence>

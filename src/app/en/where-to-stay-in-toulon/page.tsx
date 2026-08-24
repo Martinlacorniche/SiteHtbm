@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { alternatesFor } from "@/lib/site";
 import SiteBrand from "@/components/SiteBrand";
+import PiedDePage from "@/components/PiedDePage";
+import ReserverEnDirect from "@/components/ReserverEnDirect";
 
 export const metadata: Metadata = {
   alternates: alternatesFor("/en/where-to-stay-in-toulon"),
@@ -11,6 +14,7 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
+    <>
     <main className="mx-auto max-w-4xl px-4 py-12 text-slate-800">
       <SiteBrand />
       <article className="space-y-12">
@@ -34,6 +38,9 @@ export default function Page() {
             For larger families, the <strong>Villa Les Voiles</strong> offers multiple bedrooms
             and a fully equipped kitchen.
           </p>
+          <p>
+            ➜ <Link href="/en/villa-les-voiles-toulon" className="underline text-sky-700">See Villa Les Voiles</Link>
+          </p>
         </section>
 
         {/* Couples */}
@@ -43,6 +50,9 @@ export default function Page() {
             For romantic stays, <strong>Best Western Plus La Corniche</strong> is ideal:
             panoramic sea views, seafront restaurants, Mediterranean atmosphere and
             direct access to the Mourillon promenade.
+          </p>
+          <p>
+            ➜ <Link href="/en/seafront-hotel-toulon" className="underline text-sky-700">See the seafront hotel</Link>
           </p>
         </section>
 
@@ -54,6 +64,9 @@ export default function Page() {
             location between beaches and the city centre.
             For seminars or meetings, La Corniche provides a unique seafront setting.
           </p>
+          <p>
+            ➜ <Link href="/en/toulon-business-hotel" className="underline text-sky-700">Business stays and meetings in Toulon</Link>
+          </p>
         </section>
 
         {/* Beaches */}
@@ -64,6 +77,9 @@ export default function Page() {
             <li><strong>Best Western Plus La Corniche</strong> — 30 metres from the shoreline</li>
             <li><strong>Hôtel Les Voiles</strong> — quiet hillside location, close to coves</li>
           </ul>
+          <p>
+            ➜ <Link href="/en/mourillon-beach-hotels" className="underline text-sky-700">Hotels near Mourillon beaches</Link>
+          </p>
         </section>
 
         {/* Sea View */}
@@ -84,7 +100,11 @@ export default function Page() {
           </p>
         </section>
 
+        <ReserverEnDirect langue="en" />
+
       </article>
     </main>
+    <PiedDePage langue="en" />
+    </>
   );
 }

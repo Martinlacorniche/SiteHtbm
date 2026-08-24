@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { alternatesFor } from "@/lib/site";
 import SiteBrand from "@/components/SiteBrand";
+import PiedDePage from "@/components/PiedDePage";
+import ReserverEnDirect from "@/components/ReserverEnDirect";
 
 export const metadata: Metadata = {
   alternates: alternatesFor("/de/wo-in-toulon-ubernachten"),
@@ -11,6 +13,7 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
+    <>
     <main className="mx-auto max-w-4xl px-4 py-12 text-slate-800">
       <SiteBrand />
       <article className="space-y-12">
@@ -172,7 +175,11 @@ export default function Page() {
           </div>
         </section>
 
+        <ReserverEnDirect langue="de" />
+
       </article>
     </main>
+    <PiedDePage langue="en" />
+    </>
   );
 }
