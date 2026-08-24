@@ -140,3 +140,24 @@ export const RESEAUX = {
   instagram: "https://www.instagram.com/hotels_toulon_mer/",
   facebook: "https://www.facebook.com/hotelstbm",
 };
+
+/* ─────────────────────────────── Privileges ─────────────────────────────────
+ * Ce que la reservation en direct donne de plus, hotel par hotel. Affiche en
+ * haut du tunnel : un avantage ne vaut que par ce a quoi il se compare.
+ *
+ * PARAMETRE PAR HOTEL, volontairement. Ecrit en dur, « depart 12 h offert »
+ * deviendrait faux le jour ou La Corniche ouvre son propre tunnel — elle
+ * facture aujourd'hui le depart tardif.
+ *
+ * Regle : on n'ecrit ici que ce qui est vrai et verifiable. « Petit-dejeuner
+ * inclus » l'est (les deux tarifs Mews des Voiles le portent), « meilleur prix
+ * garanti » ne l'est pas tant que la parite n'est pas arbitree.
+ */
+export const PRIVILEGES: Record<Hotel, Record<Locale, string[]>> = {
+  voiles: {
+    fr: ["Départ 12 h offert", "Petit-déjeuner inclus", "En direct, sans intermédiaire"],
+    en: ["Noon check-out, on us", "Breakfast included", "Direct, no middleman"],
+  },
+  // La Corniche reste chez D-EDGE : pas de tunnel maison, donc pas de bandeau.
+  corniche: { fr: [], en: [] },
+};
