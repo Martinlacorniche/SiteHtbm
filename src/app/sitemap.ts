@@ -24,8 +24,8 @@ const STATIC_PATHS: { path: string; priority: number; changeFreq: MetadataRoute.
   { path: "/es/donde-dormir-en-tolon", priority: 0.7, changeFreq: "monthly" },
   { path: "/it/dove-dormire-a-tolone", priority: 0.7, changeFreq: "monthly" },
   { path: "/de/wo-in-toulon-ubernachten", priority: 0.7, changeFreq: "monthly" },
-  // Portails / infos
-  { path: "/wifi", priority: 0.3, changeFreq: "yearly" },
+  // Infos. Les portails /wifi et /wifiv en sont volontairement absents : ils
+  // servent les clients deja sur place et sont en noindex.
   { path: "/mentions", priority: 0.2, changeFreq: "yearly" },
 ];
 
