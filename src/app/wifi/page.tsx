@@ -341,7 +341,7 @@ export default function WifiPage() {
                 if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
                 return next;
               })}
-              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}

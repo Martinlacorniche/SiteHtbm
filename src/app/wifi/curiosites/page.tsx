@@ -118,7 +118,7 @@ export default function CuriositesPage() {
             </p>
             <button
               onClick={toggleLang}
-              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-2 py-0.5 border border-[#C6A972]/30 rounded-full shrink-0"
+              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-2 py-0.5 border border-[#C6A972]/30 rounded-full shrink-0"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
@@ -175,7 +175,7 @@ export default function CuriositesPage() {
                       {item.image_url ? (
                         <Image src={item.image_url} alt={nom(item)} fill className="object-cover" sizes="(max-width:640px) 50vw,200px" />
                       ) : (
-                        <div className="absolute inset-0 bg-[#f9f5ef] flex items-center justify-center text-5xl">
+                        <div className="absolute inset-0 bg-[#FDFCF8] flex items-center justify-center text-5xl">
                           {item.emoji ?? "📦"}
                         </div>
                       )}
@@ -230,7 +230,7 @@ export default function CuriositesPage() {
                             <div className="flex items-center gap-4 text-xs text-slate-400 pt-1" style={{ fontFamily: "var(--font-sans)" }}>
                               <span className="flex items-center gap-1.5"><Clock size={12} />{t.max(item.duree_heures)}</span>
                               {item.prix_reservation > 0 && (
-                                <span className="text-[#C6A972] font-semibold">{t.resa} : {item.prix_reservation} €</span>
+                                <span className="text-[#8C6F39] font-semibold">{t.resa} : {item.prix_reservation} €</span>
                               )}
                             </div>
                           </div>

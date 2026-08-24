@@ -16,6 +16,8 @@ const useLang = () => useContext(LangCtx).lang;
 
 const NAVY = "#004e7c";
 const GOLD = "#C6A972";
+// Or lisible en texte sur fond clair (4.7:1). GOLD reste pour les aplats et bordures.
+const GOLD_INK = "#8C6F39";
 const SEA_BG = "/images/pagewifi.jpg";
 
 // ---------- Types ----------
@@ -404,7 +406,7 @@ function BookingView({ code }: { code: string }) {
                     <h3 className="font-serif font-semibold text-2xl leading-tight truncate" style={{ color: NAVY }}>{cat.name}</h3>
                     <span className="text-xs font-medium text-slate-400 whitespace-nowrap shrink-0">{cat.rooms.filter(r => !r.taken).length} {t.availableShort}</span>
                   </div>
-                  {voitPrixPage && <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> {t.perNight}</span></span>}
+                  {voitPrixPage && <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD_INK }}>{euro(cat.tarif)}<span className="text-[11px] text-slate-400 font-normal"> {t.perNight}</span></span>}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                   {cat.rooms.map((r, i) => (
@@ -609,7 +611,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
       {voitBudget && (
       <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-4 mb-4 shadow-sm">
         <div className="flex items-baseline justify-between gap-3 mb-2">
-          <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: GOLD }}>{t.block}</p>
+          <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: GOLD_INK }}>{t.block}</p>
           <p className="text-sm">
             <b style={{ color: NAVY }}>{euro(budget.engage + budget.moi)}</b>
             <span className="text-slate-400"> / {euro(budget.enveloppe)}</span>
@@ -625,7 +627,7 @@ function ProPlanner({ groupe, rooms, sections, range, onRange, picks, isFree, on
           {groupe.taxe_sejour_mode === "incluse"
             ? "Hébergement du bloc, taxe de séjour incluse dans le tarif."
             : "Hébergement du bloc, taxe de séjour comprise."}
-          {budget.moi > 0 && <> {t.ofWhich} <b style={{ color: GOLD }}>{euro(budget.moi)}</b> {t.forYourSelection}</>}
+          {budget.moi > 0 && <> {t.ofWhich} <b style={{ color: GOLD_INK }}>{euro(budget.moi)}</b> {t.forYourSelection}</>}
         </p>
       </div>
       )}
@@ -782,7 +784,7 @@ function Hero({ groupe }: { groupe: GroupeMeta }) {
   return (
     <div className="max-w-2xl mx-auto px-4 pt-9 md:pt-12 text-center">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <p className="uppercase tracking-[0.18em] text-[11px] mb-2" style={{ color: GOLD }}>Hôtels Toulon Bord de Mer</p>
+        <p className="uppercase tracking-[0.18em] text-[11px] mb-2" style={{ color: GOLD_INK }}>Hôtels Toulon Bord de Mer</p>
         <h1 className="font-serif font-semibold text-3xl md:text-4xl leading-tight text-slate-800">{groupe.nom}</h1>
         <p className="mt-2 text-sm text-slate-500 inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {fmt(groupe.date_arrivee, lang)} → {fmt(groupe.date_depart, lang)}</p>
       </motion.div>
@@ -976,7 +978,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
                 <span className="ml-1.5 text-xs font-normal text-slate-400">n° {r.numero}</span>
               </span>
               {voitPrixF && (
-                <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>
+                <span className="text-sm font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD_INK }}>
                   {euro(r.tarif)}<span className="text-[11px] text-slate-400 font-normal"> {t.perNight}</span>
                 </span>
               )}
@@ -996,7 +998,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
                 <span className="block text-[11px] font-normal text-slate-400 mt-0.5">{t.ofWhichBreakfast} {euro2(totalPdj)}</span>
               )}
             </span>
-            <span className="text-base font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD }}>{euro(totalHebergement + totalTaxe + totalPdj)}</span>
+            <span className="text-base font-semibold whitespace-nowrap shrink-0" style={{ color: GOLD_INK }}>{euro(totalHebergement + totalTaxe + totalPdj)}</span>
           </div>
           )}
           {voitPrixF && (
@@ -1313,7 +1315,7 @@ function ManageView({ token }: { token: string }) {
         <a href={`/groupe/${groupe.code}`} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4">
           <ArrowLeft className="w-4 h-4" /> Retour aux chambres
         </a>
-        <p className="uppercase tracking-[0.18em] text-[11px] text-center mb-1" style={{ color: GOLD }}>{groupe.nom}</p>
+        <p className="uppercase tracking-[0.18em] text-[11px] text-center mb-1" style={{ color: GOLD_INK }}>{groupe.nom}</p>
         <h1 className="font-serif font-semibold text-2xl text-slate-800 text-center mb-5">{t.myResa}</h1>
 
         {!groupe.locked && hasPin && !codeKnown && (
@@ -1499,7 +1501,7 @@ function HotelHeader({ name }: { name: string }) {
     <div className="text-center mb-4 mt-2">
       <div className="flex items-center justify-center gap-3">
         <span className="h-px w-10" style={{ background: "rgba(198,169,114,.5)" }} />
-        <span className="uppercase tracking-[0.22em] text-[12px]" style={{ color: GOLD }}>{stars ? "★".repeat(stars) : "Hôtel"}</span>
+        <span className="uppercase tracking-[0.22em] text-[12px]" style={{ color: GOLD_INK }}>{stars ? "★".repeat(stars) : "Hôtel"}</span>
         <span className="h-px w-10" style={{ background: "rgba(198,169,114,.5)" }} />
       </div>
       <h2 className="font-serif font-semibold text-2xl md:text-3xl text-slate-800 mt-1.5">{name}</h2>

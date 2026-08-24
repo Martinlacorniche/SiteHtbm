@@ -135,7 +135,7 @@ export default function MenuPage() {
             <div className="h-px w-8 bg-[#C6A972]/50" />
             <button
               onClick={toggleLang}
-              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
@@ -165,7 +165,7 @@ export default function MenuPage() {
               {hasPlat && (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100 md:flex-[2]">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-[#8C6F39]" style={{ fontFamily: "var(--font-sans)" }}>
                       {t.plat}
                     </span>
                   </div>
@@ -229,7 +229,7 @@ export default function MenuPage() {
               {desserts.length > 0 && (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100 md:flex-1">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-[#8C6F39]" style={{ fontFamily: "var(--font-sans)" }}>
                       {t.desserts}
                     </span>
                   </div>
@@ -251,7 +251,7 @@ export default function MenuPage() {
               {(prixPlat || prixDessert || prixMenu) && (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-[#C6A972]" style={{ fontFamily: "var(--font-sans)" }}>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-[#8C6F39]" style={{ fontFamily: "var(--font-sans)" }}>
                       {t.prices}
                     </span>
                   </div>
@@ -291,7 +291,7 @@ function PrixRow({ label, prix, highlight }: { label: string; prix: string; high
   return (
     <div className={`flex items-center justify-between px-4 py-3 text-sm md:flex-1 md:flex-col md:gap-1 md:text-center ${highlight ? "bg-[#C6A972]/5" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
       <span className={highlight ? "font-semibold text-slate-800" : "text-slate-500"}>{label}</span>
-      <span className={`font-semibold ${highlight ? "text-[#C6A972]" : "text-slate-800"}`}>
+      <span className={`font-semibold ${highlight ? "text-[#8C6F39]" : "text-slate-800"}`}>
         {prix.includes("€") ? prix : `${prix} €`}
       </span>
     </div>

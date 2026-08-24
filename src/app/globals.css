@@ -10,6 +10,17 @@
 @theme {
   --font-sans:  var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
+
+  /* Palette de marque. Utiliser les utilitaires (text-gold-ink, bg-gold…)
+     plutot que de recopier des hex — c'est ce qui avait produit trois cremes
+     concurrents et un or illisible.                                          */
+  --color-gold:      #C6A972;  /* filets, aplats, or sur fond sombre */
+  --color-gold-ink:  #8C6F39;  /* OR EN TEXTE sur fond clair : 4.7:1 sur blanc,
+                                  4.6:1 sur le creme. L'or d'origine plafonne a
+                                  2.25:1 et echoue le seuil AA de 4.5:1.       */
+  --color-navy:      #004e7c;
+  --color-azure:     #009dc4;
+  --color-cream:     #FDFCF8;  /* creme unique du site */
 }
 
 /* (garde le reste de ton CSS tel quel : .glass, .gradient-border, etc.) */
@@ -20,8 +31,8 @@
   --gold: #C6A972;
   --deep-blue: #004e7c;
   --azure: #009dc4;
-  --sand: #f9f5ef;
-  --off-white: #fafafa;
+  --sand: #FDFCF8;
+  --off-white: #FDFCF8;
 }
 
 /* ---------- FOND ET TYPO ---------- */

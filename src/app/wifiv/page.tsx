@@ -291,7 +291,7 @@ export default function WifiVPage() {
                 if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
                 return next;
               })}
-              className="text-[10px] font-semibold tracking-widest text-[#C6A972]/80 hover:text-[#C6A972] transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
@@ -318,7 +318,7 @@ export default function WifiVPage() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2 }}
               >
-                <p className="text-xs font-black tracking-[0.15em] uppercase text-[#C6A972] mb-2 text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                <p className="text-xs font-black tracking-[0.15em] uppercase text-[#8C6F39] mb-2 text-center" style={{ fontFamily: "var(--font-sans)" }}>
                   {t.concept_title}
                 </p>
                 <p className="text-sm text-slate-600 leading-relaxed text-center" style={{ fontFamily: "var(--font-sans)" }}>

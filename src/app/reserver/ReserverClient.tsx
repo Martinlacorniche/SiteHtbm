@@ -257,7 +257,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
        générale, chaque colonne défile chez elle. Un tunnel qui oblige à
        remonter pour changer une date perd le client à chaque aller-retour.
        Sous 1024 px on retrouve le flux normal et les colonnes s'empilent. */
-    <main className="bg-[#f9f5ef] text-[#222] lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+    <main className="bg-[#FDFCF8] text-[#222] lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
 
       <header className="mx-auto w-full max-w-[1600px] shrink-0 px-6 pt-6">
         <Link href="/" className="text-[13px] tracking-wide text-[#004e7c] hover:underline">
@@ -459,7 +459,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 <button
                   type="button"
                   onClick={() => { setVoyage("seul"); chercher(1); }}
-                  className="mt-2 text-[14px] font-semibold text-[#004e7c] underline underline-offset-4 hover:text-[#C6A972]"
+                  className="mt-2 text-[14px] font-semibold text-[#004e7c] underline underline-offset-4 hover:text-[#8C6F39]"
                 >
                   {T.seulAussiAction}
                 </button>
