@@ -82,7 +82,7 @@ export default function CalendrierSejour({
       <div className="grid gap-6 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-1">
         {mois.map(({ annee, indexMois, premierJour, nbJours }) => (
           <div key={`${annee}-${indexMois}`} className="px-2 pb-1">
-            <p className="sticky top-0 z-10 -mx-2 bg-white px-2 pb-2 pt-3 font-serif text-[17px] capitalize text-[#004e7c]">
+            <p className="sticky top-0 z-10 -mx-2 bg-white px-2 pb-2 pt-3 font-serif text-[17px] capitalize text-navy">
               {MOIS[langue][indexMois]} {annee}
             </p>
 
@@ -115,8 +115,8 @@ export default function CalendrierSejour({
                       // 44 px de haut : la cible tactile passe le pouce.
                       "relative h-11 text-[15px] tabular-nums transition-colors",
                       passe ? "cursor-not-allowed text-[#d6dade]" : "cursor-pointer",
-                      bord ? "z-10 rounded-full bg-[#004e7c] font-bold text-white" : "",
-                      dansSejour ? "bg-[#C6A972]/20 text-[#004e7c]" : "",
+                      bord ? "z-10 rounded-full bg-navy font-bold text-white" : "",
+                      dansSejour ? "bg-gold/20 text-navy" : "",
                       !passe && !bord && !dansSejour ? "rounded-full text-[#3c4a52] hover:bg-[#f0ece4]" : "",
                       estArrivee && depart ? "rounded-r-none" : "",
                       estDepart ? "rounded-l-none" : "",

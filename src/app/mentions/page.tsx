@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 
 export default function MentionsLegales() {
   return (
-    <div className="min-h-screen bg-[#FDFCF8] text-slate-900 font-sans p-6 md:p-12">
+    <div className="min-h-screen bg-cream text-slate-900 font-sans p-6 md:p-12">
       <div className="max-w-3xl mx-auto">
         
         {/* BOUTON RETOUR */}

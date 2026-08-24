@@ -39,7 +39,7 @@ const DEFAULT_TILES: DbTile[] = [
 ];
 
 const FALLBACK_GRADIENTS: Record<string, string> = {
-  pdj:      "linear-gradient(145deg, #7a5010, #C6A972)",
+  pdj:      "linear-gradient(145deg, #7a5010, var(--color-gold))",
   checkin:  "linear-gradient(145deg, #1a4a35, #52b788)",
   checkout: "linear-gradient(145deg, #334155, #64748b)",
   rooftop:  "linear-gradient(145deg, #7c2d12, #f97316)",
@@ -260,7 +260,7 @@ export default function WifiVPage() {
   const toggle = (id: string) => setOpenId(prev => (prev === id ? null : id));
 
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
+    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-cream md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 md:px-10 pt-10 pb-12">
 
         {/* Header */}
@@ -272,7 +272,7 @@ export default function WifiVPage() {
         >
           <div className="flex justify-center gap-1 mb-3">
             {/* Les Voiles est classé 3★ — la page reprenait le 4 de la Corniche. */}
-            {Array.from({ length: 3 }).map((_, i) => <Star key={i} size={11} fill="#C6A972" stroke="none" />)}
+            {Array.from({ length: 3 }).map((_, i) => <Star key={i} size={11} className="fill-gold" stroke="none" />)}
           </div>
           <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-2" style={{ fontFamily: "var(--font-sans)" }}>
             Les Voiles · Toulon
@@ -284,19 +284,19 @@ export default function WifiVPage() {
             {t.location}
           </p>
           <div className="flex items-center justify-center gap-3">
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
             <button
               onClick={() => setLang(l => {
                 const next = l === "fr" ? "en" : "fr";
                 if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
                 return next;
               })}
-              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-gold-ink/90 hover:text-gold-ink transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
           </div>
         </motion.header>
 
@@ -318,7 +318,7 @@ export default function WifiVPage() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2 }}
               >
-                <p className="text-xs font-black tracking-[0.15em] uppercase text-[#8C6F39] mb-2 text-center" style={{ fontFamily: "var(--font-sans)" }}>
+                <p className="text-xs font-black tracking-[0.15em] uppercase text-gold-ink mb-2 text-center" style={{ fontFamily: "var(--font-sans)" }}>
                   {t.concept_title}
                 </p>
                 <p className="text-sm text-slate-600 leading-relaxed text-center" style={{ fontFamily: "var(--font-sans)" }}>
@@ -454,7 +454,7 @@ export default function WifiVPage() {
                           {href && (
                             <Link
                               href={href}
-                              className="mt-4 inline-flex items-center gap-2 bg-white text-slate-900 text-xs font-semibold rounded-full px-4 py-2 shadow-sm border border-slate-200 hover:bg-slate-50 transition"
+                              className="btn btn-clair mt-4 px-4 py-2 text-xs shadow-sm"
                               style={{ fontFamily: "var(--font-sans)" }}
                               onClick={() => setOpenId(null)}
                             >

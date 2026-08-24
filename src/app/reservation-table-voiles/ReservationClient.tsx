@@ -124,16 +124,16 @@ export default function ReservationClient() {
   return (
     <main className="min-h-screen bg-[var(--sand)] text-slate-800">
       {/* ---------- HERO (réutilisé) ---------- */}
-      <header className="relative overflow-hidden bg-[#013a5c] text-white">
+      <header className="relative overflow-hidden bg-navy-deep text-white">
         <div className="absolute inset-0 opacity-60 slow-zoom"
           style={{ backgroundImage: "url('/images/package-rooftop.jpg')", backgroundSize: "cover", backgroundPosition: "center 72%" }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#013a5c]/70 via-[#013a5c]/40 to-[#013a5c]/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-navy-deep/70 via-navy-deep/40 to-navy-deep/80" />
         <div className="relative mx-auto max-w-2xl px-4 pt-5 pb-8 text-center">
           <Link href="/" aria-label="Hôtels Toulon Bord de Mer" className="flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/cigale-or-512.png" alt="Hôtels Toulon Bord de Mer" className="h-10 w-auto drop-shadow transition-opacity hover:opacity-80" />
           </Link>
-          <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">Rooftop · Les Voiles</p>
+          <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-gold">Rooftop · Les Voiles</p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl font-semibold drop-shadow">Réserver une table</h1>
           <p className="mx-auto mt-2 max-w-md text-sm md:text-base text-white/80">
             Choisissez un jour où il reste de la place, et c’est réservé. Vraiment.
@@ -151,7 +151,7 @@ export default function ReservationClient() {
             <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
               La réservation en ligne n’est pas disponible pour cette demande. Un petit coup de fil et on s’occupe de vous&nbsp;:
             </p>
-            <a href={`tel:${VOILES_PHONE.replace(/\s/g, "")}`} style={{ color: "#fff" }} className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#C6A972] px-7 py-3 font-semibold text-white shadow-lg transition hover:bg-[#b8975e]">
+            <a href={`tel:${VOILES_PHONE.replace(/\s/g, "")}`} style={{ color: "#fff" }} className="btn btn-or mt-6 px-7 py-3 shadow-lg">
               <Phone size={17} /> {VOILES_PHONE}
             </a>
           </motion.div>
@@ -165,7 +165,7 @@ export default function ReservationClient() {
               {bookedTable ? <>La table <span className="font-semibold text-slate-700">{bookedTable}</span> vous attend </> : "Votre table vous attend "}
               le <span className="font-semibold text-slate-700">{selectedDate ? prettyDate(selectedDate) : ""}</span> à {heure}, pour {pax} personne{pax > 1 ? "s" : ""}. À très vite sur le rooftop&nbsp;!
             </p>
-            <Link href="/rooftop-les-voiles" style={{ color: "#fff" }} className="mt-6 inline-flex rounded-full bg-[#C6A972] px-7 py-3 font-semibold text-white shadow-lg transition hover:bg-[#b8975e]">Revoir la carte</Link>
+            <Link href="/rooftop-les-voiles" style={{ color: "#fff" }} className="mt-6 inline-flex rounded-full bg-gold px-7 py-3 font-semibold text-white shadow-lg transition hover:bg-gold-dark">Revoir la carte</Link>
           </motion.div>
         ) : selectedDate ? (
           /* ---------- ÉTAPE 3 : CONTACT ---------- */
@@ -175,7 +175,7 @@ export default function ReservationClient() {
               <ChevronLeft size={16} /> Changer de date
             </button>
             <div className="card-luxe space-y-5">
-              <div className="rounded-xl bg-[var(--gold)]/10 px-4 py-3 text-center">
+              <div className="rounded-xl bg-gold/10 px-4 py-3 text-center">
                 <p className="font-serif text-lg text-slate-900 capitalize">{prettyDate(selectedDate)}</p>
                 <p className="text-[12px] text-slate-500">{pax} personne{pax > 1 ? "s" : ""}</p>
               </div>
@@ -207,7 +207,7 @@ export default function ReservationClient() {
               {error && <p className="text-sm text-red-500">{error}</p>}
 
               <button onClick={book} disabled={!nom.trim() || sending}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#C6A972] px-7 py-3 font-semibold text-white shadow-lg transition hover:bg-[#b8975e] disabled:opacity-50 disabled:cursor-not-allowed">
+                className="btn btn-or w-full px-7 py-3 shadow-lg">
                 {sending ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
                 {sending ? "Réservation…" : "Réserver ma table"}
               </button>
@@ -220,12 +220,12 @@ export default function ReservationClient() {
               <p className="text-[12px] font-medium uppercase tracking-wider text-slate-500 mb-3">On sera combien&nbsp;?</p>
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => setPax(c => Math.max(1, c - 1))}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-[var(--gold)] transition">
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-gold transition">
                   <Minus size={16} />
                 </button>
                 <span className="w-10 text-center font-serif text-2xl text-slate-900 tabular-nums">{pax}</span>
                 <button type="button" onClick={() => setPax(c => Math.min(12, c + 1))}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-[var(--gold)] transition">
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-gold transition">
                   <Plus size={16} />
                 </button>
               </div>
@@ -235,12 +235,12 @@ export default function ReservationClient() {
               {/* En-tête mois */}
               <div className="flex items-center justify-between mb-4">
                 <button onClick={goPrev} disabled={!canPrev}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-[var(--gold)] disabled:opacity-30 disabled:cursor-not-allowed transition">
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-gold disabled:opacity-30 disabled:cursor-not-allowed transition">
                   <ChevronLeft size={18} />
                 </button>
                 <p className="font-serif text-lg text-slate-900 capitalize">{monthLabel}</p>
                 <button onClick={goNext}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-[var(--gold)] transition">
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-gold transition">
                   <ChevronRight size={18} />
                 </button>
               </div>
@@ -269,7 +269,7 @@ export default function ReservationClient() {
                       className={[
                         "aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition relative",
                         isAvailable
-                          ? "bg-emerald-50 text-emerald-700 font-semibold hover:bg-[var(--gold)] hover:text-white cursor-pointer ring-1 ring-emerald-100"
+                          ? "bg-emerald-50 text-emerald-700 font-semibold hover:bg-gold hover:text-white cursor-pointer ring-1 ring-emerald-100"
                           : isComplet
                             ? "bg-slate-50 text-slate-300 line-through cursor-not-allowed"
                             : "text-slate-300 cursor-not-allowed",
@@ -301,7 +301,7 @@ export default function ReservationClient() {
 }
 
 const inputCls =
-  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[var(--gold)] focus:ring-1 focus:ring-[var(--gold)]/40 transition";
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

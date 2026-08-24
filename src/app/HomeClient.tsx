@@ -333,7 +333,7 @@ export default function PageUltimeV15() {
   };
 
   return (
-    <div className={`${serif.variable} ${sans.variable} font-sans min-h-screen bg-[#FDFCF8] text-slate-900 selection:bg-blue-100`}>
+    <div className={`${serif.variable} ${sans.variable} font-sans min-h-screen bg-cream text-slate-900 selection:bg-blue-100`}>
       
       {/* --- SCHEMA.ORG (JSON-LD) --- */}
       <Script id="hotel-schema" type="application/ld+json"
@@ -438,7 +438,7 @@ export default function PageUltimeV15() {
           <motion.div 
             ref={refMenu} role="dialog" aria-modal="true" aria-label="Menu" tabIndex={-1}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-slate-900 text-[#FDFCF8] flex flex-col justify-center items-center p-4"
+            className="fixed inset-0 z-[60] bg-slate-900 text-cream flex flex-col justify-center items-center p-4"
           >
             <button onClick={() => setMenuOpen(false)} aria-label={t.menu_close} className="absolute top-6 right-6 p-4 hover:rotate-90 transition-transform duration-500">
               <X className="w-8 h-8" />
@@ -487,7 +487,7 @@ export default function PageUltimeV15() {
 
               {/* Photo du rooftop en fond, cliquable → la carte */}
               <Link href={CONFIG.popup.link} onClick={closePopup} className="group block">
-                <div className="relative aspect-[3/4] w-full overflow-hidden bg-[#013a5c]">
+                <div className="relative aspect-[3/4] w-full overflow-hidden bg-navy-deep">
                   <Image
                     src={CONFIG.popup.image}
                     alt={`${CONFIG.popup.title[lang]} — ${CONFIG.popup.tagline[lang]}`}
@@ -495,25 +495,25 @@ export default function PageUltimeV15() {
                     className="object-cover object-center transition-transform duration-[1400ms] group-hover:scale-105"
                   />
                   {/* Dégradés haut + bas pour la lisibilité du texte, cocktails visibles au milieu */}
-                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-[#013a5c]/85 via-[#013a5c]/40 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-[#013a5c]/95 via-[#013a5c]/45 to-transparent" />
+                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-navy-deep/85 via-navy-deep/40 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-navy-deep/95 via-navy-deep/45 to-transparent" />
 
                   {/* Accroche — en haut, sur le ciel, en 3 temps pour le rythme */}
                   <div className="absolute inset-x-0 top-0 px-8 pt-7 pb-6 text-center text-white">
-                    <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--gold,#c9a45c)]">{CONFIG.popup.eyebrow[lang]}</p>
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-gold">{CONFIG.popup.eyebrow[lang]}</p>
                     <p className="mt-4 font-serif text-lg italic text-white/85 drop-shadow">{CONFIG.popup.teaser_intro[lang]}</p>
                     <p className="mt-1 font-serif text-3xl font-semibold drop-shadow">{CONFIG.popup.teaser_punch[lang]}</p>
-                    <span className="mt-3 inline-block rounded-full bg-[#013a5c]/80 px-4 py-1.5 font-serif text-base italic text-[var(--gold,#c9a45c)] shadow-md backdrop-blur-sm">{CONFIG.popup.teaser_hook[lang]}</span>
+                    <span className="mt-3 inline-block rounded-full bg-navy-deep/80 px-4 py-1.5 font-serif text-base italic text-gold shadow-md backdrop-blur-sm">{CONFIG.popup.teaser_hook[lang]}</span>
                   </div>
 
                   {/* Concept Eat & Drink + CTA — en bas */}
                   <div className="absolute inset-x-0 bottom-0 p-6 text-center text-white">
                     <h3 className="font-serif text-4xl font-semibold drop-shadow">{CONFIG.popup.title[lang]}</h3>
-                    <p className="mt-1 font-serif italic text-xl text-[var(--gold,#c9a45c)]">{CONFIG.popup.tagline[lang]}</p>
+                    <p className="mt-1 font-serif italic text-xl text-gold">{CONFIG.popup.tagline[lang]}</p>
                     <p className="mt-2 text-[12px] font-medium uppercase tracking-widest text-white/80">{CONFIG.popup.hours[lang]}</p>
-                    <p className="mt-1 text-[12px] font-semibold uppercase tracking-widest text-[var(--gold,#c9a45c)]">{CONFIG.popup.reservation[lang]}</p>
+                    <p className="mt-1 text-[12px] font-semibold uppercase tracking-widest text-gold">{CONFIG.popup.reservation[lang]}</p>
 
-                    <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--gold,#c9a45c)] px-8 py-3 text-sm font-bold tracking-wide text-[#013a5c] shadow-lg transition-transform group-hover:scale-105">
+                    <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3 text-sm font-bold tracking-wide text-navy-deep shadow-lg transition-transform group-hover:scale-105">
                       {CONFIG.popup.cta[lang]} <ArrowRight className="w-4 h-4" />
                     </span>
                   </div>
@@ -621,7 +621,7 @@ export default function PageUltimeV15() {
                     {/* Toute la carte est recouverte par le lien vers /wifi : sans
                         `pointer-events-auto relative z-20`, ce bouton se ferait
                         avaler par l'overlay et « Réserver » mènerait au wifi. */}
-                    <a href={lienReservation("corniche", lang)} className="pointer-events-auto relative z-20 bg-white text-slate-900 px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform">
+                    <a href={lienReservation("corniche", lang)} className="btn btn-clair pointer-events-auto relative z-20 w-fit px-8 py-4 font-bold tracking-wide shadow-lg hover:scale-105">
                         {t.book} <ArrowRight className="w-4 h-4" />
                     </a>
                 </div>
@@ -662,7 +662,7 @@ export default function PageUltimeV15() {
                         e.stopPropagation();
                         setMobileExpandRight(!mobileExpandRight);
                     }}
-                    className="md:hidden pointer-events-auto p-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:bg-white/40 transition-colors"
+                    className="btn btn-verre md:hidden pointer-events-auto p-2 active:bg-white/40"
                     aria-label="Voir les détails"
                 >
                     {mobileExpandRight ? <Minus className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
@@ -708,13 +708,13 @@ export default function PageUltimeV15() {
                  </a>
               </div>
               {rooftopOn && (
-                <Link href="/rooftop-les-voiles" style={{ color: "#fff" }} className="pointer-events-auto relative z-20 bg-[#C6A972] text-white px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:bg-[#b8975e] hover:scale-105 transition-all">
+                <Link href="/rooftop-les-voiles" style={{ color: "#fff" }} className="pointer-events-auto relative z-20 bg-gold text-white px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:bg-gold-dark hover:scale-105 transition-all">
                   🍸 {lang === "en" ? "Discover the Rooftop" : "Découvrir le Rooftop"} <ArrowRight className="w-4 h-4" />
                 </Link>
               )}
               {/* Même précaution que sur la Corniche : l'overlay /wifiv couvre la
                   carte entière, le bouton doit repasser au-dessus. */}
-              <a href={lienReservation("voiles", lang)} className="pointer-events-auto relative z-20 bg-white text-slate-900 px-8 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform">
+              <a href={lienReservation("voiles", lang)} className="btn btn-clair pointer-events-auto relative z-20 w-fit px-8 py-4 font-bold tracking-wide shadow-lg hover:scale-105">
                 {t.book} <ArrowRight className="w-4 h-4" />
               </a>
             </div>
@@ -751,7 +751,7 @@ export default function PageUltimeV15() {
                         e.stopPropagation();
                         setMobileExpandVilla(!mobileExpandVilla);
                     }}
-                    className="md:hidden pointer-events-auto p-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white active:bg-white/40 transition-colors"
+                    className="btn btn-verre md:hidden pointer-events-auto p-2 active:bg-white/40"
                     aria-label="Voir les détails"
                 >
                     {mobileExpandVilla ? <Minus className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
@@ -793,7 +793,7 @@ export default function PageUltimeV15() {
                   href={CONFIG.villa.bookingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="pointer-events-auto bg-amber-100 text-slate-900 px-6 py-4 rounded-full text-sm font-bold tracking-wide flex items-center gap-2 w-fit shadow-lg hover:scale-105 transition-transform"
+                  className="btn btn-clair pointer-events-auto w-fit px-6 py-4 font-bold tracking-wide shadow-lg hover:scale-105"
                 >
                     Privatiser <ArrowRight className="w-4 h-4" />
                 </a>
@@ -808,7 +808,7 @@ export default function PageUltimeV15() {
       </section>
 
      {/* --- SECTION PRO (VERSION ILLUSTRÉE) --- */}
-      <section className="py-12 px-4 bg-[#FDFCF8]">
+      <section className="py-12 px-4 bg-cream">
          <div className="max-w-[1900px] mx-auto">
              {/* Ajout de overflow-hidden pour que l'image ne dépasse pas des coins arrondis */}
              <div className="group bg-white border border-slate-200 rounded-3xl overflow-hidden flex flex-col md:flex-row shadow-sm hover:shadow-md transition-shadow">
@@ -855,7 +855,7 @@ export default function PageUltimeV15() {
       </section>
 
       {/* --- FOOTER --- */}
-      <footer className="bg-[#FDFCF8] pt-10 pb-6 px-6 border-t border-slate-100">
+      <footer className="bg-cream pt-10 pb-6 px-6 border-t border-slate-100">
         <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-xs">
             <div className="flex flex-col md:flex-row gap-4 md:gap-8">
     <a href="/mentions" className="hover:text-slate-900">Mentions Légales</a>

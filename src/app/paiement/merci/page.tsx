@@ -4,7 +4,7 @@ export default function PaiementMerciPage() {
   return (
     <main className="min-h-screen flex items-center justify-center px-5" style={{ background: "#f6f8fa" }}>
       <div className="bg-white rounded-3xl shadow-lg max-w-md w-full p-8 text-center">
-        <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{ background: "rgba(0,78,124,.08)", color: "#004e7c" }}>
+        <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{ background: "rgba(0,78,124,.08)", color: "var(--color-navy)" }}>
           <span style={{ fontSize: 28 }}>✓</span>
         </div>
         <h1 className="font-serif font-semibold text-2xl text-slate-800 mt-4">Paiement reçu</h1>

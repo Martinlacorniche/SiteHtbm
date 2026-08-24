@@ -212,7 +212,7 @@ export default function GroupPackagesPage() {
 
 
   return (
-    <div className={`${serif.variable} ${sans.variable} font-sans min-h-screen bg-[#FDFCF8] text-slate-900 selection:bg-blue-100`}>
+    <div className={`${serif.variable} ${sans.variable} font-sans min-h-screen bg-cream text-slate-900 selection:bg-blue-100`}>
       
       {/* --- NAV (Inchangé) --- */}
       <nav className={cn(
@@ -245,7 +245,7 @@ export default function GroupPackagesPage() {
         {menuOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-slate-900 text-[#FDFCF8] flex flex-col justify-center items-center p-4"
+            className="fixed inset-0 z-[60] bg-slate-900 text-cream flex flex-col justify-center items-center p-4"
           >
             <button onClick={() => setMenuOpen(false)} className="absolute top-6 right-6 p-4 hover:rotate-90 transition-transform duration-500">
               <X className="w-8 h-8" />
@@ -268,7 +268,7 @@ export default function GroupPackagesPage() {
       </AnimatePresence>
 
       {/* --- HERO (Hauteur réduite conservée) --- */}
-      <header className="relative h-[25vh] md:h-[30vh] flex flex-col items-center justify-center text-center px-4 pt-20 bg-[#FDFCF8]">
+      <header className="relative h-[25vh] md:h-[30vh] flex flex-col items-center justify-center text-center px-4 pt-20 bg-cream">
         <motion.div 
           initial={{ opacity: 0, y: 10 }} 
           animate={{ opacity: 1, y: 0 }} 
@@ -376,7 +376,7 @@ export default function GroupPackagesPage() {
       </section>
 
       {/* --- FOOTER (Corrigé pour la traduction) --- */}
-      <footer className="bg-[#FDFCF8] pt-10 pb-6 px-6 border-t border-slate-100">
+      <footer className="bg-cream pt-10 pb-6 px-6 border-t border-slate-100">
         <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-xs">
             <div className="flex gap-6">
                 <span className="opacity-50">© {new Date().getFullYear()} HTBM</span>

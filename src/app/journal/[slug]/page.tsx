@@ -42,7 +42,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   if (!post) notFound();
 
   return (
-    <div className={`${serif.variable} ${sans.variable} font-sans min-h-screen bg-[#FDFCF8] text-slate-900 selection:bg-amber-100`}>
+    <div className={`${serif.variable} ${sans.variable} font-sans min-h-screen bg-cream text-slate-900 selection:bg-amber-100`}>
 
       {/* NAVBAR */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between">

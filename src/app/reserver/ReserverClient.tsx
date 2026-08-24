@@ -257,16 +257,16 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
        générale, chaque colonne défile chez elle. Un tunnel qui oblige à
        remonter pour changer une date perd le client à chaque aller-retour.
        Sous 1024 px on retrouve le flux normal et les colonnes s'empilent. */
-    <main className="bg-[#FDFCF8] text-[#222] lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+    <main className="bg-cream text-[#222] lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
 
       <header className="mx-auto w-full max-w-[1600px] shrink-0 px-6 pt-6">
-        <Link href="/" className="text-[13px] tracking-wide text-[#004e7c] hover:underline">
+        <Link href="/" className="text-[13px] tracking-wide text-navy hover:underline">
           ← Hôtels Toulon Bord de Mer
         </Link>
         {/* Titre et promesse sur la même ligne : chaque pixel pris en hauteur
             est un pixel de moins pour le calendrier et les chambres. */}
         <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-1">
-          <h1 className="font-serif text-3xl leading-tight text-[#004e7c] lg:text-[34px]">
+          <h1 className="font-serif text-3xl leading-tight text-navy lg:text-[34px]">
             {T.titre}
           </h1>
           <p className="text-[15px] text-[#4a5a63]">{T.chapo}</p>
@@ -285,13 +285,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             <p className="text-[15px] text-[#3c4a52]">
               {arrivee && depart ? (
                 <>
-                  <span className="font-semibold text-[#004e7c]">{joli(arrivee, langue)}</span>
+                  <span className="font-semibold text-navy">{joli(arrivee, langue)}</span>
                   <span className="mx-2 text-[#b0b6ba]">→</span>
-                  <span className="font-semibold text-[#004e7c]">{joli(depart, langue)}</span>
+                  <span className="font-semibold text-navy">{joli(depart, langue)}</span>
                 </>
               ) : arrivee ? (
                 <>
-                  <span className="font-semibold text-[#004e7c]">{joli(arrivee, langue)}</span>
+                  <span className="font-semibold text-navy">{joli(arrivee, langue)}</span>
                   <span className="ml-2 text-[#8a9299]">{T.puisDepart}</span>
                 </>
               ) : (
@@ -325,8 +325,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   className={[
                     "rounded-xl border px-2 py-3 text-[14px] font-semibold transition-colors",
                     voyage === v
-                      ? "border-[#004e7c] bg-[#004e7c] text-white"
-                      : "border-[#e3e0d9] bg-white text-[#3c4a52] hover:border-[#C6A972]",
+                      ? "border-navy bg-navy text-white"
+                      : "border-[#e3e0d9] bg-white text-[#3c4a52] hover:border-gold",
                   ].join(" ")}
                 >
                   {T[v]}
@@ -342,7 +342,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             type="button"
             disabled={!voyage || nuits < 1 || chargement}
             onClick={() => chercher(adultes)}
-            className="mt-4 w-full shrink-0 rounded-full bg-[#C6A972] px-6 py-3.5 text-[16px] font-bold text-white transition-colors hover:bg-[#b3955f] disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
+            className="mt-4 w-full shrink-0 rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-white transition-colors hover:bg-[#b3955f] disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
           >
             {chargement ? T.recherche : voyage ? T.chercher : T.choisir}
           </button>
@@ -371,7 +371,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
             {dispo && !erreur && principales.length === 0 && (
               <div>
-                <p className="font-serif text-2xl text-[#004e7c]">{T.aucune}</p>
+                <p className="font-serif text-2xl text-navy">{T.aucune}</p>
                 <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[#6b7a82]">{T.aucuneAide}</p>
               </div>
             )}
@@ -381,7 +381,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 {principales.map((o) => (
                   <li key={`${o.categorieId}-${o.pourPersonnes}`}>
                     <div className="flex flex-wrap items-baseline justify-between gap-3">
-                      <h3 className="font-serif text-2xl text-[#004e7c]">
+                      <h3 className="font-serif text-2xl text-navy">
                         {noms.get(o.categorieId) || "—"}
                       </h3>
                       <span className={[
@@ -412,8 +412,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                             className={[
                               "flex w-full items-center justify-between gap-4 rounded-xl border px-4 py-3.5 text-left transition-colors",
                               retenu
-                                ? "border-[#004e7c] bg-[#004e7c] text-white"
-                                : "border-[#e3e0d9] text-[#3c4a52] hover:border-[#C6A972] hover:bg-[#faf7f1]",
+                                ? "border-navy bg-navy text-white"
+                                : "border-[#e3e0d9] text-[#3c4a52] hover:border-gold hover:bg-[#faf7f1]",
                             ].join(" ")}
                           >
                             <span className="text-[15px] font-semibold">
@@ -444,8 +444,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             {/* La chambre individuelle, que les moteurs classiques masquent
                 dès que la recherche porte sur deux personnes. */}
             {pourUnePersonne.length > 0 && (
-              <div className="mt-5 rounded-xl border border-dashed border-[#C6A972] p-4">
-                <p className="text-[15px] font-semibold text-[#004e7c]">{T.seulAussi}</p>
+              <div className="mt-5 rounded-xl border border-dashed border-gold p-4">
+                <p className="text-[15px] font-semibold text-navy">{T.seulAussi}</p>
                 <ul className="mt-1.5 grid gap-1">
                   {pourUnePersonne.map((o) => (
                     <li key={o.categorieId} className="text-[15px] text-[#3c4a52]">
@@ -459,7 +459,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 <button
                   type="button"
                   onClick={() => { setVoyage("seul"); chercher(1); }}
-                  className="mt-2 text-[14px] font-semibold text-[#004e7c] underline underline-offset-4 hover:text-[#8C6F39]"
+                  className="mt-2 text-[14px] font-semibold text-navy underline underline-offset-4 hover:text-gold-ink"
                 >
                   {T.seulAussiAction}
                 </button>
@@ -498,7 +498,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
             {choix ? (
               <>
-                <p className="mt-4 border-t border-[#f0ece4] pt-4 font-serif text-xl text-[#004e7c]">
+                <p className="mt-4 border-t border-[#f0ece4] pt-4 font-serif text-xl text-navy">
                   {noms.get(choix.categorieId) || "—"}
                 </p>
                 <p className="mt-1 text-[13px] text-[#8a9299]">
@@ -508,7 +508,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
                 <div className="mt-4 flex items-baseline justify-between gap-3">
                   <span className="text-[15px] font-semibold text-[#3c4a52]">{T.totalSejour}</span>
-                  <span className="text-[26px] font-bold tabular-nums text-[#004e7c]">
+                  <span className="text-[26px] font-bold tabular-nums text-navy">
                     {choix.total.toFixed(2).replace(".", ",")} €
                   </span>
                 </div>

@@ -104,7 +104,7 @@ export default function CuriositesPage() {
   const desc = (i: CurioItem) => (lang === "en" && i.description_en) || i.description;
 
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8]`}>
+    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-cream`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
         {/* ── HEADER ── */}
@@ -118,7 +118,7 @@ export default function CuriositesPage() {
             </p>
             <button
               onClick={toggleLang}
-              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-2 py-0.5 border border-[#C6A972]/30 rounded-full shrink-0"
+              className="text-[10px] font-semibold tracking-widest text-gold-ink/90 hover:text-gold-ink transition px-2 py-0.5 border border-gold/30 rounded-full shrink-0"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
@@ -175,7 +175,7 @@ export default function CuriositesPage() {
                       {item.image_url ? (
                         <Image src={item.image_url} alt={nom(item)} fill className="object-cover" sizes="(max-width:640px) 50vw,200px" />
                       ) : (
-                        <div className="absolute inset-0 bg-[#FDFCF8] flex items-center justify-center text-5xl">
+                        <div className="absolute inset-0 bg-cream flex items-center justify-center text-5xl">
                           {item.emoji ?? "📦"}
                         </div>
                       )}
@@ -230,7 +230,7 @@ export default function CuriositesPage() {
                             <div className="flex items-center gap-4 text-xs text-slate-400 pt-1" style={{ fontFamily: "var(--font-sans)" }}>
                               <span className="flex items-center gap-1.5"><Clock size={12} />{t.max(item.duree_heures)}</span>
                               {item.prix_reservation > 0 && (
-                                <span className="text-[#8C6F39] font-semibold">{t.resa} : {item.prix_reservation} €</span>
+                                <span className="text-gold-ink font-semibold">{t.resa} : {item.prix_reservation} €</span>
                               )}
                             </div>
                           </div>
@@ -247,7 +247,7 @@ export default function CuriositesPage() {
         <div className="w-full max-w-sm mt-5 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-center">
           <p className="font-semibold text-slate-900 text-sm" style={{ fontFamily: "var(--font-serif)" }}>{t.cta_title}</p>
           <p className="text-xs text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>{t.cta_desc}</p>
-          <Link href="/wifi" className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition" style={{ fontFamily: "var(--font-sans)" }}>
+          <Link href="/wifi" className="btn btn-or px-5 py-2.5 text-xs" style={{ fontFamily: "var(--font-sans)" }}>
             {t.cta_home}
           </Link>
         </div>

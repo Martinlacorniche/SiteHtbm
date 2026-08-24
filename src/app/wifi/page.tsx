@@ -208,9 +208,9 @@ function renderContent(tile: DbTile, weather: WeatherState, lang: Lang): React.R
           <div className="space-y-1.5 pt-1">
             {beaches.map(b => (
               <a key={b.nom} href={b.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-between gap-2 text-[#004e7c] hover:text-[#009dc4] transition group">
+                className="flex items-center justify-between gap-2 text-navy hover:text-azure transition group">
                 <span className="font-medium">{b.nom}</span>
-                <span className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-[#009dc4] shrink-0">{t.mapLink} →</span>
+                <span className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-azure shrink-0">{t.mapLink} →</span>
               </a>
             ))}
           </div>
@@ -247,8 +247,8 @@ function renderContent(tile: DbTile, weather: WeatherState, lang: Lang): React.R
 const HREFS: Record<string, string> = { menu: "/wifi/menu", curiosites: "/wifi/curiosites", bar: "/wifi/bar", plage: "/wifi/plage" };
 
 const FALLBACK_GRADIENTS: Record<string, string> = {
-  reception:  "linear-gradient(145deg, #004e7c, #0077b6)",
-  pdj:        "linear-gradient(145deg, #7a5010, #C6A972)",
+  reception:  "linear-gradient(145deg, var(--color-navy), #0077b6)",
+  pdj:        "linear-gradient(145deg, #7a5010, var(--color-gold))",
   checkout:   "linear-gradient(145deg, #1a4a35, #52b788)",
   plage:      "linear-gradient(145deg, #006d8f, #48cae4)",
   menu:       "linear-gradient(145deg, #a33000, #f4a261)",
@@ -310,7 +310,7 @@ export default function WifiPage() {
   const toggle = (id: string) => setOpenId(prev => (prev === id ? null : id));
 
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
+    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-cream md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 md:px-10 pt-10 pb-12">
 
         {/* ── HEADER ── */}
@@ -321,7 +321,7 @@ export default function WifiPage() {
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <div className="flex justify-center gap-1 mb-3">
-            {Array.from({ length: 4 }).map((_, i) => <Star key={i} size={11} fill="#C6A972" stroke="none" />)}
+            {Array.from({ length: 4 }).map((_, i) => <Star key={i} size={11} className="fill-gold" stroke="none" />)}
           </div>
           <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-2" style={{ fontFamily: "var(--font-sans)" }}>
             Best Western Plus La Corniche
@@ -333,7 +333,7 @@ export default function WifiPage() {
             {t.location}
           </p>
           <div className="flex items-center justify-center gap-3 mb-5">
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
             {/* Toggle langue */}
             <button
               onClick={() => setLang(l => {
@@ -341,12 +341,12 @@ export default function WifiPage() {
                 if (typeof window !== "undefined") localStorage.setItem("wifi-lang", next);
                 return next;
               })}
-              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-gold-ink/90 hover:text-gold-ink transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
           </div>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             {weather.air !== null && (
@@ -407,7 +407,7 @@ export default function WifiPage() {
                     className="px-8 py-2.5 rounded-full text-[13px] font-semibold transition-colors bg-slate-100 hover:bg-slate-200 active:bg-slate-300"
                     style={{
                       fontFamily: "var(--font-sans)",
-                      color: annonce.config?.type === "urgent" ? "#dc2626" : "#004e7c",
+                      color: annonce.config?.type === "urgent" ? "#dc2626" : "var(--color-navy)",
                     }}
                   >
                     {t.ok}
@@ -427,7 +427,7 @@ export default function WifiPage() {
             : tiles.map((tile, i) => {
               const isOpen = openId === tile.id;
               const href = HREFS[tile.slug];
-              const fallback = FALLBACK_GRADIENTS[tile.slug] ?? "linear-gradient(145deg,#004e7c,#009dc4)";
+              const fallback = FALLBACK_GRADIENTS[tile.slug] ?? "linear-gradient(145deg,var(--color-navy),var(--color-azure))";
 
               return (
                 <motion.div
@@ -510,7 +510,7 @@ export default function WifiPage() {
                           {href && (
                             <Link
                               href={href}
-                              className="mt-4 inline-flex items-center gap-2 bg-white text-slate-900 text-xs font-semibold rounded-full px-4 py-2 shadow-sm border border-slate-200 hover:bg-slate-50 transition"
+                              className="btn btn-clair mt-4 px-4 py-2 text-xs shadow-sm"
                               style={{ fontFamily: "var(--font-sans)" }}
                               onClick={() => setOpenId(null)}
                             >

@@ -124,7 +124,7 @@ export default function PlagePage() {
   const seaUnavailable = seaFailed || (weather !== null && sea === null);
 
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
+    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-cream md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
         {/* ── En-tête ── */}
@@ -146,15 +146,15 @@ export default function PlagePage() {
             {t.subtitle}
           </p>
           <div className="flex items-center justify-center gap-3">
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
             <button
               onClick={toggleLang}
-              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-gold-ink/90 hover:text-gold-ink transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
           </div>
         </div>
 
@@ -229,7 +229,7 @@ export default function PlagePage() {
                     style={{ fontFamily: "var(--font-sans)" }}
                   >
                     <span className="flex items-center gap-2.5 min-w-0">
-                      <span className="h-1 w-1 rounded-full bg-[#C6A972]/60 shrink-0" />
+                      <span className="h-1 w-1 rounded-full bg-gold/60 shrink-0" />
                       <span className="min-w-0">
                         <span className="block text-sm text-slate-700 truncate">{b.nom}</span>
                         {b.marche && (
@@ -239,7 +239,7 @@ export default function PlagePage() {
                         )}
                       </span>
                     </span>
-                    <span className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-[#009dc4] transition shrink-0">
+                    <span className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-azure transition shrink-0">
                       {t.mapLink} →
                     </span>
                   </a>
@@ -258,7 +258,7 @@ export default function PlagePage() {
             </p>
             <Link
               href="/wifi/curiosites"
-              className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-[#004e7c] hover:text-[#009dc4] transition"
+              className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-navy hover:text-azure transition"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               🎒 {t.tip_link} →
@@ -275,7 +275,7 @@ export default function PlagePage() {
             </p>
             <Link
               href="/wifi"
-              className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition"
+              className="btn btn-or px-5 py-2.5 text-xs"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {t.cta_home}

@@ -101,7 +101,7 @@ export default function RooftopPage() {
   const catItems = items.filter(i => i.categorie === active);
 
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
+    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-cream md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
         <div className="w-full max-w-sm mb-8 text-center">
@@ -122,15 +122,15 @@ export default function RooftopPage() {
             {t.subtitle}
           </p>
           <div className="flex items-center justify-center gap-3">
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
             <button
               onClick={toggleLang}
-              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-gold-ink/90 hover:text-gold-ink transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
           </div>
         </div>
 
@@ -190,7 +190,7 @@ export default function RooftopPage() {
                         <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3.5" style={{ fontFamily: "var(--font-sans)" }}>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="h-1 w-1 rounded-full bg-[#C6A972]/60 shrink-0" />
+                              <span className="h-1 w-1 rounded-full bg-gold/60 shrink-0" />
                               <span className="text-sm text-slate-700">{displayNom(item)}</span>
                               {item.local && (
                                 <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md shrink-0">
@@ -222,7 +222,7 @@ export default function RooftopPage() {
                 </p>
                 <Link
                   href="/wifiv"
-                  className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition"
+                  className="btn btn-or px-5 py-2.5 text-xs"
                   style={{ fontFamily: "var(--font-sans)" }}
                 >
                   {t.cta_home}

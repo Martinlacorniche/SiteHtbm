@@ -11,97 +11,67 @@
   --font-sans:  var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
 
-  /* Palette de marque. Utiliser les utilitaires (text-gold-ink, bg-gold…)
-     plutot que de recopier des hex — c'est ce qui avait produit trois cremes
-     concurrents et un or illisible.                                          */
-  --color-gold:      #C6A972;  /* filets, aplats, or sur fond sombre */
-  --color-gold-ink:  #8C6F39;  /* OR EN TEXTE sur fond clair : 4.7:1 sur blanc,
-                                  4.6:1 sur le creme. L'or d'origine plafonne a
-                                  2.25:1 et echoue le seuil AA de 4.5:1.       */
-  --color-navy:      #004e7c;
-  --color-azure:     #009dc4;
-  --color-cream:     #FDFCF8;  /* creme unique du site */
+  /* Palette de marque — la seule source. Utiliser les utilitaires
+     (bg-gold, text-gold-ink, bg-cream…) plutot que de recopier des hex :
+     c'est ce qui avait produit trois cremes concurrents, deux dores et un or
+     illisible en texte.                                                     */
+  --color-gold:       #C6A972;  /* filets, aplats, or sur fond sombre */
+  --color-gold-dark:  #b8975e;  /* survol des aplats dores */
+  --color-gold-ink:   #8C6F39;  /* OR EN TEXTE sur fond clair : 4.7:1 sur blanc,
+                                   4.6:1 sur le creme. L'or d'origine plafonne a
+                                   2.25:1 et echoue le seuil AA de 4.5:1.      */
+  --color-navy:       #004e7c;
+  --color-navy-deep:  #013a5c;  /* fonds sombres du rooftop */
+  --color-azure:      #009dc4;
+  --color-cream:      #FDFCF8;  /* creme unique du site */
 }
 
-/* (garde le reste de ton CSS tel quel : .glass, .gradient-border, etc.) */
-
-
-/* ---------- PALETTE LUXE ---------- */
+/* Alias historiques : du CSS et quelques composants ecrivent encore
+   var(--gold) ou var(--deep-blue). Ils pointent sur les memes tokens, pour
+   qu'il n'existe qu'une valeur par couleur.                                */
 :root {
-  --gold: #C6A972;
-  --deep-blue: #004e7c;
-  --azure: #009dc4;
-  --sand: #FDFCF8;
-  --off-white: #FDFCF8;
+  --gold: var(--color-gold);
+  --deep-blue: var(--color-navy);
+  --azure: var(--color-azure);
+  --sand: var(--color-cream);
+  --off-white: var(--color-cream);
 }
 
 /* ---------- FOND ET TYPO ---------- */
 body {
-  background-color: var(--off-white);
+  background-color: var(--color-cream);
   color: #222;
   font-family: var(--font-sans);
   line-height: 1.6;
 }
 
-/* ---------- BOUTONS LUXE ---------- */
-.btn-luxe {
-  @apply px-6 py-3 font-semibold rounded-full text-white transition-all duration-300 shadow-lg;
-  background: linear-gradient(135deg, var(--gold), var(--deep-blue));
-}
-.btn-luxe:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 12px 24px rgba(0,0,0,0.15);
-}
+/* ---------- BOUTONS ----------
+   Trois variantes, la ou le site en comptait cinq (pilule blanche, pilule
+   doree, ambre, verre, ardoise arrondie). Une variante ne dit que la couleur
+   et la forme ; la taille, l'ombre et la graisse restent au point d'appel,
+   ou les utilitaires l'emportent sur le gabarit.
 
-/* ---------- EFFET GLASS ---------- */
-.glass {
-  backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 16px;
-}
-
-/* ---------- BORDURE DÉGRADÉ ---------- */
-.gradient-border {
-  position: relative;
-}
-.gradient-border::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  padding: 2px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--gold), var(--azure));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* ---------- BULLES VIDÉO ---------- */
-.bubble {
-  border-radius: 9999px;
-  overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-  border: 3px solid var(--off-white);
-}
-.bubble-oval {
-  border-radius: 100% / 70%;
-  overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-  border: 3px solid var(--off-white);
+     .btn .btn-or      action principale, aplat dore
+     .btn .btn-clair   action secondaire, fond blanc borde
+     .btn .btn-verre   sur une photo, verre depoli                          */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3
+           text-sm font-semibold transition
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-or {
+    @apply bg-gold text-white hover:bg-gold-dark;
+  }
+  .btn-clair {
+    @apply border border-slate-200 bg-white text-slate-900 hover:bg-slate-50;
+  }
+  .btn-verre {
+    @apply border border-white/30 bg-white/20 text-white backdrop-blur-md hover:bg-white/30;
+  }
 }
 
 /* ---------- ANIMATIONS ---------- */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.fade-in-up {
-  animation: fadeInUp 1s ease-out forwards;
-}
-
 @keyframes slowZoom {
   0% { transform: scale(1); }
   100% { transform: scale(1.05); }
@@ -110,7 +80,7 @@ body {
   animation: slowZoom 20s ease-in-out infinite alternate;
 }
 
-/* ---------- CARTES HÔTEL ---------- */
+/* ---------- CARTES ---------- */
 .card-luxe {
   @apply p-6 rounded-xl shadow-lg transition-all duration-500;
   background-color: white;
@@ -122,72 +92,9 @@ body {
 
 /* ---------- LIENS ---------- */
 a {
-  color: var(--deep-blue);
+  color: var(--color-navy);
   transition: color 0.3s ease;
 }
 a:hover {
-  color: var(--gold);
+  color: var(--color-gold-ink);
 }
-
-/* Liens d'adresse d'hôtel - blancs sur fond sombre */
-.hotel-address-link {
-  color: rgba(255,255,255,0.9) !important;
-}
-.hotel-address-link:hover {
-  color: #fff !important;
-}
-/* --- UI luxe pour boutons sur image --- */
-.btn-pill { @apply h-10 md:h-11 px-4 md:px-5 rounded-xl transition-all duration-300; }
-.btn-glass-white { 
-  @apply border border-white/60 text-white/90 backdrop-blur;
-  background: rgba(255,255,255,0.12);
-}
-.btn-glass-white:hover { background: rgba(255,255,255,0.18); }
-
-.btn-solid-white { @apply bg-white text-slate-900; }
-.btn-solid-white:hover { @apply bg-white/90; }
-
-/* Icônes plus lisibles sur fond photo */
-.icon-white { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
-
-/* Titres chic */
-.heading-luxe {
-  @apply font-serif font-semibold tracking-[0.01em];
-  text-shadow: 0 1px 1px rgba(0,0,0,.35);
-}
-
-/* Boutons texte compact */
-.btn-tight { line-height: 1.15; }   /* réduit l’espace entre lignes */
-
-:root { --wave-opacity: .08; } /* mets .04 à .10 selon ton goût */
-@keyframes waveSlide { to { transform: translateX(-25%); } }
-
-/* Fait disparaître les bords latéraux du header (fade horizontal) */
-.edge-fade {
-  -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
-          mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
-}
-@media (min-width: 768px) {
-  .edge-fade {
-    -webkit-mask-image: linear-gradient(to right, transparent, black 56px, black calc(100% - 56px), transparent);
-            mask-image: linear-gradient(to right, transparent, black 56px, black calc(100% - 56px), transparent);
-  }
-}
-
-/* Verre propre sans ombre marquée */
-.header-glass {
-  background: rgba(255,255,255,0.58);
-  backdrop-filter: blur(10px) saturate(1.1);
-}
-@supports (backdrop-filter: blur(10px)) {
-  .header-glass { background: rgba(255,255,255,0.42); }
-}
-
-/* Petits raffinements */
-.header-tight { min-height: 72px; }
-@media (max-width: 767px) {
-  .header-tight { min-height: 64px; }
-}
-
-
-

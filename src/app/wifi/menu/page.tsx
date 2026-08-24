@@ -111,7 +111,7 @@ export default function MenuPage() {
   const hasPlat = bases.length > 0 || garnitures.length > 0;
 
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-[#FDFCF8] md:bg-transparent`}>
+    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-cream md:bg-transparent`}>
       <div className="flex flex-col items-center px-4 pt-10 pb-12">
 
         <div className="w-full max-w-sm md:max-w-4xl mb-8 text-center">
@@ -132,15 +132,15 @@ export default function MenuPage() {
             {new Date().toLocaleDateString(t.dateLocale, { weekday: "long", day: "numeric", month: "long" })}
           </p>
           <div className="flex items-center justify-center gap-3">
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
             <button
               onClick={toggleLang}
-              className="text-[10px] font-semibold tracking-widest text-[#8C6F39]/90 hover:text-[#8C6F39] transition px-1"
+              className="text-[10px] font-semibold tracking-widest text-gold-ink/90 hover:text-gold-ink transition px-1"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
-            <div className="h-px w-8 bg-[#C6A972]/50" />
+            <div className="h-px w-8 bg-gold/50" />
           </div>
         </div>
 
@@ -165,7 +165,7 @@ export default function MenuPage() {
               {hasPlat && (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100 md:flex-[2]">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-[#8C6F39]" style={{ fontFamily: "var(--font-sans)" }}>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-gold-ink" style={{ fontFamily: "var(--font-sans)" }}>
                       {t.plat}
                     </span>
                   </div>
@@ -229,7 +229,7 @@ export default function MenuPage() {
               {desserts.length > 0 && (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100 md:flex-1">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-[#8C6F39]" style={{ fontFamily: "var(--font-sans)" }}>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-gold-ink" style={{ fontFamily: "var(--font-sans)" }}>
                       {t.desserts}
                     </span>
                   </div>
@@ -251,7 +251,7 @@ export default function MenuPage() {
               {(prixPlat || prixDessert || prixMenu) && (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 text-center">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-[#8C6F39]" style={{ fontFamily: "var(--font-sans)" }}>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-gold-ink" style={{ fontFamily: "var(--font-sans)" }}>
                       {t.prices}
                     </span>
                   </div>
@@ -275,7 +275,7 @@ export default function MenuPage() {
             </p>
             <Link
               href="/wifi"
-              className="inline-flex items-center gap-2 bg-[#C6A972] text-white text-xs font-semibold rounded-full px-5 py-2.5 hover:bg-[#b8975e] transition"
+              className="btn btn-or px-5 py-2.5 text-xs"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               {t.cta_home}
@@ -289,9 +289,9 @@ export default function MenuPage() {
 
 function PrixRow({ label, prix, highlight }: { label: string; prix: string; highlight?: boolean }) {
   return (
-    <div className={`flex items-center justify-between px-4 py-3 text-sm md:flex-1 md:flex-col md:gap-1 md:text-center ${highlight ? "bg-[#C6A972]/5" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
+    <div className={`flex items-center justify-between px-4 py-3 text-sm md:flex-1 md:flex-col md:gap-1 md:text-center ${highlight ? "bg-gold/5" : ""}`} style={{ fontFamily: "var(--font-sans)" }}>
       <span className={highlight ? "font-semibold text-slate-800" : "text-slate-500"}>{label}</span>
-      <span className={`font-semibold ${highlight ? "text-[#8C6F39]" : "text-slate-800"}`}>
+      <span className={`font-semibold ${highlight ? "text-gold-ink" : "text-slate-800"}`}>
         {prix.includes("€") ? prix : `${prix} €`}
       </span>
     </div>

@@ -150,26 +150,26 @@ export default function RooftopCarteClient() {
   return (
     <main className="min-h-screen bg-[var(--sand)] text-slate-800">
       {/* ---------- HERO ---------- */}
-      <header className="relative overflow-hidden bg-[#013a5c] text-white">
+      <header className="relative overflow-hidden bg-navy-deep text-white">
         <div className="absolute inset-0 opacity-60 slow-zoom"
           style={{ backgroundImage: "url('/images/package-rooftop.jpg')", backgroundSize: "cover", backgroundPosition: "center 72%" }} />
         {/* Voile dégradé pour garder le texte lisible par-dessus la photo */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#013a5c]/70 via-[#013a5c]/40 to-[#013a5c]/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-navy-deep/70 via-navy-deep/40 to-navy-deep/80" />
         <div className="relative mx-auto max-w-4xl px-4 pt-5 pb-8 text-center">
           <Link href="/" aria-label="Hôtels Toulon Bord de Mer" className="inline-block">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/cigale-or-512.png" alt="Hôtels Toulon Bord de Mer" className="mx-auto h-11 w-auto drop-shadow transition-opacity hover:opacity-80" />
           </Link>
-          <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">{t.hotel}</p>
+          <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-gold">{t.hotel}</p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl font-semibold drop-shadow">{t.title}</h1>
-          <p className="mt-1.5 font-serif italic text-lg md:text-xl text-[var(--gold)]">{t.tagline}</p>
-          <p className="mt-2 text-[12px] font-medium uppercase tracking-widest text-[var(--gold)]">{t.hours}</p>
+          <p className="mt-1.5 font-serif italic text-lg md:text-xl text-gold">{t.tagline}</p>
+          <p className="mt-2 text-[12px] font-medium uppercase tracking-widest text-gold">{t.hours}</p>
           <div className="mt-4 flex items-center justify-center gap-3">
-            <div className="h-px w-10 bg-[var(--gold)]/60" />
-            <button onClick={toggleLang} className="text-[11px] font-semibold tracking-widest text-[var(--gold)] hover:text-white transition">
+            <div className="h-px w-10 bg-gold/60" />
+            <button onClick={toggleLang} className="text-[11px] font-semibold tracking-widest text-gold hover:text-white transition">
               {lang === "fr" ? "EN" : "FR"}
             </button>
-            <div className="h-px w-10 bg-[var(--gold)]/60" />
+            <div className="h-px w-10 bg-gold/60" />
           </div>
         </div>
       </header>
@@ -178,12 +178,12 @@ export default function RooftopCarteClient() {
         {/* ---------- FORMULE — équation visuelle ---------- */}
         <motion.section
           initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="rounded-2xl border border-[var(--gold)]/30 bg-white/70 px-6 py-6 text-center shadow-sm backdrop-blur-sm"
+          className="rounded-2xl border border-gold/30 bg-white/70 px-6 py-6 text-center shadow-sm backdrop-blur-sm"
         >
           <h2 className="font-serif text-2xl md:text-3xl text-slate-900">{t.formula_title}</h2>
           <div className="mx-auto mt-4 grid max-w-sm grid-cols-[1fr_auto_1fr] items-start justify-items-center gap-2">
             <FormulaBadge icon={<Wine size={22} />} label={t.formula_drink} />
-            <span className="flex h-16 items-center font-serif text-3xl md:text-4xl text-[var(--gold)]">+</span>
+            <span className="flex h-16 items-center font-serif text-3xl md:text-4xl text-gold">+</span>
             <FormulaBadge icon={<UtensilsCrossed size={22} />} label={t.formula_plate} />
           </div>
           <p className="mx-auto mt-4 max-w-lg text-sm text-slate-500 leading-relaxed">{t.formula_rule}</p>
@@ -192,19 +192,19 @@ export default function RooftopCarteClient() {
         {/* ---------- FAQ (entre la formule et le CTA réservation) ---------- */}
         <section className="mx-auto max-w-lg">
           <button onClick={() => setFaqOpen(o => !o)}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--gold)]/30 bg-white/70 px-5 py-4 text-left shadow-sm backdrop-blur-sm transition hover:border-[var(--gold)]/60 hover:shadow-md">
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-gold/30 bg-white/70 px-5 py-4 text-left shadow-sm backdrop-blur-sm transition hover:border-gold/60 hover:shadow-md">
             <span className="font-serif text-base text-slate-900">{t.faq_q}</span>
-            <ChevronDown size={18} className={`shrink-0 text-[var(--gold)] transition-transform ${faqOpen ? "rotate-180" : ""}`} />
+            <ChevronDown size={18} className={`shrink-0 text-gold transition-transform ${faqOpen ? "rotate-180" : ""}`} />
           </button>
           {faqOpen && (
-            <p className="mt-2 rounded-2xl border border-[var(--gold)]/20 bg-white/60 px-5 py-4 text-sm leading-relaxed text-slate-600 backdrop-blur-sm">{t.faq_a}</p>
+            <p className="mt-2 rounded-2xl border border-gold/20 bg-white/60 px-5 py-4 text-sm leading-relaxed text-slate-600 backdrop-blur-sm">{t.faq_a}</p>
           )}
         </section>
 
         {/* ---------- CTA RÉSERVATION (sous la FAQ) ---------- */}
         <section className="text-center -mt-1">
           <Link href="/reservation-table-voiles"
-            className="inline-flex items-center gap-2.5 rounded-full bg-[var(--gold)] px-10 py-4 text-base font-bold tracking-wide text-[#013a5c] shadow-xl shadow-[var(--gold)]/40 ring-1 ring-[var(--gold)]/50 transition-all hover:brightness-105 hover:-translate-y-0.5 active:scale-[0.98]">
+            className="inline-flex items-center gap-2.5 rounded-full bg-gold px-10 py-4 text-base font-bold tracking-wide text-navy-deep shadow-xl shadow-gold/40 ring-1 ring-gold/50 transition-all hover:brightness-105 hover:-translate-y-0.5 active:scale-[0.98]">
             {t.reserve} <ArrowRight size={19} />
           </Link>
         </section>
@@ -226,7 +226,7 @@ export default function RooftopCarteClient() {
                   const prixCat = (catPrix[cat] ?? "").trim();
                   return (
                     <div key={cat}>
-                      <h4 className="flex items-baseline gap-2 font-serif text-lg text-slate-900 border-b border-[var(--gold)]/40 pb-1.5 mb-3">
+                      <h4 className="flex items-baseline gap-2 font-serif text-lg text-slate-900 border-b border-gold/40 pb-1.5 mb-3">
                         <span>{displayCat(cat)}</span>
                         {prixCat && (
                           <span className="ml-auto text-base font-semibold tabular-nums text-[var(--deep-blue)]">
@@ -253,15 +253,15 @@ export default function RooftopCarteClient() {
 
               {/* Séparateur "+" — vertical sur desktop (position figée, ne bouge pas quand on change salé/sucré) */}
               <div className="hidden lg:flex flex-col items-center self-start pt-10">
-                <div className="h-16 w-px bg-[var(--gold)]/30" />
-                <span className="my-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--gold)] text-white font-serif text-2xl shadow-lg shrink-0">+</span>
-                <div className="h-16 w-px bg-[var(--gold)]/30" />
+                <div className="h-16 w-px bg-gold/30" />
+                <span className="my-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold text-white font-serif text-2xl shadow-lg shrink-0">+</span>
+                <div className="h-16 w-px bg-gold/30" />
               </div>
               {/* Séparateur "+" — horizontal sur mobile */}
               <div className="flex lg:hidden items-center justify-center gap-4">
-                <div className="h-px flex-1 bg-[var(--gold)]/30" />
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--gold)] text-white font-serif text-2xl shadow-lg shrink-0">+</span>
-                <div className="h-px flex-1 bg-[var(--gold)]/30" />
+                <div className="h-px flex-1 bg-gold/30" />
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold text-white font-serif text-2xl shadow-lg shrink-0">+</span>
+                <div className="h-px flex-1 bg-gold/30" />
               </div>
 
               {/* Colonne droite — l'accompagnement (vient avec) */}
@@ -271,13 +271,13 @@ export default function RooftopCarteClient() {
                 <div className="flex flex-wrap gap-2">
                   {sale.length > 0 && (
                     <button onClick={() => setFoodTab("sale")}
-                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sale" ? "bg-[var(--gold)] text-white shadow-sm" : "border border-[var(--gold)]/40 text-[var(--deep-blue)] hover:border-[var(--gold)]"}`}>
+                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sale" ? "bg-gold text-white shadow-sm" : "border border-gold/40 text-[var(--deep-blue)] hover:border-gold"}`}>
                       {t.sale}
                     </button>
                   )}
                   {sucre.length > 0 && (
                     <button onClick={() => setFoodTab("sucre")}
-                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sucre" ? "bg-[var(--gold)] text-white shadow-sm" : "border border-[var(--gold)]/40 text-[var(--deep-blue)] hover:border-[var(--gold)]"}`}>
+                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold tracking-wide transition ${foodTab === "sucre" ? "bg-gold text-white shadow-sm" : "border border-gold/40 text-[var(--deep-blue)] hover:border-gold"}`}>
                       {t.sucre}
                     </button>
                   )}
@@ -302,9 +302,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-center">
       <div className="inline-flex items-center gap-3">
-        <span className="h-px w-8 bg-[var(--gold)]/60" />
+        <span className="h-px w-8 bg-gold/60" />
         <h3 className="font-serif text-2xl md:text-3xl text-slate-900">{children}</h3>
-        <span className="h-px w-8 bg-[var(--gold)]/60" />
+        <span className="h-px w-8 bg-gold/60" />
       </div>
     </div>
   );
@@ -314,7 +314,7 @@ function FormulaBadge({ icon, label, highlight }: { icon: React.ReactNode; label
   return (
     <div className="flex flex-col items-center gap-2">
       <span className={`flex h-16 w-16 items-center justify-center rounded-full shadow-md ${
-        highlight ? "bg-[var(--gold)] text-white ring-2 ring-[var(--gold)]/40" : "bg-white text-[var(--deep-blue)] ring-1 ring-[var(--gold)]/30"
+        highlight ? "bg-gold text-white ring-2 ring-gold/40" : "bg-white text-[var(--deep-blue)] ring-1 ring-gold/30"
       }`}>
         {icon}
       </span>
@@ -326,7 +326,7 @@ function FormulaBadge({ icon, label, highlight }: { icon: React.ReactNode; label
 function StepHead({ num, title, sub }: { num: number; title: string; sub: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] font-serif text-lg text-white shadow-sm">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold font-serif text-lg text-white shadow-sm">
         {num}
       </span>
       <div className="leading-tight">
@@ -365,7 +365,7 @@ function PlatCard({ nom, desc, opt, marque, prix, vege, photo, vegeLabel }: {
             </span>
           )}
           {marque && (
-            <span className="text-[11px] font-medium text-[var(--gold)] bg-[var(--gold)]/10 px-2 py-0.5 rounded-full">
+            <span className="text-[11px] font-medium text-gold bg-gold/10 px-2 py-0.5 rounded-full">
               {marque}
             </span>
           )}

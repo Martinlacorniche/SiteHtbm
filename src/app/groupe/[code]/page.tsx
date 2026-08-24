@@ -15,10 +15,10 @@ const LangCtx = createContext<{ lang: Lang; t: Dict }>({ lang: "fr", t: T.fr });
 const useT = () => useContext(LangCtx).t;
 const useLang = () => useContext(LangCtx).lang;
 
-const NAVY = "#004e7c";
-const GOLD = "#C6A972";
+const NAVY = "var(--color-navy)";
+const GOLD = "var(--color-gold)";
 // Or lisible en texte sur fond clair (4.7:1). GOLD reste pour les aplats et bordures.
-const GOLD_INK = "#8C6F39";
+const GOLD_INK = "var(--color-gold-ink)";
 const SEA_BG = "/images/pagewifi.jpg";
 
 // ---------- Types ----------
