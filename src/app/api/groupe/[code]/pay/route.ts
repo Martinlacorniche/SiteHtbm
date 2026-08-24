@@ -106,6 +106,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       metadata: { type: "groupe_resa", groupe_id: g.id, hotel_id: hotelId, booking_ref: ref },
       success_url: `${origin}/groupe/${code}?r=${ref}&paye=1`,
       cancel_url: `${origin}/groupe/${code}?r=${ref}`,
+      // Meme duree de blocage qu'a la creation de la reservation. Sans cette
+      // ligne, Stripe donne 24 h a la session : la chambre restait tenue une
+      // journee entiere sur un simple lien de paiement ouvert puis abandonne
+      // (c'est l'expiration de la session qui la libere, via le webhook).
+      expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
     });
     await supabaseServer.from("groupe_reservations").update({ stripe_checkout_id: session.id }).in("id", h.ids);
     await supabaseServer.from("payments").insert({
