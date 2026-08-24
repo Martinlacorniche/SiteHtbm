@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "JSON invalide" }, { status: 400 }); }
 
-  const { rooms, nom, prenom, email, tel, date_arrivee, date_depart, signature, cgv, pin } = body;
+  const { rooms, nom, prenom, email, tel, date_arrivee, date_depart, cgv, pin } = body;
 
   if (!Array.isArray(rooms) || rooms.length === 0) return NextResponse.json({ ok: false, error: "Sélectionnez au moins une chambre." }, { status: 400 });
   if (!nom) return NextResponse.json({ ok: false, error: "Le nom est requis." }, { status: 400 });
@@ -86,15 +86,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
 
   const bookingRef = crypto.randomUUID();
 
-  // Signature (une seule pour tout le booking) → bucket privé
-  let sigPath: string | null = null;
-  if (typeof signature === "string" && signature.startsWith("data:image")) {
-    const buf = Buffer.from(signature.split(",")[1] || "", "base64");
-    const path = `${g.id}/${bookingRef}.png`;
-    const up = await supabaseServer.storage.from("groupe-signatures").upload(path, buf, { contentType: "image/png", upsert: true });
-    if (!up.error) sigPath = path;
-  }
-
   // Mode de paiement (4 modes ; repli sur l'ancien booléen pour compat).
   const mode: string = modeP;
   const immediat = mode === "immediat";
@@ -151,7 +142,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       nom, prenom: prenom || null, email: email || null, tel: tel || null,
       date_arrivee: rda, date_depart: rdd,
       config_lit: lit, nb_personnes: Math.max(1, parseInt(String(r.nb_personnes)) || 1),
-      signature_url: sigPath, cgv_acceptees_at: nowIso,
+      // Plus de signature manuscrite : la case CGV horodatée fait foi.
+      signature_url: null, cgv_acceptees_at: nowIso,
       // immédiat → tenue en attente de paiement ; différé → tenue jusqu'au lien
       // envoyé + 48h ; optionnel/aucun → confirmée directement.
       statut: immediat ? "en_attente_paiement" : differe ? "paiement_differe" : "confirmee",

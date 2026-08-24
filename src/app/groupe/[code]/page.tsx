@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -861,7 +861,6 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
   const [dd, setDd] = useState(initRange?.to || groupe.date_depart);
   const [pin, setPin] = useState(""); const [pin2, setPin2] = useState("");
   const [cgv, setCgv] = useState(false);
-  const [signature, setSignature] = useState<string | null>(null);
   const [cfg, setCfg] = useState<Record<string, { lit: "double" | "twin"; pax: number }>>(
     Object.fromEntries(rooms.map(r => [r.id, { lit: "double", pax: 1 }]))
   );
@@ -940,7 +939,6 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
     if (pin && !/^\d{4}$/.test(pin)) return setErr(t.errPinDigits);
     if (pin && pin !== pin2) return setErr(t.errPinMatch);
     if (!cgv) return setErr(t.errTerms);
-    if (!signature) return setErr(t.errSign);
     setSubmitting(true);
     try {
       const res = await fetch(`/api/groupe/${code}/reserve`, {
@@ -955,7 +953,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
             pdj_nuits: pdjDe(r),
           })),
           nom: nom.trim(), prenom: prenom.trim(), email: email.trim(), tel: tel.trim(),
-          date_arrivee: da, date_depart: dd, pin, cgv, signature,
+          date_arrivee: da, date_depart: dd, pin, cgv,
         }),
       });
       const data = await res.json();
@@ -1112,7 +1110,6 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
           <input type="checkbox" checked={cgv} onChange={e => setCgv(e.target.checked)} className="w-5 h-5 mt-0.5" style={{ accentColor: NAVY }} />
           <span className="text-sm text-slate-600">{t.acceptTerms}</span>
         </label>
-        <div><Label>{t.signature}</Label><SignaturePad onChange={setSignature} /></div>
 
         {err && <p className="text-sm text-rose-600">{err}</p>}
         <button onClick={submit} disabled={submitting} className="w-full h-12 rounded-full text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-60" style={{ background: NAVY }}>
@@ -1541,27 +1538,3 @@ function Centered({ title, text }: { title: string; text: string }) {
   return <main className="min-h-screen flex items-center justify-center px-6 text-center"><div><h1 className="font-serif font-semibold text-2xl text-slate-800">{title}</h1><p className="text-slate-500 mt-2 text-sm">{text}</p></div></main>;
 }
 
-// ---------- Signature (canvas, sans dépendance) ----------
-function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
-  const t = useT();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false); const hasInk = useRef(false);
-  useEffect(() => {
-    const c = canvasRef.current; if (!c) return;
-    const ratio = window.devicePixelRatio || 1;
-    c.width = c.offsetWidth * ratio; c.height = c.offsetHeight * ratio;
-    const ctx = c.getContext("2d"); if (!ctx) return;
-    ctx.scale(ratio, ratio); ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "#1e293b";
-  }, []);
-  function pos(e: React.PointerEvent) { const c = canvasRef.current!; const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
-  function down(e: React.PointerEvent) { drawing.current = true; const ctx = canvasRef.current!.getContext("2d")!; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); canvasRef.current!.setPointerCapture(e.pointerId); }
-  function move(e: React.PointerEvent) { if (!drawing.current) return; const ctx = canvasRef.current!.getContext("2d")!; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasInk.current = true; }
-  function up() { if (!drawing.current) return; drawing.current = false; if (hasInk.current) onChange(canvasRef.current!.toDataURL("image/png")); }
-  function clear() { const c = canvasRef.current!; c.getContext("2d")!.clearRect(0, 0, c.width, c.height); hasInk.current = false; onChange(null); }
-  return (
-    <div>
-      <canvas ref={canvasRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up} className="w-full h-36 rounded-xl border border-slate-200 bg-white touch-none" style={{ touchAction: "none" }} />
-      <button type="button" onClick={clear} className="text-xs text-slate-400 mt-1.5 hover:text-slate-600">{t.clear}</button>
-    </div>
-  );
-}

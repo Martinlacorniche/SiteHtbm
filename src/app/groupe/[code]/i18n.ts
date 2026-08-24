@@ -38,14 +38,14 @@ export type Dict = {
   morning: string; mornings: string; ofWhichBreakfast: string;
   pinCreate: string; pinOptional: string; pinConfirm: string;
   pinHintRequired: string; pinHintOptional: string;
-  cancellationTerms: string; acceptTerms: string; signature: string;
+  cancellationTerms: string; acceptTerms: string;
   validate: string; totalStay: string; totalAccommodation: string;
   night: string; nights: string; rooms: string;
   taxeSejour: string; taxeIncluded: string; taxeAdded: string;
   // — erreurs de saisie
   errName: string; errNameEmail: string; errEmail: string; errEmailAccent: string;
   errPin4: string; errPinDigits: string; errPinMatch: string; errTerms: string;
-  errSign: string; errConnection: string;
+  errConnection: string;
   // — paiement
   payTitle: string; payTwoHotels: string; payStripeNote: string; pay: string;
   payOnline: string; payOnlineNote: string; payToConfirm: string;
@@ -59,7 +59,7 @@ export type Dict = {
   stay: string; beds: string; edit: string; cancel: string; back: string; save: string;
   cancelRoom: string; cancelDefinitive: string; modified: string;
   statusCanceled: string; statusPending: string; statusConfirmed: string;
-  yourPinLabel: string; clear: string;
+  yourPinLabel: string;
   // — statuts d'une chambre, sous chaque carte
   available: string; selected: string; booked: string; availableShort: string;
   roomSelected: string; roomsSelected: string; clickIfYours: string;
@@ -88,7 +88,7 @@ export const T: Record<Lang, Dict> = {
     pinHintOptional: "Facultatif : avec un code, vous seul pourrez modifier ou annuler votre réservation.",
     cancellationTerms: "Conditions d'annulation :",
     acceptTerms: "J'accepte les conditions de réservation et d'annulation.",
-    signature: "Signature", validate: "Valider ma réservation",
+    validate: "Valider ma réservation",
     totalStay: "Total séjour", totalAccommodation: "Total hébergement",
     night: "nuit", nights: "nuits", rooms: "ch.",
     taxeSejour: "Taxe de séjour", taxeIncluded: "incluse dans le tarif — rien à régler en plus.",
@@ -98,7 +98,7 @@ export const T: Record<Lang, Dict> = {
     errEmailAccent: "Votre e-mail contient un caractère accentué (ex. « é »). Vérifiez l'adresse, ou cliquez à nouveau pour confirmer.",
     errPin4: "Choisissez un code à 4 chiffres.", errPinDigits: "Le code doit faire 4 chiffres.",
     errPinMatch: "Les deux codes ne correspondent pas.",
-    errTerms: "Merci d'accepter les conditions.", errSign: "Merci de signer.",
+    errTerms: "Merci d'accepter les conditions.",
     errConnection: "Connexion impossible.",
     payThanks: "Paiement bien reçu", payThanksNote: "On enregistre votre règlement — le statut se met à jour dans quelques secondes, et vous recevez la confirmation par email.",
     payTitle: "Plus qu'une étape", payTwoHotels: "Deux établissements = deux paiements distincts.",
@@ -119,7 +119,7 @@ export const T: Record<Lang, Dict> = {
     cancelRoom: "Annuler cette chambre ?", cancelDefinitive: "— cette action est définitive.",
     modified: "Modifié ✓",
     statusCanceled: "Annulée", statusPending: "En attente de paiement", statusConfirmed: "Confirmée",
-    yourPinLabel: "Votre code à 4 chiffres", clear: "Effacer",
+    yourPinLabel: "Votre code à 4 chiffres",
     available: "Disponible", selected: "Sélectionnée", booked: "Réservée", availableShort: "dispo.",
     roomSelected: "chambre sélectionnée", roomsSelected: "chambres sélectionnées",
     clickIfYours: "cliquez si c’est votre réservation",
@@ -146,7 +146,7 @@ export const T: Record<Lang, Dict> = {
     pinHintOptional: "Optional: with a code, only you can change or cancel your booking.",
     cancellationTerms: "Cancellation terms:",
     acceptTerms: "I accept the booking and cancellation terms.",
-    signature: "Signature", validate: "Confirm my booking",
+    validate: "Confirm my booking",
     totalStay: "Stay total", totalAccommodation: "Accommodation total",
     night: "night", nights: "nights", rooms: "rooms",
     taxeSejour: "City tax", taxeIncluded: "included in the rate — nothing more to pay.",
@@ -156,7 +156,7 @@ export const T: Record<Lang, Dict> = {
     errEmailAccent: "Your email contains an accented character (e.g. « é »). Please check it, or click again to confirm.",
     errPin4: "Please choose a 4-digit code.", errPinDigits: "The code must be 4 digits.",
     errPinMatch: "The two codes don't match.",
-    errTerms: "Please accept the terms.", errSign: "Please sign.",
+    errTerms: "Please accept the terms.",
     errConnection: "Connection failed.",
     payThanks: "Payment received", payThanksNote: "We are recording your payment — the status updates in a few seconds and you will get a confirmation email.",
     payTitle: "One last step", payTwoHotels: "Two properties = two separate payments.",
@@ -177,7 +177,7 @@ export const T: Record<Lang, Dict> = {
     cancelRoom: "Cancel this room?", cancelDefinitive: "— this cannot be undone.",
     modified: "Updated ✓",
     statusCanceled: "Cancelled", statusPending: "Awaiting payment", statusConfirmed: "Confirmed",
-    yourPinLabel: "Your 4-digit code", clear: "Clear",
+    yourPinLabel: "Your 4-digit code",
     available: "Available", selected: "Selected", booked: "Booked", availableShort: "left",
     roomSelected: "room selected", roomsSelected: "rooms selected",
     clickIfYours: "click if this is your booking",
@@ -204,7 +204,7 @@ export const T: Record<Lang, Dict> = {
     pinHintOptional: "Opcional: con un código, solo usted podrá modificar o cancelar su reserva.",
     cancellationTerms: "Condiciones de cancelación:",
     acceptTerms: "Acepto las condiciones de reserva y cancelación.",
-    signature: "Firma", validate: "Confirmar mi reserva",
+    validate: "Confirmar mi reserva",
     totalStay: "Total estancia", totalAccommodation: "Total alojamiento",
     night: "noche", nights: "noches", rooms: "hab.",
     taxeSejour: "Tasa turística", taxeIncluded: "incluida en la tarifa — nada más que pagar.",
@@ -214,7 +214,7 @@ export const T: Record<Lang, Dict> = {
     errEmailAccent: "Su correo contiene un carácter acentuado (p. ej. « é »). Verifíquelo o vuelva a hacer clic para confirmar.",
     errPin4: "Elija un código de 4 cifras.", errPinDigits: "El código debe tener 4 cifras.",
     errPinMatch: "Los dos códigos no coinciden.",
-    errTerms: "Acepte las condiciones, por favor.", errSign: "Firme, por favor.",
+    errTerms: "Acepte las condiciones, por favor.",
     errConnection: "Conexión imposible.",
     payThanks: "Pago recibido", payThanksNote: "Estamos registrando su pago — el estado se actualiza en unos segundos y recibirá un correo de confirmación.",
     payTitle: "Un último paso", payTwoHotels: "Dos establecimientos = dos pagos distintos.",
@@ -235,7 +235,7 @@ export const T: Record<Lang, Dict> = {
     cancelRoom: "¿Cancelar esta habitación?", cancelDefinitive: "— esta acción es definitiva.",
     modified: "Modificado ✓",
     statusCanceled: "Cancelada", statusPending: "Pendiente de pago", statusConfirmed: "Confirmada",
-    yourPinLabel: "Su código de 4 cifras", clear: "Borrar",
+    yourPinLabel: "Su código de 4 cifras",
     available: "Disponible", selected: "Seleccionada", booked: "Reservada", availableShort: "disp.",
     roomSelected: "habitación seleccionada", roomsSelected: "habitaciones seleccionadas",
     clickIfYours: "haga clic si es su reserva",

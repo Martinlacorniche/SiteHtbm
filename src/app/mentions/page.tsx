@@ -24,12 +24,15 @@ export default function MentionsLegales() {
             <h2 className="font-serif text-2xl text-slate-900 mb-4">1. Éditeur du site</h2>
             <p>
               Le site <strong>hotels-toulon-mer.com</strong> est édité par la société <strong>SARL SUERE</strong>.<br/>
-              Forme juridique : [SARL]<br/>
-              Capital social : [100 000] €<br/>
-              SIRET : [34179719900013]<br/>
+              Forme juridique : société à responsabilité limitée (SARL)<br/>
+              Capital social : 100 000 € (fixe)<br/>
+              SIREN : 341 797 199 — SIRET du siège : 341 797 199 00013<br/>
+              RCS Toulon 341 797 199<br/>
+              N° de TVA intracommunautaire : FR50 341 797 199<br/>
               Siège social : 17 Littoral Frédéric Mistral, 83000 Toulon<br/>
-              Directeur de la publication : [Jérôme SUERE]<br/>
-              Email : contact-corniche@htbm.fr
+              Directeur de la publication : Jérôme SUERE, gérant<br/>
+              Téléphone : <a href="tel:0494413512" className="underline">04 94 41 35 12</a><br/>
+              Email : <a href="mailto:contact-corniche@htbm.fr" className="underline">contact-corniche@htbm.fr</a>
             </p>
           </section>
 
