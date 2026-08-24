@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import CalendrierSejour from "./CalendrierSejour";
+import Image from "next/image";
 import {
-  chercherDisponibilite, chargerCategories, t,
-  type Disponibilite, type GroupeTarifaire, type Langue, type Offre, type Tarif,
+  chercherDisponibilite, chargerCategories, urlPhoto, t,
+  type CategorieChambre, type Disponibilite, type GroupeTarifaire, type Langue,
+  type Offre, type Tarif,
 } from "@/lib/mewsBooking";
 import { PRIVILEGES } from "@/lib/site";
 
@@ -71,6 +73,8 @@ const TEXTES = {
     modifier: "Modifier",
     voirRecap: "Voir le récapitulatif",
     confiance: "Réservation en direct, auprès de l'hôtel lui-même.",
+    ecartChambre: (m: string, ref: string) => `+ ${m} € par rapport à la ${ref}`,
+    simplicite: "Volontairement simples : pas de minibar dans les chambres — mais une cuisine en libre-service pour vos repas, et le rooftop au 6ᵉ étage, face à la mer, pour l'apéro.",
   },
   en: {
     titre: "Book at Les Voiles",
@@ -111,6 +115,8 @@ const TEXTES = {
     modifier: "Change",
     voirRecap: "See the summary",
     confiance: "Booking direct, with the hotel itself.",
+    ecartChambre: (m: string, ref: string) => `+€${m} compared with the ${ref}`,
+    simplicite: "Deliberately simple: no minibar in the rooms — but a self-service kitchen for your meals, and the rooftop on the 6th floor, facing the sea, for a drink.",
   },
 } as const;
 
@@ -192,6 +198,27 @@ const heureLimite = (tarif: Tarif | undefined, langue: Langue): number | null =>
   return Number.isInteger(heure) && heure >= 1 && heure <= 23 ? heure : null;
 };
 
+/* La photo qui represente le mieux chaque chambre.
+ *
+ * Mews en heberge trois a cinq par categorie, mais la premiere de la liste est
+ * une salle de bain sur deux categories sur trois. On designe donc la bonne par
+ * son identifiant (stable : reordonner les photos dans Mews ne le change pas),
+ * et on retombe sur la premiere si l'identifiant disparait. */
+const PHOTO_DE_TETE: Record<string, string> = {
+  // Chambre confort — le lit et le mur bordeaux, plutot que la salle de bain.
+  "e34e45e7-8ce1-4b68-8547-aaa9008727ad": "b1361f7c-d12f-41f1-9665-ab2800fa84bd",
+  // Chambre individuelle — la chambre, pas la douche.
+  "a1f3a293-0567-49c7-81c6-aaa9008727ad": "a490108f-2cc2-41c6-b499-ab2800f699c0",
+  // Chambre superieure — la porte-fenetre et la vue, c'est ce qu'on vend.
+  "c60f97a0-8870-4c0e-8d1e-aaa9008727ad": "d30156f7-26bd-4abb-9695-ab2800f88143",
+};
+
+const photoDe = (categorieId: string, cat: CategorieChambre | undefined): string | null => {
+  const voulue = PHOTO_DE_TETE[categorieId];
+  if (voulue && cat?.images.includes(voulue)) return voulue;
+  return cat?.images[0] ?? null;
+};
+
 export default function ReserverClient({ langue }: { langue: Langue }) {
   const T = TEXTES[langue];
 
@@ -202,7 +229,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   const [depart, setDepart] = useState(() => dansNJours(1));
   const [voyage, setVoyage] = useState<Voyage | null>(null);
   const [dispo, setDispo] = useState<Disponibilite | null>(null);
-  const [noms, setNoms] = useState<Map<string, string>>(new Map());
+  const [categories, setCategories] = useState<Map<string, CategorieChambre>>(new Map());
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState(false);
   // La chambre retenue, qui alimente la colonne de droite.
@@ -227,12 +254,12 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     setChargement(true);
     setErreur(false);
     try {
-      const [dispos, categories] = await Promise.all([
+      const [dispos, cats] = await Promise.all([
         chercherDisponibilite({ arrivee: a, depart: d, adultes: pax, langue }),
         chargerCategories(langue),
       ]);
       setDispo(dispos);
-      setNoms(categories);
+      setCategories(cats);
       setChoix(null); // les prix changent avec les dates : on ne garde pas l'ancien choix
       const url = new URL(window.location.href);
       url.searchParams.set("arrivee", a);
@@ -307,6 +334,20 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     }
     return { principales: p, pourUnePersonne: adultes > 1 ? seule : [] };
   }, [dispo, adultes]);
+
+  /* L'ecart d'une chambre a la moins chere.
+   *
+   * « 150 € » ne dit rien tout seul ; « 25 € de plus que la confort » dit
+   * exactement ce que le client arbitre. Calcule sur les prix affiches, jamais
+   * saisi a la main : il suit les tarifs du jour. */
+  const reference = useMemo(() => {
+    let meilleur: { categorieId: string; total: number } | null = null;
+    for (const o of principales) {
+      const bas = Math.min(...o.prix.map((p) => p.total));
+      if (!meilleur || bas < meilleur.total) meilleur = { categorieId: o.categorieId, total: bas };
+    }
+    return meilleur;
+  }, [principales]);
 
   const tarifs = dispo?.tarifs ?? [];
   const groupes = dispo?.groupes ?? [];
@@ -476,22 +517,60 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             {dispo && !erreur && principales.length > 0 && (
               <ul className="grid gap-5">
                 {principales.map((o) => (
-                  <li key={`${o.categorieId}-${o.pourPersonnes}`}>
+                  <li key={`${o.categorieId}-${o.pourPersonnes}`} className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                    {(() => {
+                      const photo = photoDe(o.categorieId, categories.get(o.categorieId));
+                      return photo ? (
+                        <div className="relative h-[130px] w-full shrink-0 overflow-hidden rounded-xl bg-[#f0ece4] sm:h-auto sm:w-[150px] sm:self-stretch">
+                          <Image
+                            src={urlPhoto(photo, 400)}
+                            alt={categories.get(o.categorieId)?.nom || ""}
+                            fill
+                            sizes="(max-width: 640px) 100vw, 150px"
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : null;
+                    })()}
+
+                    <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline justify-between gap-3">
                       <h3 className="font-serif text-2xl text-navy">
-                        {noms.get(o.categorieId) || "—"}
+                        {categories.get(o.categorieId)?.nom || "—"}
                       </h3>
-                      <span className={[
-                        "text-[13px] font-semibold",
-                        o.chambresRestantes === 1 ? "text-[#a8571f]" : "text-[#8a9299]",
-                      ].join(" ")}>
-                        {T.restantes(o.chambresRestantes)}
+                      {/* Les chiffres ensemble, a droite : combien il en reste,
+                          et ce que cette chambre coute de plus que la moins
+                          chere. « 150 € » ne dit rien seul ; « 25 € de plus que
+                          l'individuelle » dit ce que le client arbitre. */}
+                      <span className="shrink-0 text-right">
+                        <span className={[
+                          "block text-[13px] font-semibold",
+                          o.chambresRestantes === 1 ? "text-[#a8571f]" : "text-[#8a9299]",
+                        ].join(" ")}>
+                          {T.restantes(o.chambresRestantes)}
+                        </span>
+                        {(() => {
+                          if (!reference || reference.categorieId === o.categorieId) return null;
+                          const ecart = Math.min(...o.prix.map((p) => p.total)) - reference.total;
+                          if (ecart <= 0) return null;
+                          return (
+                            <span className="block text-[12px] font-semibold text-gold-ink">
+                              {T.ecartChambre(
+                                ecart.toFixed(2).replace(".", ",").replace(",00", ""),
+                                categories.get(reference.categorieId)?.nom || "—",
+                              )}
+                            </span>
+                          );
+                        })()}
                       </span>
                     </div>
 
-                    {/* Une ligne = un tarif. Le prix EST le bouton : c'est ce
-                        que le client cherche, il n'a pas à viser autre chose. */}
-                    <div className="mt-3 grid gap-2">
+                    {/* Une carte = un tarif, les deux cote a cote. Le prix EST
+                        le bouton, et il se lit sous son libelle : en pleine
+                        largeur, l'oeil traversait 600 px de vide entre le nom du
+                        tarif et son montant, et comparer les deux demandait un
+                        saut d'une ligne a l'autre. */}
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {o.prix.map((p) => {
                         const retenu = choix?.categorieId === o.categorieId && choix?.tarifId === p.tarifId;
                         const tarif = tarifs.find((r) => r.Id === p.tarifId);
@@ -516,7 +595,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                               pourPersonnes: o.pourPersonnes,
                             })}
                             className={[
-                              "flex w-full items-center justify-between gap-4 rounded-xl border px-4 py-3.5 text-left transition-colors",
+                              "flex w-full flex-col gap-1.5 rounded-xl border px-4 py-3.5 text-left transition-colors",
                               retenu
                                 ? "border-navy bg-navy text-white"
                                 : "border-[#e3e0d9] text-[#3c4a52] hover:border-gold hover:bg-[#faf7f1]",
@@ -543,13 +622,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                                 </span>
                               )}
                             </span>
-                            <span className="shrink-0 text-right">
-                              <span className="block text-[20px] font-bold tabular-nums">
+                            <span className="flex items-baseline gap-2">
+                              <span className="text-[22px] font-bold tabular-nums">
                                 {p.total.toFixed(2).replace(".", ",")} €
                               </span>
                               {nuits > 1 && (
                                 <span className={[
-                                  "block text-[12px] tabular-nums",
+                                  "text-[12px] tabular-nums",
                                   retenu ? "text-white/70" : "text-[#8a9299]",
                                 ].join(" ")}>
                                   {p.parNuit.toFixed(2).replace(".", ",")} € {T.parNuit}
@@ -559,6 +638,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                           </button>
                         );
                       })}
+                    </div>
                     </div>
                   </li>
                 ))}
@@ -573,7 +653,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 <ul className="mt-1.5 grid gap-1">
                   {pourUnePersonne.map((o) => (
                     <li key={o.categorieId} className="text-[15px] text-[#3c4a52]">
-                      {noms.get(o.categorieId) || "—"} ·{" "}
+                      {categories.get(o.categorieId)?.nom || "—"} ·{" "}
                       <span className="font-semibold tabular-nums">
                         {Math.min(...o.prix.map((p) => p.total)).toFixed(2).replace(".", ",")} €
                       </span>
@@ -592,16 +672,23 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           </div>
 
           {dispo && !erreur && principales.length > 0 && (
-            <p className="mt-4 shrink-0 border-t border-[#f0ece4] pt-3 text-[12px] text-[#8a9299]">
-              {T.taxeMention(TAXE_PAR_ADULTE_NUIT.toFixed(2).replace(".", ","))}
-            </p>
+            <>
+              {/* L'absence de minibar, dite avant qu'elle ne se decouvre dans la
+                  chambre — et transformee en deux presences qui, elles, existent. */}
+              <p className="mt-4 shrink-0 rounded-xl bg-navy-deep px-4 py-3 text-[13px] leading-relaxed text-cream">
+                {T.simplicite}
+              </p>
+              <p className="mt-3 shrink-0 text-[12px] text-[#8a9299]">
+                {T.taxeMention(TAXE_PAR_ADULTE_NUIT.toFixed(2).replace(".", ","))}
+              </p>
+            </>
           )}
         </section>
 
         {/* ── Colonne 3 · Votre séjour ────────────────────────────────────── */}
         <aside
           ref={zoneRecap}
-          className="flex min-h-0 scroll-mt-4 flex-col rounded-2xl bg-white p-5 shadow-[0_2px_20px_rgba(0,78,124,0.07)]"
+          className="flex min-h-0 scroll-mt-4 flex-col rounded-2xl bg-white p-5 shadow-[0_2px_20px_rgba(0,78,124,0.07)] lg:max-h-full lg:self-start"
         >
           <h2 className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
             {T.colRecap}
@@ -626,7 +713,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             {choix ? (
               <>
                 <p className="mt-4 border-t border-[#f0ece4] pt-4 font-serif text-xl text-navy">
-                  {noms.get(choix.categorieId) || "—"}
+                  {categories.get(choix.categorieId)?.nom || "—"}
                 </p>
                 <p className="mt-1 text-[13px] text-[#8a9299]">
                   {libelleTarif(tarifs.find((r) => r.Id === choix.tarifId), groupes, langue, T)}
@@ -691,7 +778,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           <div className="flex items-center justify-between gap-4">
             <span className="min-w-0">
               <span className="block truncate text-[13px] text-[#8a9299]">
-                {noms.get(choix.categorieId) || "—"} · {T.nuits(nuits)}
+                {categories.get(choix.categorieId)?.nom || "—"} · {T.nuits(nuits)}
               </span>
               <span className="block text-[20px] font-bold tabular-nums text-navy">
                 {choix.total.toFixed(2).replace(".", ",")} €

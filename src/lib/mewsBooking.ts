@@ -159,8 +159,23 @@ export async function chercherDisponibilite(
 type Categorie = { Id: string; Names?: Traduit; Name?: Traduit; ImageIds?: string[] };
 type ReponseConfig = { Services?: { Id: string; Names?: Traduit }[]; ImageBaseUrl?: string };
 
-/** Les noms de catégories ne vivent pas dans la réponse de disponibilité. */
-export async function chargerCategories(langue: Langue): Promise<Map<string, string>> {
+/** Nom et photos d'une catégorie de chambre. */
+export type CategorieChambre = { nom: string; images: string[] };
+
+/**
+ * L'URL d'une photo hébergée par Mews, à la largeur demandée.
+ *
+ * Les photos vivent déjà dans Mews (3 à 5 par catégorie) : rien à copier dans
+ * le dépôt, rien à redéployer, et ce que l'hôtel change dans son back-office
+ * apparaît ici. Ce sont aussi les seules sans le bandeau « petit-déjeuner
+ * inclus » que les OTA incrustent dans leurs exports.
+ */
+export const CDN_MEWS = 'https://cdn.mews.com/Media/Image';
+export const urlPhoto = (imageId: string, largeur: number) =>
+  `${CDN_MEWS}/${imageId}?w=${largeur}`;
+
+/** Les noms et photos de catégories ne vivent pas dans la réponse de disponibilité. */
+export async function chargerCategories(langue: Langue): Promise<Map<string, CategorieChambre>> {
   const j = await appel<ReponseConfig & Record<string, unknown>>('configuration/get', {
     Ids: [CONFIGURATION_ID],
     PrimaryId: CONFIGURATION_ID,
@@ -181,5 +196,8 @@ export async function chargerCategories(langue: Langue): Promise<Map<string, str
   };
 
   const cats = trouver(j) ?? [];
-  return new Map(cats.map((c) => [c.Id, t(c.Names ?? c.Name, langue)]));
+  return new Map(cats.map((c) => [c.Id, {
+    nom: t(c.Names ?? c.Name, langue),
+    images: c.ImageIds ?? [],
+  }]));
 }

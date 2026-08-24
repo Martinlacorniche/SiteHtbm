@@ -13,6 +13,12 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "drdlcohzfjdogyquglcs.supabase.co",
       },
+      {
+        // Les photos de chambres vivent dans Mews : on les sert depuis leur CDN
+        // plutot que d'en copier une version dans le depot.
+        protocol: "https",
+        hostname: "cdn.mews.com",
+      },
     ],
   },
   async headers() {
