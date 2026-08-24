@@ -6,6 +6,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import { ArrowLeft, Waves, Footprints } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { weatherEmoji } from "@/lib/meteo";
 
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -30,6 +31,7 @@ const T = {
     seaPending: "Mesure en cours…",
     seaOff: "Température indisponible pour le moment.",
     seaNote: "Relevé du jour à 12 h, au large de Toulon.",
+    airLabel: "dans l'air",
     beaches: "Les plages",
     mapLink: "Y aller",
     tip_title: "Avant de partir",
@@ -50,6 +52,7 @@ const T = {
     seaPending: "Measuring…",
     seaOff: "Temperature unavailable right now.",
     seaNote: "Today's reading at 12 pm, off the coast of Toulon.",
+    airLabel: "in the air",
     beaches: "The beaches",
     mapLink: "Take me there",
     tip_title: "Before you go",
@@ -117,6 +120,7 @@ export default function PlagePage() {
   }));
 
   const sea = weather?.sea ?? null;
+  const air = weather?.air ?? null;
   const seaUnavailable = seaFailed || (weather !== null && sea === null);
 
   return (
@@ -164,29 +168,39 @@ export default function PlagePage() {
             className="rounded-2xl shadow-sm overflow-hidden text-white"
             style={{ background: "linear-gradient(145deg, #006d8f, #48cae4)" }}
           >
-            <div className="px-5 py-5 flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-white/70" style={{ fontFamily: "var(--font-sans)" }}>
+            <div className="px-5 py-7 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <Waves size={14} className="text-white/70" />
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/70" style={{ fontFamily: "var(--font-sans)" }}>
                   {t.seaTemp}
-                </p>
-                {sea !== null ? (
-                  <p className="text-[2.5rem] leading-none font-semibold tabular-nums mt-1.5" style={{ fontFamily: "var(--font-serif)" }}>
-                    {Math.round(sea)}
-                    <span className="text-[1.4rem] align-super ml-0.5 font-normal text-white/70">°C</span>
-                  </p>
-                ) : (
-                  <p className="text-sm text-white/80 mt-2" style={{ fontFamily: "var(--font-sans)" }}>
-                    {seaUnavailable ? t.seaOff : t.seaPending}
-                  </p>
-                )}
+                </span>
               </div>
-              <Waves size={40} className="text-white/40 shrink-0" strokeWidth={1.5} />
+
+              {!seaUnavailable && sea === null ? (
+                <div className="h-11 w-28 mx-auto mt-3 rounded-xl bg-white/20 animate-pulse" aria-label={t.seaPending} />
+              ) : sea !== null ? (
+                <p className="text-[3rem] leading-none font-semibold tabular-nums mt-3" style={{ fontFamily: "var(--font-serif)" }}>
+                  {Math.round(sea)}
+                  <span className="text-[1.5rem] align-super ml-0.5 font-normal text-white/70">°C</span>
+                </p>
+              ) : (
+                <p className="text-sm text-white/80 mt-3" style={{ fontFamily: "var(--font-sans)" }}>
+                  {t.seaOff}
+                </p>
+              )}
+
+              {air !== null && (
+                <p className="text-xs text-white/70 mt-3" style={{ fontFamily: "var(--font-sans)" }}>
+                  {weatherEmoji(weather?.code ?? null)} {Math.round(air)}°C {t.airLabel}
+                </p>
+              )}
+
+              {sea !== null && (
+                <p className="text-[11px] text-white/50 mt-4 leading-relaxed" style={{ fontFamily: "var(--font-sans)" }}>
+                  {t.seaNote}
+                </p>
+              )}
             </div>
-            {sea !== null && (
-              <p className="px-5 pb-4 text-[11px] text-white/60 leading-relaxed" style={{ fontFamily: "var(--font-sans)" }}>
-                {t.seaNote}
-              </p>
-            )}
           </motion.div>
 
           {/* ── Accès ── */}

@@ -8,20 +8,10 @@ import { Wifi, Instagram, Facebook, Star, X, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { lienReservation } from "@/lib/site";
+import { weatherEmoji } from "@/lib/meteo";
 
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
-
-function weatherEmoji(code: number | null) {
-  if (code === null) return "🌊";
-  if (code === 0) return "☀️";
-  if (code <= 3) return "⛅";
-  if (code <= 48) return "🌫️";
-  if (code <= 67) return "🌧️";
-  if (code <= 77) return "❄️";
-  if (code <= 82) return "🌦️";
-  return "⛈️";
-}
 
 type WeatherState = { air: number | null; sea: number | null; code: number | null };
 
