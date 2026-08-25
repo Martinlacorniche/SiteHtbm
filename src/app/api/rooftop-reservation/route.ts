@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         text: 'Rooftop Les Voiles — Table réservée',
         dates: `${start}/${end}`,
         details: `Réservation pour ${couverts} personne(s) à ${heure}.`,
-        location: 'Hôtel Les Voiles, 124 rue Gubler, 83000 Toulon',
+        location: 'Hôtel-Rooftop Les Voiles, 124 rue Gubler, 83000 Toulon',
       });
       return `https://calendar.google.com/calendar/render?${p.toString()}`;
     } catch { return null; }
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
             <a href="${SITE_URL}/rooftop-les-voiles" style="color: #004e7c; font-size: 13px; text-decoration: underline;">Revoir la carte du rooftop</a>
           </div>
           <p style="margin: 20px 0 0; font-size: 12px; color: #94a3b8; line-height: 1.55; text-align: center;">
-            Un empêchement ? Appelez-nous au 04 94 41 36 23.<br/>Hôtel Les Voiles · 124 rue Gubler, Toulon
+            Un empêchement ? Appelez-nous au 04 94 41 36 23.<br/>Hôtel-Rooftop Les Voiles · 124 rue Gubler, Toulon
           </p>
         </div>
       </div>

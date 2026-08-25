@@ -79,7 +79,7 @@ export const ARTICLES: Article[] = [
 
         <h3 className="text-2xl font-serif text-slate-900 mt-8 mb-4">Le détail qui fait la maison</h3>
         <p className="mb-6 leading-relaxed text-slate-600">
-          Ce sont ces petites attentions — une odeur, un soin, une texture — qui transforment une nuit d'hôtel en souvenir. Au <a href="/hotel-bord-de-mer-toulon" className="underline text-sky-700">Best Western Plus La Corniche</a>, les soins Byca font désormais partie de l'expérience, tandis que l'esprit de la figue souffle aussi sur l'<a href="/hotel-plage-mourillon" className="underline text-sky-700">Hôtel Les Voiles</a>. Une signature discrète, mais que l'on n'oublie pas.
+          Ce sont ces petites attentions — une odeur, un soin, une texture — qui transforment une nuit d'hôtel en souvenir. Au <a href="/hotel-bord-de-mer-toulon" className="underline text-sky-700">Best Western Plus La Corniche</a>, les soins Byca font désormais partie de l'expérience, tandis que l'esprit de la figue souffle aussi sur l'<a href="/hotel-plage-mourillon" className="underline text-sky-700">Hôtel-Rooftop Les Voiles</a>. Une signature discrète, mais que l'on n'oublie pas.
         </p>
 
         <div className="bg-slate-900 text-white p-6 my-8 rounded-xl">
@@ -98,7 +98,7 @@ export const ARTICLES: Article[] = [
     date: "22 Juin 2026",
     readTime: "4 min",
     title: "Le Mourillon, le quartier plage de Toulon (vu par The Guardian)",
-    excerpt: "Le quotidien britannique The Guardian consacre un reportage au Mourillon — et cite l'Hôtel Les Voiles. Visite de notre quartier, entre criques, marché provençal et terrasses face à la mer.",
+    excerpt: "Le quotidien britannique The Guardian consacre un reportage au Mourillon — et cite l'Hôtel-Rooftop Les Voiles. Visite de notre quartier, entre criques, marché provençal et terrasses face à la mer.",
     image: "/images/voiles.jpg",
     content: (
       <>
@@ -114,7 +114,7 @@ export const ARTICLES: Article[] = [
         <div className="bg-sky-50 border-l-4 border-sky-300 p-6 my-8 rounded-r-xl">
           <h4 className="font-bold text-sky-900 mb-2 uppercase tracking-widest text-xs">Ils parlent de nous</h4>
           <p className="text-sky-800 text-sm">
-            Parmi les bonnes adresses où dormir, <em>The Guardian</em> cite notre <a href="/hotel-plage-mourillon" className="underline">Hôtel Les Voiles</a> : un hébergement simple aux belles vues, à deux pas des plages. Une jolie reconnaissance pour notre boutique-hôtel sur les hauteurs du Mourillon.
+            Parmi les bonnes adresses où dormir, <em>The Guardian</em> cite notre <a href="/hotel-plage-mourillon" className="underline">Hôtel-Rooftop Les Voiles</a> : un hébergement simple aux belles vues, à deux pas des plages. Une jolie reconnaissance pour notre boutique-hôtel sur les hauteurs du Mourillon.
           </p>
         </div>
 
@@ -125,7 +125,7 @@ export const ARTICLES: Article[] = [
 
         <h3 className="text-2xl font-serif text-slate-900 mt-8 mb-4">Nos deux maisons, au cœur du quartier</h3>
         <p className="mb-6 leading-relaxed text-slate-600">
-          Pour profiter du Mourillon, deux adresses : le <a href="/hotel-bord-de-mer-toulon" className="underline text-sky-700">Best Western Plus La Corniche</a>, les pieds dans l'eau face à la rade, et l'<a href="/hotel-plage-mourillon" className="underline text-sky-700">Hôtel Les Voiles</a>, plus intime, sur la colline. Et pour un séjour entre proches, la <a href="/villa-les-voiles-toulon" className="underline text-sky-700">Villa Les Voiles</a> se privatise entièrement.
+          Pour profiter du Mourillon, deux adresses : le <a href="/hotel-bord-de-mer-toulon" className="underline text-sky-700">Best Western Plus La Corniche</a>, les pieds dans l'eau face à la rade, et l'<a href="/hotel-plage-mourillon" className="underline text-sky-700">Hôtel-Rooftop Les Voiles</a>, plus intime, sur la colline. Et pour un séjour entre proches, la <a href="/villa-les-voiles-toulon" className="underline text-sky-700">Villa Les Voiles</a> se privatise entièrement.
         </p>
       </>
     )

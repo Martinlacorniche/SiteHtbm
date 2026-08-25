@@ -15,14 +15,14 @@ export const metadata: Metadata = {
     template: "%s",
   },
   description:
-    "Deux hôtels en bord de mer à Toulon, quartier du Mourillon : le Best Western Plus La Corniche (4★ face à la rade) et l'Hôtel Les Voiles (boutique-hôtel 3★). Réservation directe, séminaires, villa privatisable.",
+    "Deux hôtels en bord de mer à Toulon, quartier du Mourillon : le Best Western Plus La Corniche (4★ face à la rade) et l'Hôtel-Rooftop Les Voiles (boutique-hôtel 3★). Réservation directe, séminaires, villa privatisable.",
   applicationName: "Hôtels Bord de Mer Toulon",
   keywords: [
     "hôtel Toulon",
     "hôtel bord de mer Toulon",
     "hôtel Mourillon",
     "Best Western Plus La Corniche",
-    "Hôtel Les Voiles Toulon",
+    "Hôtel-Rooftop Les Voiles Toulon",
     "où dormir à Toulon",
     "séminaire Toulon",
   ],

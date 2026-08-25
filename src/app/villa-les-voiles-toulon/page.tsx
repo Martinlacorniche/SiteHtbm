@@ -70,7 +70,7 @@ export default function Page() {
           </p>
           <p>
   Pour découvrir nos autres établissements (hôtels bord de mer et
-  Hôtel Les Voiles) :
+  Hôtel-Rooftop Les Voiles) :
   <span> </span>
   <Link href="/" className="text-sky-700 underline underline-offset-2">
     Hôtels Toulon Bord de Mer

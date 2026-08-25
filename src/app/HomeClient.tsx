@@ -94,7 +94,7 @@ const CONFIG = {
   },
 
   voiles: {
-    title: "Hôtel Les Voiles", 
+    title: "Hôtel-Rooftop Les Voiles", 
     shortTitle: "Le Refuge", 
     tagline: { fr: "L'intimité sur la colline", en: "Intimacy on the hill" },
     stars: 3,
@@ -368,7 +368,7 @@ export default function PageUltimeV15() {
                 "@context": "https://schema.org",
                 "@type": "Hotel",
                 "@id": "https://hotels-toulon-mer.com/#voiles",
-                "name": "Hôtel Les Voiles",
+                "name": "Hôtel-Rooftop Les Voiles",
                 "url": "https://hotels-toulon-mer.com/hotel-plage-mourillon",
                 "image": "https://hotels-toulon-mer.com/images/voiles.jpg",
                 "description": "Boutique-hôtel 3 étoiles intimiste niché au calme sur les hauteurs du Mourillon, à Toulon. Jardin secret, rooftop avec vue et accès aux plages.",
@@ -636,7 +636,7 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("voiles")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-           <Link href="/wifiv" className="absolute inset-0 z-10" aria-label="Hôtel Les Voiles — espace client" />
+           <Link href="/wifiv" className="absolute inset-0 z-10" aria-label="Hôtel-Rooftop Les Voiles — espace client" />
            
            <div className="absolute inset-0 pointer-events-none">
              <Image src={CONFIG.voiles.image} alt="Voiles" fill sizes="(max-width: 768px) 100vw, (max-width: 1900px) 50vw, 950px" className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>

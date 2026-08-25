@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: alternatesFor("/reservation-table-voiles"),
   title: "Réserver une table au Rooftop Les Voiles – Toulon",
   description:
-    "Réservez votre table au Rooftop de l'Hôtel Les Voiles à Toulon (Mourillon) : bar à ciel ouvert sur la rade, petites assiettes et vue sur la mer.",
+    "Réservez votre table au Rooftop de l'Hôtel-Rooftop Les Voiles à Toulon (Mourillon) : bar à ciel ouvert sur la rade, petites assiettes et vue sur la mer.",
   robots: { index: false, follow: true },
 };
 

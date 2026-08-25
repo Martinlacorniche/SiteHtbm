@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   alternates: alternatesFor("/en/mourillon-beach-hotels"),
   title: "Hotels Near Mourillon Beaches – Toulon",
   description:
-    "Discover the best hotels near Toulon's Mourillon beaches: seafront 4-star La Corniche, and quiet hillside Hôtel Les Voiles.",
+    "Discover the best hotels near Toulon's Mourillon beaches: seafront 4-star La Corniche, and quiet hillside Hôtel-Rooftop Les Voiles.",
 };
 
 export default function Page() {
@@ -28,7 +28,7 @@ export default function Page() {
         <p>
           Mourillon Beach is one of Toulon’s most popular seaside spots. We offer
           two complementary hotels in this district: the seafront 4-star Best
-          Western Plus La Corniche, and the quieter hillside Hôtel Les Voiles.
+          Western Plus La Corniche, and the quieter hillside Hôtel-Rooftop Les Voiles.
         </p>
 
         <section className="space-y-4">
@@ -54,10 +54,10 @@ export default function Page() {
 
         <section className="space-y-4">
           <h2 className="font-serif text-2xl text-slate-900">
-            Hôtel Les Voiles – Quiet & Close to the Coves
+            Hôtel-Rooftop Les Voiles – Quiet & Close to the Coves
           </h2>
           <p>
-            Located on the hillside, Hôtel Les Voiles is calm, modern, and close
+            Located on the hillside, Hôtel-Rooftop Les Voiles is calm, modern, and close
             to both beaches and rocky inlets. Perfect for couples and business
             travellers.
           </p>
@@ -68,7 +68,7 @@ export default function Page() {
               target="_blank"
               rel="noreferrer"
             >
-              Book at Hôtel Les Voiles
+              Book at Hôtel-Rooftop Les Voiles
             </a>
           </p>
         </section>

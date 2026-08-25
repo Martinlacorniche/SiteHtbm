@@ -17,11 +17,11 @@ const FAQ = [
   },
   {
     q: "Quel hôtel choisir près des plages du Mourillon ?",
-    a: "Deux options : le Best Western Plus La Corniche, face à la mer, et l'Hôtel Les Voiles (3★), un boutique-hôtel calme sur les hauteurs du Mourillon, à environ 300 m des plages.",
+    a: "Deux options : le Best Western Plus La Corniche, face à la mer, et l'Hôtel-Rooftop Les Voiles (3★), un boutique-hôtel calme sur les hauteurs du Mourillon, à environ 300 m des plages.",
   },
   {
     q: "Où loger en famille à Toulon ?",
-    a: "L'Hôtel Les Voiles est idéal pour les familles : environnement calme, proximité des plages du Mourillon et des activités nautiques. Pour les familles nombreuses, la Villa Les Voiles offre plusieurs chambres et une cuisine équipée.",
+    a: "L'Hôtel-Rooftop Les Voiles est idéal pour les familles : environnement calme, proximité des plages du Mourillon et des activités nautiques. Pour les familles nombreuses, la Villa Les Voiles offre plusieurs chambres et une cuisine équipée.",
   },
   {
     q: "Existe-t-il un hôtel privatisable à Toulon ?",
@@ -29,7 +29,7 @@ const FAQ = [
   },
   {
     q: "Quel hôtel pour un séminaire ou un déplacement professionnel à Toulon ?",
-    a: "Le Best Western Plus La Corniche dispose d'une salle de séminaire et d'un cadre face à la rade. L'Hôtel Les Voiles, calme et équipé d'un Wi-Fi fibre, convient bien aux déplacements professionnels individuels.",
+    a: "Le Best Western Plus La Corniche dispose d'une salle de séminaire et d'un cadre face à la rade. L'Hôtel-Rooftop Les Voiles, calme et équipé d'un Wi-Fi fibre, convient bien aux déplacements professionnels individuels.",
   },
 ];
 
@@ -72,7 +72,7 @@ export default function Page() {
         <section className="space-y-3">
           <h2 className="font-serif text-2xl text-slate-900">Pour les familles</h2>
           <p>
-            Pour un séjour en famille à Toulon, l’Hôtel Les Voiles est idéal : environnement calme, chambres modernes,
+            Pour un séjour en famille à Toulon, l’Hôtel-Rooftop Les Voiles est idéal : environnement calme, chambres modernes,
             proximité immédiate des plages du Mourillon et accès simple aux activités nautiques.  
             Pour les familles nombreuses, la <strong>Villa Les Voiles</strong> offre encore plus d’espace avec plusieurs chambres et une cuisine équipée.
           </p>
@@ -100,7 +100,7 @@ export default function Page() {
         <section className="space-y-3">
           <h2 className="font-serif text-2xl text-slate-900">Pour un déplacement professionnel</h2>
           <p>
-            Pour un séjour business, l’Hôtel Les Voiles propose un environnement calme, un Wifi Fibre très haut débit
+            Pour un séjour business, l’Hôtel-Rooftop Les Voiles propose un environnement calme, un Wifi Fibre très haut débit
             et une localisation pratique entre plages et centre-ville.  
             Pour les réunions et séminaires, le <strong>Best Western Plus La Corniche</strong> dispose d’un cadre idéal face à la rade.
           </p>
@@ -119,7 +119,7 @@ export default function Page() {
           </p>
           <ul className="list-disc list-inside space-y-1">
             <li><strong>Best Western Plus La Corniche</strong> — directement face à la mer, à 30 m du littoral</li>
-            <li><strong>Hôtel Les Voiles</strong> — sur les hauteurs, calme et proche des criques</li>
+            <li><strong>Hôtel-Rooftop Les Voiles</strong> — sur les hauteurs, calme et proche des criques</li>
           </ul>
 
           <p>

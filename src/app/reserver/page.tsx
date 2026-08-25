@@ -3,9 +3,9 @@ import ReserverClient from "./ReserverClient";
 import { alternatesFor } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Réserver à l'Hôtel Les Voiles — Toulon Mourillon",
+  title: "Réserver à l'Hôtel-Rooftop Les Voiles — Toulon Mourillon",
   description:
-    "Réservez en direct à l'Hôtel Les Voiles, Toulon Mourillon. Petit-déjeuner inclus, prix tout compris, annulation gratuite jusqu'au jour d'arrivée.",
+    "Réservez en direct à l'Hôtel-Rooftop Les Voiles, Toulon Mourillon. Petit-déjeuner inclus, prix tout compris, annulation gratuite jusqu'au jour d'arrivée.",
   alternates: alternatesFor("/reserver"),
   // Tant que le paiement n'est pas branche, la page ne doit pas capter de
   // trafic de recherche : on y arrive par les cartes de l'accueil, pas par

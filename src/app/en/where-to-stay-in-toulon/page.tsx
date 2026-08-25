@@ -33,7 +33,7 @@ export default function Page() {
         <section className="space-y-3">
           <h2 className="font-serif text-2xl text-slate-900">For Families</h2>
           <p>
-            Hôtel Les Voiles is an excellent option for families thanks to its quiet
+            Hôtel-Rooftop Les Voiles is an excellent option for families thanks to its quiet
             residential location, modern rooms and proximity to Mourillon beaches.
             For larger families, the <strong>Villa Les Voiles</strong> offers multiple bedrooms
             and a fully equipped kitchen.
@@ -60,7 +60,7 @@ export default function Page() {
         <section className="space-y-3">
           <h2 className="font-serif text-2xl text-slate-900">For Business Travel</h2>
           <p>
-            Hôtel Les Voiles offers fast fibre Wi-Fi, a quiet environment and a great
+            Hôtel-Rooftop Les Voiles offers fast fibre Wi-Fi, a quiet environment and a great
             location between beaches and the city centre.
             For seminars or meetings, La Corniche provides a unique seafront setting.
           </p>
@@ -75,7 +75,7 @@ export default function Page() {
           <p>The two best options near Mourillon beaches are:</p>
           <ul className="list-disc list-inside space-y-1">
             <li><strong>Best Western Plus La Corniche</strong> — 30 metres from the shoreline</li>
-            <li><strong>Hôtel Les Voiles</strong> — quiet hillside location, close to coves</li>
+            <li><strong>Hôtel-Rooftop Les Voiles</strong> — quiet hillside location, close to coves</li>
           </ul>
           <p>
             ➜ <Link href="/en/mourillon-beach-hotels" className="underline text-sky-700">Hotels near Mourillon beaches</Link>

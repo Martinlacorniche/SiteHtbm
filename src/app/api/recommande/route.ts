@@ -52,7 +52,7 @@ Comparaison OTA — RÈGLE STRICTE selon le gap de prix (gap = ${otaGap}€) :
       max_tokens: 280,
       messages: [{
         role:    "user",
-        content: `Hôtel Les Voiles à Toulon. Tu es le directeur, tu parles directement au client.
+        content: `Hôtel-Rooftop Les Voiles à Toulon. Tu es le directeur, tu parles directement au client.
 Demande : ${nights} nuit${nights > 1 ? "s" : ""}, ${guests} personne${guests > 1 ? "s" : ""}, arrivée le ${checkIn ?? "non précisée"}.
 Profil client : ${vibeDesc}.
 ${atotsStr}

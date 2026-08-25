@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: alternatesFor("/hotel-plage-mourillon"),
   title: "Hôtel proche des plages du Mourillon – Toulon",
   description:
-    "Séjourner près des plages du Mourillon à Toulon : Best Western Plus La Corniche face à la mer et Hôtel Les Voiles sur les hauteurs du quartier.",
+    "Séjourner près des plages du Mourillon à Toulon : Best Western Plus La Corniche face à la mer et Hôtel-Rooftop Les Voiles sur les hauteurs du quartier.",
 };
 
 export default function Page() {
@@ -31,7 +31,7 @@ export default function Page() {
           Les plages du Mourillon sont l’un des lieux les plus recherchés pour
           séjourner à Toulon. Nous proposons deux adresses complémentaires dans
           ce quartier : le Best Western Plus La Corniche, directement en bord de
-          mer, et l’Hôtel Les Voiles, situé sur les hauteurs à quelques minutes
+          mer, et l’Hôtel-Rooftop Les Voiles, situé sur les hauteurs à quelques minutes
           des plages.
         </p>
 
@@ -64,10 +64,10 @@ export default function Page() {
 
         <section className="space-y-4">
           <h2 className="font-serif text-2xl text-slate-900">
-            Hôtel Les Voiles – proche des plages et des criques
+            Hôtel-Rooftop Les Voiles – proche des plages et des criques
           </h2>
           <p>
-            L’Hôtel Les Voiles est un hôtel 3 étoiles intimiste situé sur les
+            L’Hôtel-Rooftop Les Voiles est un hôtel 3 étoiles intimiste situé sur les
             hauteurs du Mourillon, dans un quartier résidentiel calme. Il se
             trouve à quelques minutes des plages et des criques, tout en offrant
             un environnement plus discret et reposant.
@@ -84,7 +84,7 @@ export default function Page() {
               rel="noreferrer"
               className="text-sky-700 underline underline-offset-2"
             >
-              Réserver à l’Hôtel Les Voiles
+              Réserver à l’Hôtel-Rooftop Les Voiles
             </a>
           </p>
         </section>

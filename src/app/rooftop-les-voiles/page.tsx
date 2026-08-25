@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: alternatesFor("/rooftop-les-voiles"),
   title: "Rooftop vue mer à Toulon – Le seul rooftop face à la rade | Les Voiles",
   description:
-    "Le seul rooftop avec vue mer de Toulon : bar à ciel ouvert sur la rade, à l'Hôtel Les Voiles (Mourillon). Petites assiettes salées et desserts glacés à picorer, un verre à la main. Réservez votre table.",
+    "Le seul rooftop avec vue mer de Toulon : bar à ciel ouvert sur la rade, à l'Hôtel-Rooftop Les Voiles (Mourillon). Petites assiettes salées et desserts glacés à picorer, un verre à la main. Réservez votre table.",
   keywords: [
     "rooftop Toulon",
     "rooftop vue mer Toulon",
@@ -29,7 +29,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "BarOrPub",
   "@id": `${SITE_URL}/rooftop-les-voiles#rooftop`,
-  name: "Le Rooftop – Hôtel Les Voiles",
+  name: "Le Rooftop – Hôtel-Rooftop Les Voiles",
   description:
     "Le seul rooftop avec vue mer de Toulon : bar à ciel ouvert sur la rade, petites assiettes à picorer, un verre à la main.",
   url: `${SITE_URL}/rooftop-les-voiles`,
@@ -52,7 +52,7 @@ const jsonLd = {
   ],
   containedInPlace: {
     "@type": "Hotel",
-    name: "Hôtel Les Voiles",
+    name: "Hôtel-Rooftop Les Voiles",
     url: `${SITE_URL}/#voiles`,
   },
 };

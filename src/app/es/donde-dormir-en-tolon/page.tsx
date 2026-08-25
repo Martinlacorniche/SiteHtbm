@@ -38,7 +38,7 @@ export default function Page() {
         <section className="space-y-3">
           <h2 className="font-serif text-2xl text-slate-900">Para familias</h2>
           <p>
-            El Hôtel Les Voiles es una muy buena opción para familias gracias
+            El Hôtel-Rooftop Les Voiles es una muy buena opción para familias gracias
             a su entorno residencial tranquilo, sus habitaciones modernas y su
             proximidad a las playas de Mourillon. El barrio es seguro y permite
             acceder fácilmente al paseo marítimo y a las actividades náuticas.
@@ -62,7 +62,7 @@ export default function Page() {
         <section className="space-y-3">
           <h2 className="font-serif text-2xl">Para viajes de negocios</h2>
           <p>
-            El Hôtel Les Voiles ofrece un entorno silencioso, Wi-Fi de fibra de
+            El Hôtel-Rooftop Les Voiles ofrece un entorno silencioso, Wi-Fi de fibra de
             alta velocidad y una ubicación equilibrada entre las playas y el
             centro de la ciudad.  
             Para reuniones o pequeños seminarios, La Corniche propone un marco
@@ -82,7 +82,7 @@ export default function Page() {
               del mar, justo frente al paseo marítimo
             </li>
             <li>
-              <strong>Hôtel Les Voiles</strong> — en la colina, tranquilo y cerca
+              <strong>Hôtel-Rooftop Les Voiles</strong> — en la colina, tranquilo y cerca
               de calas y pequeñas playas
             </li>
           </ul>
@@ -150,7 +150,7 @@ export default function Page() {
                 ¿Dónde alojarse para un viaje de negocios?
               </h3>
               <p>
-                El Hôtel Les Voiles, gracias a su entorno tranquilo y Wi-Fi de
+                El Hôtel-Rooftop Les Voiles, gracias a su entorno tranquilo y Wi-Fi de
                 alta velocidad.
               </p>
             </div>
