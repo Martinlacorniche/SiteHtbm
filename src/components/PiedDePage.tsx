@@ -15,22 +15,26 @@ import { ETABLISSEMENTS, RESEAUX, lienReservation } from "@/lib/site";
 
 // Les pages etrangeres pointent vers leurs equivalents quand ils existent :
 // envoyer un lecteur anglophone sur une page francaise, c'est le perdre.
+/* ⚠️ Cette colonne est le SEUL lien interne vers `/ou-dormir-a-toulon`, qui
+ * alimente lui-meme la villa, le seminaire, le bord de mer et les plages. L'en
+ * retirer orphelinerait cinq pages d'un coup — c'est precisement ce que le pied
+ * de page a ete ecrit pour eviter. Verifie le 25/08/2026 avant d'y toucher :
+ *   grep -rn '"/la-page"' src/ --include=*.tsx | grep -v PiedDePage
+ * Le Journal et Le Rooftop en sont sortis ce jour-la, a la demande de Martin :
+ * eux sont lies ailleurs (accueil pour l'un, trois endroits pour l'autre). */
 const DECOUVRIR: Record<"fr" | "en", { href: string; libelle: string }[]> = {
   fr: [
     { href: "/hotel-bord-de-mer-toulon", libelle: "Hôtel bord de mer" },
     { href: "/hotel-plage-mourillon", libelle: "Hôtels plages du Mourillon" },
     { href: "/villa-les-voiles-toulon", libelle: "La Villa, privatisable" },
     { href: "/hotel-seminaire-toulon", libelle: "Séminaires & groupes" },
-    { href: "/rooftop-les-voiles", libelle: "Le Rooftop" },
     { href: "/ou-dormir-a-toulon", libelle: "Où dormir à Toulon" },
-    { href: "/journal", libelle: "Le Journal" },
   ],
   en: [
     { href: "/en/seafront-hotel-toulon", libelle: "Seafront hotel" },
     { href: "/en/mourillon-beach-hotels", libelle: "Mourillon beach hotels" },
     { href: "/en/villa-les-voiles-toulon", libelle: "The Villa, exclusive use" },
     { href: "/en/toulon-business-hotel", libelle: "Business & groups" },
-    { href: "/rooftop-les-voiles", libelle: "The Rooftop" },
     { href: "/en/where-to-stay-in-toulon", libelle: "Where to stay in Toulon" },
   ],
 };
