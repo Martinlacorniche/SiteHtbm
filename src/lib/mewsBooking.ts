@@ -234,3 +234,110 @@ export async function chargerCategories(langue: Langue): Promise<Map<string, Cat
     surface: surfaceDe(t(c.Descriptions ?? c.Description, langue)),
   }]));
 }
+
+/* ------------------------------------------------------------- prise de résa */
+
+/* Écrire la réservation dans le PMS de l'hôtel.
+ *
+ * Contrat relevé dans la doc Mews le 25/08/2026 — ne pas re-deviner ces noms.
+ * `Customer` exige Email, FirstName, LastName ; chaque réservation exige
+ * RoomCategoryId, StartUtc, EndUtc, RateId, AdultCount, ChildCount.
+ *
+ * `CreditCardData.PaymentGatewayData` est le `transactionId` rendu par PciProxy
+ * DANS LE NAVIGATEUR : la carte ne transite jamais par nous, c'est tout l'intérêt
+ * de passer par la Booking Engine plutôt que par le Connector. Les trois champs
+ * de l'objet sont requis dès qu'on le fournit. ⚠️ Le jeton vaut 30 minutes.
+ *
+ * Les règles d'encaissement (préautorisation ou débit) sont portées par les rate
+ * groups et s'exécutent côté Mews : rien à décider ici.
+ */
+export type ClientResa = {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone?: string;
+};
+
+export type Carte = {
+  /** `transactionId` PciProxy. */
+  jeton: string;
+  /** 'AAAA-MM'. */
+  expiration: string;
+  porteur: string;
+};
+
+export type LigneResa = {
+  categorieId: string;
+  tarifId: string;
+  /** Dates civiles 'YYYY-MM-DD'. */
+  arrivee: string;
+  depart: string;
+  adultes: number;
+  /** Le mot du client à l'hôtel, et la table du rooftop s'il y en a une. */
+  notes?: string;
+};
+
+export type ResaCreee = {
+  /** Sert de clé à la page de gestion : `reservationGroups/get` le relit. */
+  groupeId: string;
+  numeros: string[];
+};
+
+type ReponseCreate = {
+  ReservationGroupId?: string;
+  Id?: string;
+  Reservations?: { Id?: string; Number?: string; ConfirmationNumber?: string }[];
+};
+
+export async function creerReservation(
+  { client, lignes, carte, langue }:
+  { client: ClientResa; lignes: LigneResa[]; carte?: Carte; langue: Langue },
+): Promise<ResaCreee> {
+  const j = await appel<ReponseCreate>('reservationGroups/create', {
+    HotelId: HOTEL_ID,
+    ConfigurationId: CONFIGURATION_ID,
+    Customer: {
+      Email: client.email.trim(),
+      FirstName: client.prenom.trim(),
+      LastName: client.nom.trim(),
+      Telephone: client.telephone?.trim() || '',
+      SendMarketingEmails: false,
+    },
+    Reservations: lignes.map((l) => ({
+      RoomCategoryId: l.categorieId,
+      RateId: l.tarifId,
+      // Mews attend des instants UTC. L'hôtel est en Europe/Paris et raisonne en
+      // nuits : minuit UTC est la convention de `hotels/getAvailability`, on la
+      // garde pour que la recherche et l'écriture parlent des mêmes journées.
+      StartUtc: `${l.arrivee}T00:00:00Z`,
+      EndUtc: `${l.depart}T00:00:00Z`,
+      AdultCount: l.adultes,
+      ChildCount: 0,
+      ...(l.notes ? { Notes: l.notes } : {}),
+    })),
+    ...(carte ? {
+      CreditCardData: {
+        PaymentGatewayData: carte.jeton,
+        Expiration: carte.expiration,
+        HolderName: carte.porteur,
+      },
+    } : {}),
+  }, langue);
+
+  return {
+    groupeId: j.ReservationGroupId ?? j.Id ?? '',
+    numeros: (j.Reservations ?? [])
+      .map((r) => r.ConfirmationNumber ?? r.Number ?? r.Id ?? '')
+      .filter(Boolean),
+  };
+}
+
+/** Relit une réservation pour la page de gestion. La Booking Engine sait la
+ *  MONTRER ; annuler, modifier ou annoter passent par le Connector (404 ici). */
+export async function relireReservation(groupeId: string, langue: Langue): Promise<unknown> {
+  return appel('reservationGroups/get', {
+    HotelId: HOTEL_ID,
+    ConfigurationId: CONFIGURATION_ID,
+    ReservationGroupId: groupeId,
+  }, langue);
+}
