@@ -1765,14 +1765,21 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               </li>
               <li>{T.confiance}</li>
             </ul>
-            <button
-              type="button"
-              disabled
-              className="w-full cursor-not-allowed rounded-full bg-[#ddd8ce] px-6 py-3.5 text-[16px] font-bold text-[#9a9a95]"
-            >
-              {T.payer}
-            </button>
-            <p className="mt-2 text-[12px] leading-relaxed text-[#a8571f]">{T.paiementAVenir}</p>
+            {/* Le bouton n'existe QUE si un tarif est retenu : un bouton de
+                paiement sans rien a payer designe une action impossible, et
+                c'est le seul or de cette colonne — il doit dire ou l'on va. */}
+            {choix && (
+              <>
+                <button
+                  type="button"
+                  disabled
+                  className="w-full cursor-not-allowed rounded-full bg-[#ddd8ce] px-6 py-3.5 text-[16px] font-bold text-[#9a9a95]"
+                >
+                  {T.payer}
+                </button>
+                <p className="mt-2 text-[12px] leading-relaxed text-[#a8571f]">{T.paiementAVenir}</p>
+              </>
+            )}
             <p className="mt-3 border-t border-[#f0ece4] pt-3 text-[13px] text-[#6b7a82]">
               {T.aideAvant}{" "}
               <a href={`tel:${TELEPHONE.en.replace(/\s/g, "")}`} className="whitespace-nowrap font-semibold text-navy underline underline-offset-4 hover:text-gold-ink">

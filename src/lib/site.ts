@@ -208,7 +208,7 @@ export type Recit = {
   /** Ce que le séjour comprend, au dos de la carte. `absent` marque ce que
    *  l'hôtel n'a PAS : le dire ici vaut mieux que le laisser découvrir.
    *
-   *  Huit lignes, pas onze : la face de la carte ne défile pas, et trois entrées
+   *  Neuf lignes, pas onze : la face de la carte ne défile pas, et trois entrées
    *  faisaient doublon — le rooftop est dans le récit, la chambre PMR dans la
    *  description de la Confort, et « non-fumeur » est la loi depuis 2007. */
   compris: { titre: string; items: { texte: string; absent?: boolean }[] };
@@ -242,6 +242,7 @@ export const RECIT: Record<Hotel, Record<Locale, Recit | null>> = {
           { texte: "TV écran plat" },
           { texte: "Salle de bain privative" },
           { texte: "Cuisine en libre-service" },
+          { texte: "Thé & café à volonté dans les communs" },
           { texte: "Stationnement facile" },
           { texte: "Pas de minibar", absent: true },
         ],
@@ -276,6 +277,7 @@ export const RECIT: Record<Hotel, Record<Locale, Recit | null>> = {
           { texte: "Flat-screen TV" },
           { texte: "Private bathroom" },
           { texte: "Self-service kitchen" },
+          { texte: "Free tea & coffee in the common areas" },
           { texte: "Easy street parking" },
           { texte: "No minibar", absent: true },
         ],
