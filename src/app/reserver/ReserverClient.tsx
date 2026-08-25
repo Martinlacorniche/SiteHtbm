@@ -1302,7 +1302,23 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             <div className="grid grid-cols-2 gap-2">
               {(["seul", "deux"] as const).map((v) => (
                 <button
-                  key={v} type="button" onClick={() => setVoyage(v)}
+                  key={v} type="button"
+                  /* Choisir l'occupation RELANCE la recherche.
+                     Sans cela, `dispo` restait celui de l'occupation
+                     precedente pendant que le filtre `pourPersonnes >= adultes`
+                     employait deja la nouvelle : a une personne, toutes les
+                     offres portent `pourPersonnes: 1`, le filtre `>= 2` les
+                     jetait toutes, et l'ecran annoncait « Aucune chambre
+                     disponible a ces dates » — un hotel complet, alors qu'il
+                     manquait seulement un clic sur « Mettre a jour les prix ».
+                     Un mensonge, et le plus cher qu'une page de reservation
+                     puisse dire. */
+                  onClick={() => {
+                    if (voyage === v) return;
+                    pulse();
+                    setVoyage(v);
+                    void lancer({ arrivee, depart, adultes: v === "seul" ? 1 : 2 });
+                  }}
                   aria-pressed={voyage === v}
                   className={[
                     "rounded-xl border px-2 py-2.5 text-[14px] font-semibold transition-colors lg:py-3",
@@ -1356,7 +1372,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               <p className="max-w-sm text-[15px] leading-relaxed text-[#8a9299]">{T.attenteOffres}</p>
             )}
 
-            {dispo && !erreur && offresAffichees.length === 0 && (
+            {dispo && !erreur && !chargement && aJour && offresAffichees.length === 0 && (
               <div>
                 <p className="font-serif text-2xl text-navy">{T.aucune}</p>
                 <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[#6b7a82]">{T.aucuneAide}</p>
