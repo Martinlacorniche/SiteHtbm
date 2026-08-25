@@ -185,7 +185,7 @@ export const PRIVILEGES: Record<Hotel, Record<Locale, Privilege[]>> = {
  * Un tunnel qui ne montre que des prix vend une nuit ; il ne donne pas envie de
  * celle-ci plutôt que d'une autre. Trois phrases, pas trois paragraphes, et
  * chacune tient un fait déjà écrit ailleurs sur le site : le quartier calme des
- * hauteurs du Mourillon, le rooftop du 6ᵉ (le seul de Toulon ouvert sur la
+ * hauteurs du Mourillon, le rooftop du 4ᵉ (le seul de Toulon ouvert sur la
  * rade), les plages en bas de la colline. Rien d'inventé, rien de vantard.
  *
  * ── `arrivee` : la contrainte dite avant qu'elle ne se découvre ─────────────
@@ -222,15 +222,15 @@ export const RECIT: Record<Hotel, Record<Locale, Recit | null>> = {
     fr: {
       titre: "L'hôtel",
       photo: "/images/rooftop.jpg",
-      alt: "Le rooftop des Voiles, au 6ᵉ étage, face à la rade de Toulon",
+      alt: "Le rooftop des Voiles, au 4ᵉ étage, face à la rade de Toulon",
       lignes: [
-        "Une maison de trois étoiles sur les hauteurs du Mourillon, dans une rue où l'on dort vraiment : au 6ᵉ, le seul rooftop de Toulon ouvert sur la rade ; en bas de la colline, les plages.",
+        "Une maison de trois étoiles sur les hauteurs du Mourillon, dans une rue où l'on dort vraiment : au 4ᵉ, le seul rooftop de Toulon ouvert sur la rade ; en bas de la colline, les plages.",
       ],
       arrivee: {
         titre: "Votre arrivée",
         lignes: [
-          "Arrivée à partir de 15\u202Fh, et autonome à toute heure : personne à attendre, aucun horaire à tenir.",
-          "L'après-midi, l'équipe est au rooftop du 6ᵉ. Si le comptoir est vide, montez — on vous accueille face à la rade.",
+          "Arrivée autonome à partir de 15\u202Fh, à l'heure qui vous arrange : personne à attendre, aucun horaire à tenir.",
+          "L'après-midi, l'équipe est au rooftop du 4ᵉ. Si le comptoir est vide, montez — on vous accueille face à la rade.",
         ],
       },
       compris: {
@@ -247,7 +247,7 @@ export const RECIT: Record<Hotel, Record<Locale, Recit | null>> = {
         ],
       },
       communs: [
-        { src: "/images/rooftop.jpg", alt: "Le rooftop du 6ᵉ étage au coucher du soleil, guirlandes et vue sur la rade" },
+        { src: "/images/rooftop.jpg", alt: "Le rooftop du 4ᵉ étage au coucher du soleil, guirlandes et vue sur la rade" },
         { src: "/images/popuproof.jpg", alt: "Un cocktail sur la table du rooftop, la rade de Toulon en arrière-plan" },
         // Hébergée par Mews (`Enterprise.IntroImageId`) : la façade et l'oriflamme.
         { src: "https://cdn.mews.com/Media/Image/771bbef8-83fd-43ea-843d-ae4c00779428?w=1400", alt: "La façade de l'hôtel, rue Gubler, et l'oriflamme Les Voiles" },
@@ -256,15 +256,15 @@ export const RECIT: Record<Hotel, Record<Locale, Recit | null>> = {
     en: {
       titre: "The hotel",
       photo: "/images/rooftop.jpg",
-      alt: "The rooftop at Les Voiles, sixth floor, facing the bay of Toulon",
+      alt: "The rooftop at Les Voiles, fourth floor, facing the bay of Toulon",
       lignes: [
-        "A three-star house up on the Mourillon heights, in a street where you actually sleep: on the sixth floor, the only rooftop in Toulon open onto the bay; down the hill, the beaches.",
+        "A three-star house up on the Mourillon heights, in a street where you actually sleep: on the fourth floor, the only rooftop in Toulon open onto the bay; down the hill, the beaches.",
       ],
       arrivee: {
         titre: "Your arrival",
         lignes: [
-          "Check-in from 3 pm, and self check-in at any hour: nobody to queue for, no schedule to keep.",
-          "In the afternoon the team is up at the sixth-floor rooftop. If the desk is empty, come up — we welcome you facing the bay.",
+          "Self check-in from 3 pm, whenever suits you: nobody to queue for, no schedule to keep.",
+          "In the afternoon the team is up at the fourth-floor rooftop. If the desk is empty, come up — we welcome you facing the bay.",
         ],
       },
       compris: {
@@ -281,7 +281,7 @@ export const RECIT: Record<Hotel, Record<Locale, Recit | null>> = {
         ],
       },
       communs: [
-        { src: "/images/rooftop.jpg", alt: "The sixth-floor rooftop at sunset, string lights and a view over the bay" },
+        { src: "/images/rooftop.jpg", alt: "The fourth-floor rooftop at sunset, string lights and a view over the bay" },
         { src: "/images/popuproof.jpg", alt: "A cocktail on the rooftop table, the bay of Toulon behind" },
         { src: "https://cdn.mews.com/Media/Image/771bbef8-83fd-43ea-843d-ae4c00779428?w=1400", alt: "The hotel front on rue Gubler, with the Les Voiles banner" },
       ],
