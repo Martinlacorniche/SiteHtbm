@@ -603,6 +603,19 @@ function Maison({
     </button>
   );
 
+  const retour = (
+    <button
+      type="button"
+      onClick={() => setDos(false)}
+      className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#e3e0d9] px-4 py-2.5 text-[14px] font-semibold text-navy transition-colors hover:border-gold hover:bg-[#faf7f1]"
+    >
+      <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 5l-7 7 7 7" />
+      </svg>
+      {T.retour}
+    </button>
+  );
+
   const arrivee = (
     <div className="shrink-0">
       <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
@@ -614,15 +627,25 @@ function Maison({
     </div>
   );
 
-  const photo = recit.communs.length > 0 && (
+  /* La photo des communs, porte d'entree de la galerie.
+   *
+   * Sur PC elle prend la place qui reste au bas de la colonne (`flex-1`) ; sur
+   * telephone la colonne n'a pas de hauteur a distribuer, et un `flex-1` dans
+   * un flux normal se resout a la hauteur minimale — la photo tombait a 110 px
+   * de haut. On lui donne donc un rapport de 16/9 sous `lg`, et la place
+   * restante au-dela. */
+  const photo = (enColonne: boolean) => recit.communs.length > 0 && (
     <button
       type="button"
       onClick={onGalerie}
       aria-label={T.galerieOuvrir(recit.communs.length)}
-      className="group relative mt-4 min-h-[110px] w-full flex-1 overflow-hidden rounded-xl bg-[#f0ece4]"
+      className={[
+        "group relative mt-4 w-full overflow-hidden rounded-xl bg-[#f0ece4]",
+        enColonne ? "min-h-[110px] flex-1" : "aspect-[16/9]",
+      ].join(" ")}
     >
       <Image
-        src={recit.communs[0].src} alt={recit.communs[0].alt} fill sizes="340px"
+        src={recit.communs[0].src} alt={recit.communs[0].alt} fill sizes="(min-width: 1024px) 340px, 100vw"
         className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
       />
       <span className="absolute bottom-2 left-2 rounded-full bg-navy-deep/80 px-2.5 py-1 text-[11px] font-semibold text-cream backdrop-blur-sm">
@@ -631,33 +654,101 @@ function Maison({
     </button>
   );
 
+  /* Les trois phrases de la maison, et la liste de ce que le sejour comprend.
+   * Deux choses distinctes : sur PC elles partagent le dos de la carte, faute
+   * de place ailleurs ; sur telephone le recit se lit a decouvert et seule la
+   * liste se replie — elle etait cachee derriere un bouton « Ce qui est
+   * compris » qui n'annoncait pas l'histoire qu'il contenait. */
+  const histoire = (
+    <div className="shrink-0 space-y-1.5 text-[12.5px] leading-relaxed text-[#4a5a63]">
+      {recit.lignes.map((l) => <p key={l}>{l}</p>)}
+    </div>
+  );
+
+  /* Deux colonnes : onze lignes empilees ne tenaient pas dans la face, et
+     on avait retire le defilement precisement pour ca. */
+  const inclus = (
+    <ul className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-1 text-[12.5px] leading-snug text-[#4a5a63]">
+      {recit.compris.items.map((i) => (
+        <li key={i.texte} className="flex items-start gap-1.5">
+          <span aria-hidden className={i.absent ? "text-[#b0b6ba]" : "text-gold-ink"}>
+            {i.absent ? "—" : "✓"}
+          </span>
+          <span className={i.absent ? "text-[#8a9299]" : ""}>{i.texte}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
   const compris = (
     <>
-      <div className="shrink-0 space-y-1.5 text-[12.5px] leading-relaxed text-[#4a5a63]">
-        {recit.lignes.map((l) => <p key={l}>{l}</p>)}
-      </div>
-      {/* Deux colonnes : onze lignes empilees ne tenaient pas dans la face, et
-          on avait retire le defilement precisement pour ca. */}
-      <ul className="mt-2.5 grid shrink-0 grid-cols-2 gap-x-3 gap-y-1 border-t border-[#f0ece4] pt-2.5 text-[12.5px] leading-snug text-[#4a5a63]">
-        {recit.compris.items.map((i) => (
-          <li key={i.texte} className="flex items-start gap-1.5">
-            <span aria-hidden className={i.absent ? "text-[#b0b6ba]" : "text-gold-ink"}>
-              {i.absent ? "—" : "✓"}
-            </span>
-            <span className={i.absent ? "text-[#8a9299]" : ""}>{i.texte}</span>
-          </li>
-        ))}
-      </ul>
+      {histoire}
+      <div className="mt-2.5 border-t border-[#f0ece4] pt-2.5">{inclus}</div>
     </>
   );
 
-  // ── Telephone : les colonnes sont empilees, il y a la place. On deroule. ──
+  /* ── Telephone : la meme carte, qui se retourne elle aussi ─────────────────
+   *
+   * Ce bloc ne portait que l'arrivee et un bouton « Ce qui est compris ». Le
+   * reste de la maison — la photo du rooftop, les trois phrases, la galerie des
+   * communs — n'existait que sur PC : sur telephone, l'ecran ne decrivait
+   * jamais l'hotel, et la seule porte vers les photos des communs etait dans la
+   * colonne masquee. Or c'est le telephone qui reserve.
+   *
+   * Le depliage en accordeon a laisse la place a la bascule du PC : c'est le
+   * meme carton, il se retourne pareil sur les deux ecrans. Devant, ce qu'on
+   * achete (le nom, la photo, l'histoire) puis comment on y entre ; derriere,
+   * le detail de ce qui est compris.
+   *
+   * Les faces se superposent en GRILLE, pas en `absolute` comme sur PC : ici la
+   * colonne n'a pas de hauteur a distribuer, et `absolute inset-0` dans un flux
+   * normal se resout a zero — la carte disparaissait. Meme cellule de grille
+   * pour les deux faces : la boite prend la hauteur de la plus haute, et rien
+   * ne saute quand on la retourne. */
   if (!surPC) {
     return (
-      <div className="mt-6 flex flex-col border-t border-[#f0ece4] pt-5 lg:hidden">
-        {arrivee}
-        <div className="mt-4">{bouton(!dos)}</div>
-        {dos && <div className="mt-3">{compris}</div>}
+      <div className="mt-6 border-t border-[#f0ece4] pt-5 lg:hidden">
+        {/* La photo et le titre ne tournent pas : ce sont eux, la carte. Faire
+            pivoter le bloc entier laissait le dos — huit lignes — sous une face
+            haute d'une photo et de trois paragraphes, donc un trou de deux cent
+            cinquante pixels sous la liste. Seul le texte se retourne, et le
+            rooftop reste a l'ecran des deux cotes. */}
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
+          {recit.titre}
+        </h2>
+        {photo(false)}
+
+        <div className="mt-3 [perspective:1200px]">
+          <div
+            className={[
+              "grid transition-transform duration-700 ease-in-out [transform-style:preserve-3d]",
+              dos ? "[transform:rotateY(180deg)]" : "",
+            ].join(" ")}
+          >
+            <div
+              inert={dos}
+              className="col-start-1 row-start-1 flex flex-col [backface-visibility:hidden]"
+            >
+              {histoire}
+              <div className="mt-5">{arrivee}</div>
+            </div>
+
+            <div
+              inert={!dos}
+              className="col-start-1 row-start-1 flex flex-col [backface-visibility:hidden] [transform:rotateY(180deg)]"
+            >
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
+                {recit.compris.titre}
+              </h2>
+              <div className="mt-3">{inclus}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Un seul bouton, toujours au meme endroit : il ouvre, puis il ferme.
+            Deux boutons — un par face — auraient chacun bouge avec la hauteur
+            de leur face, et la commande aurait saute d'un cote a l'autre. */}
+        <div className="mt-4">{dos ? retour : bouton(true)}</div>
       </div>
     );
   }
@@ -679,34 +770,23 @@ function Maison({
         ].join(" ")}
       >
         <div
-          aria-hidden={dos}
+          inert={dos}
           className="absolute inset-0 flex flex-col [backface-visibility:hidden]"
         >
           {arrivee}
-          {photo}
+          {photo(true)}
           <div className="mt-4">{bouton(true)}</div>
         </div>
 
         <div
-          aria-hidden={!dos}
+          inert={!dos}
           className="absolute inset-0 flex flex-col [backface-visibility:hidden] [transform:rotateY(180deg)]"
         >
           <h2 className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
             {recit.compris.titre}
           </h2>
           <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-y-auto">{compris}</div>
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={() => setDos(false)}
-              className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#e3e0d9] px-4 py-2.5 text-[14px] font-semibold text-navy transition-colors hover:border-gold hover:bg-[#faf7f1]"
-            >
-              <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 5l-7 7 7 7" />
-              </svg>
-              {T.retour}
-            </button>
-          </div>
+          <div className="mt-3">{retour}</div>
         </div>
       </div>
     </div>
@@ -759,6 +839,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   const zoneOffres = useRef<HTMLElement | null>(null);
   const zoneRecap = useRef<HTMLElement | null>(null);
   const defilerApres = useRef(false);
+  // La barre collante du telephone se tait quand le recapitulatif est a l'ecran.
+  const [recapVisible, setRecapVisible] = useState(false);
   // Le calendrier ne s'ouvre qu'a la demande, sur telephone comme sur PC. Pose
   // dans la page, il mangeait 700 px de la colonne de gauche pour une date deja
   // choisie — de la place prise a ce que le client est venu voir.
@@ -822,6 +904,24 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     if (window.matchMedia("(min-width: 1024px)").matches) return;
     zoneOffres.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [chargement, dispo, erreur]);
+
+  /* La barre collante annonce le total et propose d'aller le voir. Arrivé au
+   * récapitulatif, elle répétait mot pour mot le bloc juste au-dessus d'elle —
+   * même nom de chambre, même montant — et son bouton menait à ce qu'on avait
+   * déjà sous les yeux. Elle s'efface dès que le récapitulatif entre à l'écran.
+   *
+   * Le seuil est bas (10 %) : c'est l'entrée du bloc qui compte, pas sa lecture
+   * complète — il fait plus d'un écran de haut sur téléphone. */
+  useEffect(() => {
+    const cible = zoneRecap.current;
+    if (!cible) return;
+    const oeil = new IntersectionObserver(
+      ([e]) => setRecapVisible(e.isIntersecting),
+      { threshold: 0.1 },
+    );
+    oeil.observe(cible);
+    return () => oeil.disconnect();
+  }, []);
 
   // Une recherche est partageable : /reserver?arrivee=…&depart=…&voyage=deux
   // renvoie exactement le même écran. Sert aux liens de la page d'accueil, au
@@ -973,9 +1073,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             </ul>
             {PRIVILEGES.voiles[langue].some((p) => !p.exclusif) && (
               <>
-                {/* Le trait reste visible sur telephone : sans lui, le
-                    petit-dejeuner passe a la ligne et se lit comme une exclu. */}
-                <span aria-hidden className="h-4 w-px bg-navy-deep/30" />
+                {/* Le trait separe les exclus du reste tant que tout tient sur
+                    une ligne. A 390 px le bandeau passe a la ligne de toute
+                    facon : le trait se retrouvait alors seul en bout de premiere
+                    ligne, a separer du vide. Le retour a la ligne separe deja,
+                    et la graisse plus legere du petit-dejeuner acheve de le
+                    distinguer — on retire le trait plutot qu'un orphelin. */}
+                <span aria-hidden className="hidden h-4 w-px bg-navy-deep/30 sm:block" />
                 <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 font-semibold text-navy-deep/75 sm:gap-x-5">
                   {PRIVILEGES.voiles[langue].filter((p) => !p.exclusif).map((p) => (
                     <li key={p.texte}>{p.texte}</li>
@@ -1477,8 +1581,17 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
       {/* Mobile : le total suit le client. Le recapitulatif est la troisieme
           colonne — sur telephone elle arrive apres toute la liste des chambres,
-          donc hors de vue au moment ou l'on choisit. */}
-      {choix && (
+          donc hors de vue au moment ou l'on choisit.
+
+          Elle se retire dans trois cas. Quand le recapitulatif est a l'ecran :
+          elle y repetait mot pour mot le bloc juste au-dessus. Quand le
+          calendrier est ouvert : il descend jusqu'au bas de l'ecran, la barre
+          lui mangeait ses derniers jours, et on choisit des dates a ce
+          moment-la — pas un total. Et quand une galerie est ouverte : la
+          surcouche ne couvre le fond qu'a 90 %, la barre transparaissait au
+          bas d'une photo plein ecran avec un bouton qu'on ne pouvait pas
+          atteindre. */}
+      {choix && !recapVisible && !calendrierOuvert && !galerie && (
         <div className="sticky bottom-0 z-30 border-t border-[#e3e0d9] bg-white/95 px-5 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between gap-4">
             <span className="min-w-0">
