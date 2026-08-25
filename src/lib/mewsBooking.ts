@@ -22,7 +22,7 @@ const BASE = 'https://api.mews.com/api/distributor/v1';
 
 export const CLIENT = 'HTBM Booking Engine 1.0.0';
 export const CONFIGURATION_ID = 'c8eb4251-a965-458e-932e-aaa900872f96';
-export const HOTEL_ID = '0a876d46-7b1a-4164-aafa-aaa90086e8bf'; // Hôtel Les Voiles
+export const HOTEL_ID = '0a876d46-7b1a-4164-aafa-aaa90086e8bf'; // Hôtel-Rooftop Les Voiles
 
 export type Langue = 'fr' | 'en';
 const CULTURE: Record<Langue, string> = { fr: 'fr-FR', en: 'en-GB' };
@@ -156,11 +156,41 @@ export async function chercherDisponibilite(
 
 /* ------------------------------------------------------------- configuration */
 
-type Categorie = { Id: string; Names?: Traduit; Name?: Traduit; ImageIds?: string[] };
+type Categorie = {
+  Id: string;
+  Names?: Traduit;
+  Name?: Traduit;
+  Descriptions?: Traduit;
+  Description?: Traduit;
+  ImageIds?: string[];
+  NormalBedCount?: number;
+};
 type ReponseConfig = { Services?: { Id: string; Names?: Traduit }[]; ImageBaseUrl?: string };
 
-/** Nom et photos d'une catégorie de chambre. */
-export type CategorieChambre = { nom: string; images: string[] };
+/** Ce que Mews sait d'une catégorie de chambre, et que l'écran peut montrer. */
+export type CategorieChambre = {
+  nom: string;
+  /** Le nom tel que Mews le porte en francais. Sert a savoir si `nom` est une
+   *  vraie traduction ou le repli francais — voir `NOM_ANGLAIS` cote ecran. */
+  nomFr: string;
+  images: string[];
+  /** Combien de personnes y dorment — `NormalBedCount` de la configuration. */
+  couchages: number | null;
+  /** Surface en m², extraite de la description libre. Nulle si l'hôtel ne l'y a
+   *  pas écrite : mieux vaut ne rien dire qu'annoncer une surface fausse. */
+  surface: number | null;
+};
+
+/* La surface vit dans la description libre de la catégorie, pas dans un champ.
+ * L'hôtel l'écrit à sa façon — « Chambre de 11m2 avec balcon », « Chambre
+ * d'environ 14 m2 », « around 19m2 ». On la lit, on ne la recopie pas : le jour
+ * où l'hôtel corrige une surface dans son back-office, l'écran suit. */
+export const surfaceDe = (description: string): number | null => {
+  const m = description.match(/(\d{1,3})\s*(?:m2|m²)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return n >= 5 && n <= 200 ? n : null;
+};
 
 /**
  * L'URL d'une photo hébergée par Mews, à la largeur demandée.
@@ -198,6 +228,9 @@ export async function chargerCategories(langue: Langue): Promise<Map<string, Cat
   const cats = trouver(j) ?? [];
   return new Map(cats.map((c) => [c.Id, {
     nom: t(c.Names ?? c.Name, langue),
+    nomFr: t(c.Names ?? c.Name, 'fr'),
     images: c.ImageIds ?? [],
+    couchages: typeof c.NormalBedCount === 'number' ? c.NormalBedCount : null,
+    surface: surfaceDe(t(c.Descriptions ?? c.Description, langue)),
   }]));
 }

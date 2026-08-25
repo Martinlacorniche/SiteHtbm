@@ -126,7 +126,7 @@ export const ETABLISSEMENTS = [
   },
   {
     hotel: "voiles" as Hotel,
-    nom: "Hôtel Les Voiles",
+    nom: "Hôtel-Rooftop Les Voiles",
     etoiles: 3,
     adresse: "124 rue Gubler, 83000 Toulon",
     telephone: "04 94 41 36 23",
@@ -153,11 +153,139 @@ export const RESEAUX = {
  * inclus » l'est (les deux tarifs Mews des Voiles le portent), « meilleur prix
  * garanti » ne l'est pas tant que la parite n'est pas arbitree.
  */
-export const PRIVILEGES: Record<Hotel, Record<Locale, string[]>> = {
+/* Un privilège porte son texte et, éventuellement, le fait qu'on ne l'obtienne
+ * QUE par le tunnel direct — c'est cette exclusivité qui se vend, pas la liste.
+ * « En direct, sans intermédiaire » n'y figure plus : ce n'est pas un avantage
+ * pour le client, c'est notre intérêt à nous. Il reste dit, une fois, au-dessus
+ * du bouton de paiement. */
+export type Privilege = { texte: string; exclusif?: boolean };
+
+export const PRIVILEGES: Record<Hotel, Record<Locale, Privilege[]>> = {
   voiles: {
-    fr: ["Départ 12 h offert", "Petit-déjeuner inclus", "En direct, sans intermédiaire"],
-    en: ["Noon check-out, on us", "Breakfast included", "Direct, no middleman"],
+    fr: [
+      // ⚠️ Le −10 % n'est vrai que lorsque les deux tarifs dérivés sont actifs
+      // dans Mews sur la configuration du moteur direct. Tant qu'ils ne le sont
+      // pas, cette ligne promet une remise que la page n'applique pas :
+      // retirer l'entrée, ou créer les tarifs. Voir [[project_mews_prise_resa]].
+      { texte: "−10 % sur le tarif public", exclusif: true },
+      { texte: "Départ 12 h offert", exclusif: true },
+      { texte: "Petit-déjeuner inclus" },
+    ],
+    en: [
+      { texte: "10% off the public rate", exclusif: true },
+      { texte: "Noon check-out, on us", exclusif: true },
+      { texte: "Breakfast included" },
+    ],
   },
   // La Corniche reste chez D-EDGE : pas de tunnel maison, donc pas de bandeau.
   corniche: { fr: [], en: [] },
+};
+
+/* ─────────────────────────────── Le récit de l'hôtel ────────────────────────
+ * Un tunnel qui ne montre que des prix vend une nuit ; il ne donne pas envie de
+ * celle-ci plutôt que d'une autre. Trois phrases, pas trois paragraphes, et
+ * chacune tient un fait déjà écrit ailleurs sur le site : le quartier calme des
+ * hauteurs du Mourillon, le rooftop du 6ᵉ (le seul de Toulon ouvert sur la
+ * rade), les plages en bas de la colline. Rien d'inventé, rien de vantard.
+ *
+ * ── `arrivee` : la contrainte dite avant qu'elle ne se découvre ─────────────
+ * Le comptoir est tenu de 6 h 30 à 13 h 30 et de 14 h 30 à 22 h, et l'après-midi
+ * l'équipe est au rooftop : un client qui arrive à 15 h trouve un hall vide et
+ * ne sait pas quoi en penser. Une contrainte d'effectif découverte sur place se
+ * paie en avis ; annoncée d'avance, et rattachée à ce qu'elle permet vraiment
+ * (entrer à l'heure qu'on veut, être accueilli face à la rade plutôt qu'à un
+ * comptoir), elle cesse d'être un manque.
+ *
+ * ⚠️ « Montez au rooftop » engage l'hôtel : à confirmer par Martin avant mise
+ * en ligne — c'est la seule ligne d'ici qui décrive un geste d'accueil plutôt
+ * qu'un fait vérifiable.
+ */
+export type Recit = {
+  titre: string; photo: string; alt: string; lignes: string[];
+  /** Comment on arrive. Voir le commentaire de `RECIT` : c'est la contrainte
+   *  d'effectif de l'hôtel, dite avant qu'elle ne se découvre sur place. */
+  arrivee: { titre: string; lignes: string[] };
+  /** Ce que le séjour comprend, au dos de la carte. `absent` marque ce que
+   *  l'hôtel n'a PAS : le dire ici vaut mieux que le laisser découvrir.
+   *
+   *  Huit lignes, pas onze : la face de la carte ne défile pas, et trois entrées
+   *  faisaient doublon — le rooftop est dans le récit, la chambre PMR dans la
+   *  description de la Confort, et « non-fumeur » est la loi depuis 2007. */
+  compris: { titre: string; items: { texte: string; absent?: boolean }[] };
+  /** Les communs, en galerie. `src` accepte une image du dépôt (`/images/…`)
+   *  comme une image hébergée par Mews : ajouter une photo = ajouter une ligne. */
+  communs: { src: string; alt: string }[];
+};
+
+export const RECIT: Record<Hotel, Record<Locale, Recit | null>> = {
+  voiles: {
+    fr: {
+      titre: "L'hôtel",
+      photo: "/images/rooftop.jpg",
+      alt: "Le rooftop des Voiles, au 6ᵉ étage, face à la rade de Toulon",
+      lignes: [
+        "Une maison de trois étoiles sur les hauteurs du Mourillon, dans une rue où l'on dort vraiment : au 6ᵉ, le seul rooftop de Toulon ouvert sur la rade ; en bas de la colline, les plages.",
+      ],
+      arrivee: {
+        titre: "Votre arrivée",
+        lignes: [
+          "Arrivée à partir de 15\u202Fh, et autonome à toute heure : personne à attendre, aucun horaire à tenir.",
+          "L'après-midi, l'équipe est au rooftop du 6ᵉ. Si le comptoir est vide, montez — on vous accueille face à la rade.",
+        ],
+      },
+      compris: {
+        titre: "Ce qui est compris",
+        items: [
+          { texte: "Petit-déjeuner inclus" },
+          { texte: "Wi-Fi gratuit" },
+          { texte: "Climatisation" },
+          { texte: "TV écran plat" },
+          { texte: "Salle de bain privative" },
+          { texte: "Cuisine en libre-service" },
+          { texte: "Stationnement facile" },
+          { texte: "Pas de minibar", absent: true },
+        ],
+      },
+      communs: [
+        { src: "/images/rooftop.jpg", alt: "Le rooftop du 6ᵉ étage au coucher du soleil, guirlandes et vue sur la rade" },
+        { src: "/images/popuproof.jpg", alt: "Un cocktail sur la table du rooftop, la rade de Toulon en arrière-plan" },
+        // Hébergée par Mews (`Enterprise.IntroImageId`) : la façade et l'oriflamme.
+        { src: "https://cdn.mews.com/Media/Image/771bbef8-83fd-43ea-843d-ae4c00779428?w=1400", alt: "La façade de l'hôtel, rue Gubler, et l'oriflamme Les Voiles" },
+      ],
+    },
+    en: {
+      titre: "The hotel",
+      photo: "/images/rooftop.jpg",
+      alt: "The rooftop at Les Voiles, sixth floor, facing the bay of Toulon",
+      lignes: [
+        "A three-star house up on the Mourillon heights, in a street where you actually sleep: on the sixth floor, the only rooftop in Toulon open onto the bay; down the hill, the beaches.",
+      ],
+      arrivee: {
+        titre: "Your arrival",
+        lignes: [
+          "Check-in from 3 pm, and self check-in at any hour: nobody to queue for, no schedule to keep.",
+          "In the afternoon the team is up at the sixth-floor rooftop. If the desk is empty, come up — we welcome you facing the bay.",
+        ],
+      },
+      compris: {
+        titre: "What's included",
+        items: [
+          { texte: "Breakfast included" },
+          { texte: "Free Wi-Fi" },
+          { texte: "Air conditioning" },
+          { texte: "Flat-screen TV" },
+          { texte: "Private bathroom" },
+          { texte: "Self-service kitchen" },
+          { texte: "Easy street parking" },
+          { texte: "No minibar", absent: true },
+        ],
+      },
+      communs: [
+        { src: "/images/rooftop.jpg", alt: "The sixth-floor rooftop at sunset, string lights and a view over the bay" },
+        { src: "/images/popuproof.jpg", alt: "A cocktail on the rooftop table, the bay of Toulon behind" },
+        { src: "https://cdn.mews.com/Media/Image/771bbef8-83fd-43ea-843d-ae4c00779428?w=1400", alt: "The hotel front on rue Gubler, with the Les Voiles banner" },
+      ],
+    },
+  },
+  corniche: { fr: null, en: null },
 };
