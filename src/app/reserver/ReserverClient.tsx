@@ -72,7 +72,6 @@ const TEXTES = {
     modifier: "Modifier",
     voirRecap: "Voir le récapitulatif",
     confiance: "Réservation en direct, auprès de l'hôtel lui-même.",
-    ecartChambre: (m: string, ref: string) => `+ ${m} par rapport à la ${ref}`,
     simplicite: "Volontairement simples : pas de minibar dans les chambres — mais une cuisine en libre-service pour vos repas, et le rooftop au 6ᵉ étage, face à la mer, pour l'apéro.",
     exclusif: "Exclu direct",
     majPrix: "Mettre à jour les prix",
@@ -125,7 +124,6 @@ const TEXTES = {
     modifier: "Change",
     voirRecap: "See the summary",
     confiance: "Booking direct, with the hotel itself.",
-    ecartChambre: (m: string, ref: string) => `+${m} compared with the ${ref}`,
     simplicite: "Deliberately simple: no minibar in the rooms — but a self-service kitchen for your meals, and the rooftop on the 6th floor, facing the sea, for a drink.",
     exclusif: "Direct only",
     majPrix: "Update prices",
@@ -150,8 +148,8 @@ const TEXTES = {
  * « 119,00 € » a la francaise a cote de « Save €10 » a l'anglaise : la page
  * anglaise melangeait deux conventions dans la meme carte. `Intl` sait ou va le
  * symbole et quel separateur decimal employer — fr-FR « 119,00 € », en-GB
- * « €119.00 ». `montant` pour un prix, `montantCourt` pour un ecart, qui
- * n'affiche ses centimes que s'il en a. */
+ * « €119.00 ». `montant` pour un prix, `montantCourt` pour un appoint — une
+ * economie, une taxe — qui n'affiche ses centimes que s'il en a. */
 const LOCALE: Record<Langue, string> = { fr: "fr-FR", en: "en-GB" };
 
 const montant = (n: number, langue: Langue) =>
@@ -1099,20 +1097,6 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     return { principales: tries, offresAffichees: tries };
   }, [dispo, adultes]);
 
-  /* L'ecart d'une chambre a la moins chere.
-   *
-   * « 150 € » ne dit rien tout seul ; « 25 € de plus que la confort » dit
-   * exactement ce que le client arbitre. Calcule sur les prix affiches, jamais
-   * saisi a la main : il suit les tarifs du jour. */
-  const reference = useMemo(() => {
-    let meilleur: { categorieId: string; total: number } | null = null;
-    for (const o of principales) {
-      const bas = Math.min(...o.prix.map((p) => p.total));
-      if (!meilleur || bas < meilleur.total) meilleur = { categorieId: o.categorieId, total: bas };
-    }
-    return meilleur;
-  }, [principales]);
-
   // Memorises : sans cela, `?? []` fabrique un tableau neuf a chaque rendu et
   // relance l'effet qui pose le choix par defaut a chaque passage.
   const tarifs = useMemo(() => dispo?.tarifs ?? [], [dispo]);
@@ -1127,8 +1111,9 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * contre le client. La carte correspondante s'allume dans la liste : c'est un
    * defaut visible, pas un choix fait a sa place. */
   useEffect(() => {
-    if (choix || !reference || !principales.length) return;
-    const offre = principales.find((o) => o.categorieId === reference.categorieId);
+    if (choix) return;
+    // `principales` est triee par prix croissant : la moins chere est en tete.
+    const offre = principales[0];
     if (!offre) return;
     // Le moins cher des flexibles : avec un tarif direct derive, Mews peut en
     // renvoyer deux, et `find` aurait attrape le tarif public au plein prix.
@@ -1139,7 +1124,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       categorieId: offre.categorieId, tarifId: p.tarifId,
       total: p.total, parNuit: p.parNuit, pourPersonnes: offre.pourPersonnes,
     });
-  }, [choix, reference, principales, tarifs, groupes]);
+  }, [choix, principales, tarifs, groupes]);
   // Annulation gratuite du tarif retenu — nulle si c'est un prepaye.
   const heureChoix = choix ? heureLimite(tarifs.find((r) => r.Id === choix.tarifId), langue) : null;
   /* Un seul nombre, et ce qu'il y a dedans.
@@ -1373,9 +1358,6 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   const cat = categories.get(o.categorieId);
                   const photo = couvertureDe(o.categorieId, cat, 480);
                   const nbPhotos = photosDe(o.categorieId, cat, "").length;
-                  const ecart = reference && reference.categorieId !== o.categorieId
-                    ? Math.min(...o.prix.map((p) => p.total)) - reference.total
-                    : 0;
 
                   return (
                   <li key={`${o.categorieId}-${o.pourPersonnes}`} className="flex flex-col gap-3 sm:flex-row sm:gap-4">
@@ -1472,9 +1454,12 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                         La liste portait quatre petites lignes par chambre —
                         stock, couchage, surface, description — soit douze lignes
                         de 13 px pour trois chambres. Ne reste visible que ce qui
-                        sert a choisir : le nom, l'ecart de prix, les tarifs. Le
-                        reste attend qu'on le demande. Le nombre de chambres
-                        restantes est parti : il ne fait pas choisir. */}
+                        sert a choisir : le nom et les tarifs. Le reste attend
+                        qu'on le demande. Sont partis avec : le nombre de
+                        chambres restantes, et l'ecart a la moins chere
+                        (« + 24 € par rapport a la Chambre Individuelle »,
+                        retire le 25/08/2026) — les prix sont l'un sous l'autre
+                        et se comparent tout seuls. */}
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                       <h3 className="font-serif text-2xl leading-tight text-navy">
                         {/* Le chevron gris seul ne se voyait pas : « j'ai plus
@@ -1512,14 +1497,6 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                           </span>
                         </button>
                       </h3>
-                      {ecart > 0 && (
-                        <span className="shrink-0 text-[12px] font-semibold text-gold-ink">
-                          {T.ecartChambre(
-                            montantCourt(ecart, langue),
-                            nomChambre(reference!.categorieId, categories.get(reference!.categorieId), langue),
-                          )}
-                        </span>
-                      )}
                     </div>
 
                     {/* Le depliage sous le nom est la reponse du grand ecran.
