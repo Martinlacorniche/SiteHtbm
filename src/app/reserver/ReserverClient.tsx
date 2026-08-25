@@ -415,7 +415,20 @@ const nomChambre = (
 type Prix = { tarifId: string; total: number; parNuit: number };
 type Carte = { prepaye: boolean; direct: Prix; public: Prix | null };
 
-const cartesDe = (prix: Prix[], tarifs: Tarif[], groupes: GroupeTarifaire[]): Carte[] => {
+const cartesDe = (
+  prix: Prix[],
+  tarifs: Tarif[],
+  groupes: GroupeTarifaire[],
+  /* ⚠️ Le prepaye ne se vend pas pour une arrivee du jour.
+   *
+   * Le flexible est annulable sans frais jusqu'a 18 h le jour d'arrivee. Passe
+   * ce cap — et pour une arrivee du jour on y est ou presque — les deux tarifs
+   * sont exactement le meme produit : une nuit qu'on ne peut plus annuler. Le
+   * prepaye ne rachetait alors plus aucun risque, il offrait simplement 10 € de
+   * moins pour une contrainte que le client subissait deja.
+   * Tranche par Martin le 25/08/2026. Seul le flexible reste affiche. */
+  sansPrepaye = false,
+): Carte[] => {
   const par = new Map<boolean, Prix[]>();
   for (const p of prix) {
     const cle = estPrepaye(tarifs.find((r) => r.Id === p.tarifId), groupes);
@@ -425,6 +438,7 @@ const cartesDe = (prix: Prix[], tarifs: Tarif[], groupes: GroupeTarifaire[]): Ca
   // Flexible d'abord : c'est celui qui rassure, et le prepaye se lit ensuite
   // comme une economie consentie contre un engagement.
   for (const prepaye of [false, true]) {
+    if (prepaye && sansPrepaye) continue;
     const lot = par.get(prepaye);
     if (!lot?.length) continue;
     const tries = [...lot].sort((a, b) => a.total - b.total);
@@ -1102,6 +1116,9 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   const tarifs = useMemo(() => dispo?.tarifs ?? [], [dispo]);
   const groupes = useMemo(() => dispo?.groupes ?? [], [dispo]);
 
+  // Arrivee du jour : le prepaye n'a plus de contrepartie (voir `cartesDe`).
+  const arriveeCeJour = arrivee === dansNJours(0);
+
   /* La colonne de droite est remplie des le chargement.
    *
    * Elle disait « Choisissez une chambre pour voir le total » et laissait 400 px
@@ -1117,14 +1134,14 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     if (!offre) return;
     // Le moins cher des flexibles : avec un tarif direct derive, Mews peut en
     // renvoyer deux, et `find` aurait attrape le tarif public au plein prix.
-    const cartes = cartesDe(offre.prix, tarifs, groupes);
+    const cartes = cartesDe(offre.prix, tarifs, groupes, arriveeCeJour);
     const p = (cartes.find((c) => !c.prepaye) ?? cartes[0])?.direct;
     if (!p) return;
     setChoix({
       categorieId: offre.categorieId, tarifId: p.tarifId,
       total: p.total, parNuit: p.parNuit, pourPersonnes: offre.pourPersonnes,
     });
-  }, [choix, principales, tarifs, groupes]);
+  }, [choix, principales, tarifs, groupes, arriveeCeJour]);
   // Annulation gratuite du tarif retenu — nulle si c'est un prepaye.
   const heureChoix = choix ? heureLimite(tarifs.find((r) => r.Id === choix.tarifId), langue) : null;
   /* Un seul nombre, et ce qu'il y a dedans.
@@ -1530,9 +1547,16 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                         le bouton, et il se lit sous son libelle : en pleine
                         largeur, l'oeil traversait 600 px de vide entre le nom du
                         tarif et son montant, et comparer les deux demandait un
-                        saut d'une ligne a l'autre. */}
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {cartesDe(o.prix, tarifs, groupes).map((carte) => {
+                        saut d'une ligne a l'autre.
+                        Deux colonnes SI deux tarifs. Sur une arrivee du jour le
+                        prepaye ne s'affiche plus : la carte seule restait plantee
+                        a gauche avec la moitie droite vide, alors qu'il n'y a
+                        plus rien a comparer. */}
+                    <div className={[
+                      "mt-3 grid gap-2",
+                      cartesDe(o.prix, tarifs, groupes, arriveeCeJour).length > 1 ? "sm:grid-cols-2" : "",
+                    ].join(" ")}>
+                      {cartesDe(o.prix, tarifs, groupes, arriveeCeJour).map((carte) => {
                         const p = carte.direct;
                         const retenu = choix?.categorieId === o.categorieId
                           && choix?.tarifId === p.tarifId
@@ -1542,7 +1566,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                         // Ce qui se decide ici, c'est : je garde la main, ou je
                         // paie moins cher tout de suite. On chiffre l'ecart.
                         const economie = carte.prepaye
-                          ? Math.max(...cartesDe(o.prix, tarifs, groupes).map((c) => c.direct.total)) - p.total
+                          ? Math.max(...cartesDe(o.prix, tarifs, groupes, arriveeCeJour).map((c) => c.direct.total)) - p.total
                           : 0;
                         const heure = carte.prepaye ? null : heureLimite(tarif, langue);
                         // Le pourcentage se lit sur les deux montants renvoyes
