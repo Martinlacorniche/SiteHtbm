@@ -41,8 +41,8 @@ type Choix = {
 
 const TEXTES = {
   fr: {
-    titre: "Réserver aux Voiles",
-    chapo: "Prix tout compris, taxe de séjour annoncée d'avance. Aucune surprise à l'arrivée.",
+    titre: "Hôtel-Rooftop Les Voiles",
+    chapo: "Prix tout compris, aucune surprise à l'arrivée.",
     arrivee: "Arrivée", depart: "Départ",
     choisirDates: "Choisissez votre arrivée",
     puisDepart: "· puis votre départ",
@@ -54,7 +54,6 @@ const TEXTES = {
     pour1: "Pour une personne",
     aucune: "Aucune chambre disponible sur ces dates.",
     aucuneAide: "Essayez des dates voisines, ou appelez-nous au 04 94 41 36 23 — il reste parfois de la place.",
-    taxe: "taxe de séjour à régler sur place",
     parNuit: "la nuit",
     seulAussi: "Vous voyagez seul ?",
     seulAussiAction: "Voir le prix pour une personne",
@@ -86,14 +85,14 @@ const TEXTES = {
     galeriePrec: "Photo précédente",
     galerieSuiv: "Photo suivante",
     aideAvant: "Une question avant de réserver ?",
-    dontTaxe: (m: string) => `dont ${m} de taxe de séjour, réglée sur place`,
+    dontTaxe: (m: string) => `dont ${m} de taxe de séjour`,
     voirDetails: "Détails",
     retour: "Retour",
     remiseDirecte: (pc: number) => `−${pc} % en direct`,
   },
   en: {
-    titre: "Book at Les Voiles",
-    chapo: "All-inclusive prices, city tax stated upfront. No surprises on arrival.",
+    titre: "Hôtel-Rooftop Les Voiles",
+    chapo: "All-inclusive prices, no surprises on arrival.",
     arrivee: "Check-in", depart: "Check-out",
     choisirDates: "Choose your arrival",
     puisDepart: "· then your departure",
@@ -105,7 +104,6 @@ const TEXTES = {
     pour1: "For one person",
     aucune: "No rooms available on these dates.",
     aucuneAide: "Try nearby dates, or call us on +33 4 94 41 36 23 — we sometimes have space left.",
-    taxe: "city tax payable at the hotel",
     parNuit: "per night",
     seulAussi: "Travelling alone?",
     seulAussiAction: "See the price for one person",
@@ -140,7 +138,7 @@ const TEXTES = {
     galeriePrec: "Previous photo",
     galerieSuiv: "Next photo",
     aideAvant: "A question before booking?",
-    dontTaxe: (m: string) => `including ${m} city tax, paid at the hotel`,
+    dontTaxe: (m: string) => `including ${m} city tax`,
     voirDetails: "Details",
     retour: "Back",
     remiseDirecte: (pc: number) => `−${pc}% direct`,
@@ -168,6 +166,75 @@ const montantCourt = (n: number, langue: Langue) =>
     minimumFractionDigits: 0, maximumFractionDigits: Number.isInteger(n) ? 0 : 2,
   }).format(n);
 
+/* Une pulsation tres breve quand on retient une chambre.
+ *
+ * Dix millisecondes : la duree d'un declic, pas d'une alerte. Le geste qui
+ * engage de l'argent gagne a se sentir sous le doigt, comme un interrupteur.
+ *
+ * ⚠️ Android seulement. Safari sur iPhone n'implemente pas `vibrate` — la
+ * moitie des clients n'aura rien, et c'est pour ca que ca ne porte AUCUNE
+ * information : c'est un supplement, jamais le signal que la chambre est
+ * retenue. Ce signal-la, c'est la carte qui passe en bleu.
+ *
+ * Le systeme peut aussi demander moins d'animations : on se tait alors. */
+const pulse = () => {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  navigator.vibrate(10);
+};
+
+/* Le total roule au lieu de sauter.
+ *
+ * Le prix est le heros de la page : changer de chambre, de tarif ou de dates le
+ * remplacait d'un coup, et rien ne disait que le chiffre venait de bouger. Il
+ * court maintenant d'une valeur a l'autre en un tiers de seconde.
+ *
+ * `tabular-nums` est deja pose sur les deux emplacements — sans lui, les
+ * chiffres n'ont pas la meme largeur et le montant tremblerait pendant la
+ * course. La duree est courte a dessein : au-dela, on attend un prix.
+ *
+ * ⚠️ Un lecteur d'ecran ne doit pas entendre les valeurs intermediaires — il
+ * annoncerait vingt montants faux. Le vrai total est pose en `aria-label` sur
+ * l'element, et la course est masquee (`aria-hidden`). */
+function TotalRoulant({ valeur, langue, court = false }: { valeur: number; langue: Langue; court?: boolean }) {
+  const format = court ? montantCourt : montant;
+  const [affiche, setAffiche] = useState(valeur);
+  const depuis = useRef(valeur);
+  const image = useRef<number | null>(null);
+
+  useEffect(() => {
+    const depart = depuis.current;
+    const ecart = valeur - depart;
+    if (ecart === 0) return;
+
+    // Le systeme peut demander moins d'animations : on saute a la valeur.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      depuis.current = valeur;
+      setAffiche(valeur);
+      return;
+    }
+
+    const t0 = performance.now();
+    const DUREE = 340;
+    const avance = (t: number) => {
+      const p = Math.min(1, (t - t0) / DUREE);
+      // Sortie en douceur : le montant freine sur sa valeur au lieu de s'y cogner.
+      const e = 1 - Math.pow(1 - p, 3);
+      setAffiche(depart + ecart * e);
+      if (p < 1) image.current = requestAnimationFrame(avance);
+      else depuis.current = valeur;
+    };
+    image.current = requestAnimationFrame(avance);
+    return () => { if (image.current) cancelAnimationFrame(image.current); };
+  }, [valeur]);
+
+  return (
+    <span aria-label={format(valeur, langue)}>
+      <span aria-hidden>{format(affiche, langue)}</span>
+    </span>
+  );
+}
+
 /** 'YYYY-MM-DD' local. Passer par toISOString décalerait d'un jour le soir venu. */
 const isoLocal = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -191,8 +258,8 @@ const nuitsEntre = (a: string, b: string) =>
   Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000));
 
 // Taxe de séjour Toulon, 3 étoiles : 1,86 € par adulte et par nuit, taxes
-// additionnelles comprises. Affichée à part parce qu'elle se règle sur place,
-// jamais découverte à la fin.
+// additionnelles comprises. Elle entre dans le total et son montant est dit :
+// annoncée d'avance, jamais découverte à la fin.
 const TAXE_PAR_ADULTE_NUIT = 1.86;
 
 // La reception des Voiles. En direct, le telephone est l'autre chemin sans
@@ -405,12 +472,6 @@ const PHOTOS_LOCALES: Record<string, string[]> = {
   "c60f97a0-8870-4c0e-8d1e-aaa9008727ad": [
     "/images/chambres/superieur/1.jpg", "/images/chambres/superieur/2.jpg", "/images/chambres/superieur/3.jpg",
   ],
-};
-
-const photoDe = (categorieId: string, cat: CategorieChambre | undefined): string | null => {
-  const voulue = PHOTO_DE_TETE[categorieId];
-  if (voulue && cat?.images.includes(voulue)) return voulue;
-  return cat?.images.find((id) => !PHOTOS_ECARTEES.has(id)) ?? null;
 };
 
 /* ─────────────────────────── La galerie d'une chambre ───────────────────────
@@ -718,6 +779,18 @@ function Maison({
         </h2>
         {photo(false)}
 
+        {/* ⚠️ La bascule ne repose PAS sur `backface-visibility` seule.
+            Sur le telephone de Martin (Android, 25/08/2026) elle n'etait pas
+            honoree : les deux faces s'affichaient l'une sur l'autre et le
+            devant apparaissait en miroir — la carte etait aplatie avant d'etre
+            tournee. Chrome headless, lui, l'honorait : aucune capture ne
+            montrait le defaut.
+            Chaque face bascule donc aussi en `visibility`, commutee a 350 ms —
+            la moitie des 700 ms de rotation, l'instant ou la carte est sur la
+            tranche et ou l'on ne voit rien. L'echange est invisible la ou la
+            propriete marche, et il sauve l'effet la ou elle ne marche pas.
+            `visibility` et non `hidden` : une face retiree du flux ferait
+            retomber la hauteur de la grille au milieu du mouvement. */}
         <div className="mt-3 [perspective:1200px]">
           <div
             className={[
@@ -727,7 +800,11 @@ function Maison({
           >
             <div
               inert={dos}
-              className="col-start-1 row-start-1 flex flex-col [backface-visibility:hidden]"
+              className={[
+                "col-start-1 row-start-1 flex flex-col [backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+                "[transition:visibility_0s_linear_350ms]",
+                dos ? "invisible" : "",
+              ].join(" ")}
             >
               {histoire}
               <div className="mt-5">{arrivee}</div>
@@ -735,7 +812,11 @@ function Maison({
 
             <div
               inert={!dos}
-              className="col-start-1 row-start-1 flex flex-col [backface-visibility:hidden] [transform:rotateY(180deg)]"
+              className={[
+                "col-start-1 row-start-1 flex flex-col [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
+                "[transition:visibility_0s_linear_350ms]",
+                dos ? "" : "invisible",
+              ].join(" ")}
             >
               <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
                 {recit.compris.titre}
@@ -771,7 +852,11 @@ function Maison({
       >
         <div
           inert={dos}
-          className="absolute inset-0 flex flex-col [backface-visibility:hidden]"
+          className={[
+            "absolute inset-0 flex flex-col [backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+            "[transition:visibility_0s_linear_350ms]",
+            dos ? "invisible" : "",
+          ].join(" ")}
         >
           {arrivee}
           {photo(true)}
@@ -780,7 +865,11 @@ function Maison({
 
         <div
           inert={!dos}
-          className="absolute inset-0 flex flex-col [backface-visibility:hidden] [transform:rotateY(180deg)]"
+          className={[
+            "absolute inset-0 flex flex-col [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
+            "[transition:visibility_0s_linear_350ms]",
+            dos ? "" : "invisible",
+          ].join(" ")}
         >
           <h2 className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
             {recit.compris.titre}
@@ -807,16 +896,56 @@ const PHOTOS_ECARTEES = new Set([
   "5fac13c7-8365-4f6b-8c4a-ab2800f9bde8", // Superieure — cuvette et lavabo
 ]);
 
-/** Toutes les photos d'une chambre : Mews d'abord, le depot ensuite. */
+/* La photo de couverture, designee par l'hotel.
+ *
+ * Martin a choisi ces trois-la a l'ecran le 25/08/2026 : c'est le cadrage qui
+ * decide, pas l'ordre de la configuration Mews ni le hasard du premier fichier.
+ * Elle prime sur tout le reste, `PHOTO_DE_TETE` compris.
+ *
+ * ⚠️ Les trois viennent du depot, donc portent le bandeau OTA
+ * « PETIT-DEJEUNER INCLUS » incruste en diagonale : il s'affiche desormais sur
+ * la vignette de chaque chambre, ce qu'on evitait jusqu'ici en ne servant que
+ * des photos Mews en couverture. Retirer une entree d'ici suffit a revenir a la
+ * photo Mews, sans rien toucher d'autre.
+ *
+ * ⚠️ `superieur/3.jpg` est en portrait (512 x 768) quand la vignette est un
+ * bandeau : le recadrage ne garde qu'une bande verticale centrale — la porte-
+ * fenetre, le palmier et la mer. Verifie a l'ecran, mais c'est le fichier qu'il
+ * faudra reprendre le jour ou l'hotel fournira ses originaux.
+ */
+const COUVERTURE: Record<string, string> = {
+  "a1f3a293-0567-49c7-81c6-aaa9008727ad": "/images/chambres/single/2.jpg",    // Individuelle
+  "e34e45e7-8ce1-4b68-8547-aaa9008727ad": "/images/chambres/confort/2.jpg",   // Confort
+  "c60f97a0-8870-4c0e-8d1e-aaa9008727ad": "/images/chambres/superieur/3.jpg", // Superieure vue mer
+};
+
+/** L'image de la carte, prete a poser dans `src` : chemin du depot ou URL Mews. */
+const couvertureDe = (
+  categorieId: string,
+  cat: CategorieChambre | undefined,
+  largeur: number,
+): string | null => {
+  const choisie = COUVERTURE[categorieId];
+  if (choisie) return choisie;
+  const voulue = PHOTO_DE_TETE[categorieId];
+  if (voulue && cat?.images.includes(voulue)) return urlPhoto(voulue, largeur);
+  const repli = cat?.images.find((id) => !PHOTOS_ECARTEES.has(id));
+  return repli ? urlPhoto(repli, largeur) : null;
+};
+
+/** Toutes les photos d'une chambre : Mews d'abord, le depot ensuite — mais la
+ *  couverture en tete, d'ou qu'elle vienne, pour que la galerie s'ouvre sur
+ *  l'image qu'on vient de toucher et non sur une autre. */
 const photosDe = (categorieId: string, cat: CategorieChambre | undefined, nom: string): Photo[] => {
-  const tete = photoDe(categorieId, cat);
-  const mews = (cat?.images ?? []).filter((id) => !PHOTOS_ECARTEES.has(id));
-  // La photo de tete passe en premiere : la galerie s'ouvre sur ce qu'on a clique.
-  const ordonnees = tete ? [tete, ...mews.filter((i) => i !== tete)] : mews;
-  return [
-    ...ordonnees.map((id) => ({ src: urlPhoto(id, 1400), alt: nom })),
-    ...(PHOTOS_LOCALES[categorieId] ?? []).map((src) => ({ src, alt: nom })),
+  const couverture = couvertureDe(categorieId, cat, 1400);
+  const toutes = [
+    ...(cat?.images ?? []).filter((id) => !PHOTOS_ECARTEES.has(id)).map((id) => urlPhoto(id, 1400)),
+    ...(PHOTOS_LOCALES[categorieId] ?? []),
   ];
+  const ordonnees = couverture
+    ? [couverture, ...toutes.filter((src) => src !== couverture)]
+    : toutes;
+  return ordonnees.map((src) => ({ src, alt: nom }));
 };
 
 export default function ReserverClient({ langue }: { langue: Langue }) {
@@ -1021,9 +1150,11 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * Le total affiche est desormais celui qu'on paiera en tout, avec une ligne
    * qui dit ce qu'il contient.
    *
-   * ⚠️ Ce total n'est PAS le montant a encaisser en ligne : la taxe se regle a
-   * l'hotel. Quand le paiement sera branche, l'ecran de reglement devra montrer
-   * la coupure — sinon la carte serait debitee de la taxe. */
+   * ⚠️ La page ne dit plus ou la taxe se regle (tranche le 25/08/2026 : « arrete
+   * avec ce regle sur place »). Elle annonce donc un total, point — et c'est ce
+   * total qu'il faudra encaisser en ligne, taxe comprise. Si l'encaissement
+   * devait finalement laisser la taxe au comptoir, c'est cette ligne-ci qu'il
+   * faudrait rouvrir, pas le montant. */
   const taxeDe = (pax: number) => TAXE_PAR_ADULTE_NUIT * pax * nuits;
 
   return (
@@ -1240,7 +1371,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               <ul className="grid gap-5">
                 {offresAffichees.map((o) => {
                   const cat = categories.get(o.categorieId);
-                  const photo = photoDe(o.categorieId, cat);
+                  const photo = couvertureDe(o.categorieId, cat, 480);
                   const nbPhotos = photosDe(o.categorieId, cat, "").length;
                   const ecart = reference && reference.categorieId !== o.categorieId
                     ? Math.min(...o.prix.map((p) => p.total)) - reference.total
@@ -1249,33 +1380,86 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   return (
                   <li key={`${o.categorieId}-${o.pourPersonnes}`} className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                     {photo && (
-                      /* La photo ouvre les autres. Mews en heberge trois a cinq
-                         par categorie : n'en montrer qu'une, c'est envoyer le
-                         client les chercher sur Booking. */
-                      <button
-                        type="button"
-                        onClick={() => setGalerie(o.categorieId)}
-                        aria-label={T.galerieOuvrir(nbPhotos)}
-                        /* La photo epouse la hauteur de SA ligne : figee a
-                           158 px, elle depassait sous les cartes de tarif. Ce
-                           n'est pas le `auto-rows-fr` d'avant — les lignes ont
-                           chacune leur taille, donc deployer une chambre
-                           n'agrandit que sa photo, pas les trois. */
-                        className="group relative h-[150px] w-full shrink-0 overflow-hidden rounded-xl bg-[#f0ece4] sm:h-auto sm:min-h-[130px] sm:w-[164px] sm:self-stretch"
-                      >
-                        <Image
-                          src={urlPhoto(photo, 480)}
-                          alt={nomChambre(o.categorieId, cat, langue)}
-                          fill
-                          sizes="(max-width: 640px) 100vw, 164px"
-                          className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                        />
-                        {nbPhotos > 1 && (
-                          <span className="absolute bottom-2 left-2 rounded-full bg-navy-deep/80 px-2.5 py-1 text-[11px] font-semibold text-cream backdrop-blur-sm">
-                            {T.galerieOuvrir(nbPhotos)}
-                          </span>
-                        )}
-                      </button>
+                      /* La photo epouse la hauteur de SA ligne : figee a
+                         158 px, elle depassait sous les cartes de tarif. Ce
+                         n'est pas le `auto-rows-fr` d'avant — les lignes ont
+                         chacune leur taille, donc deployer une chambre
+                         n'agrandit que sa photo, pas les trois.
+                         Le dimensionnement vit sur cette enveloppe : la photo
+                         n'est plus seule dedans, elle a un dos. */
+                      <div className="h-[150px] w-full shrink-0 [perspective:900px] sm:h-auto sm:min-h-[130px] sm:w-[164px] sm:self-stretch">
+                        {/* La chambre se retourne comme la carte de l'hotel, et
+                            SOUS `sm` seulement : au-dela, la photo n'est plus un
+                            bandeau mais une bande de 164 px de large, ou deux
+                            phrases de detail ne se lisent pas. Le depliage sous
+                            le nom reste la reponse du grand ecran.
+                            Une seule <Image> : monter la photo deux fois, une
+                            par variante, la ferait charger deux fois par chambre. */}
+                        <div
+                          className={[
+                            "grid h-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d]",
+                            detaille === o.categorieId ? "max-sm:[transform:rotateY(180deg)]" : "",
+                          ].join(" ")}
+                        >
+                          {/* La photo ouvre les autres. Mews en heberge trois a
+                              cinq par categorie : n'en montrer qu'une, c'est
+                              envoyer le client les chercher sur Booking. */}
+                          <button
+                            type="button"
+                            onClick={() => setGalerie(o.categorieId)}
+                            aria-label={T.galerieOuvrir(nbPhotos)}
+                            inert={detaille === o.categorieId ? true : undefined}
+                            className={[
+                              "group relative col-start-1 row-start-1 h-full w-full overflow-hidden rounded-xl bg-[#f0ece4]",
+                              "[backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+                              // Au-dela de `sm` la carte ne tourne jamais : la
+                              // photo doit rester visible quoi qu'il arrive.
+                              "max-sm:[transition:visibility_0s_linear_350ms] sm:!visible",
+                              detaille === o.categorieId ? "max-sm:invisible" : "",
+                            ].join(" ")}
+                          >
+                            <Image
+                              src={photo}
+                              alt={nomChambre(o.categorieId, cat, langue)}
+                              fill
+                              sizes="(max-width: 640px) 100vw, 164px"
+                              className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                            />
+                            {nbPhotos > 1 && (
+                              <span className="absolute bottom-2 left-2 rounded-full bg-navy-deep/80 px-2.5 py-1 text-[11px] font-semibold text-cream backdrop-blur-sm">
+                                {T.galerieOuvrir(nbPhotos)}
+                              </span>
+                            )}
+                          </button>
+
+                          {/* Le dos : ce que la photo ne montre pas. Couchage et
+                              surface viennent de la configuration Mews, jamais
+                              d'ici — l'hotel corrige une surface dans son
+                              back-office, l'ecran suit. */}
+                          <div
+                            inert={detaille === o.categorieId ? undefined : true}
+                            className={[
+                              "col-start-1 row-start-1 flex h-full flex-col justify-center gap-1.5 rounded-xl bg-navy px-4 py-3 text-cream sm:hidden",
+                              "[backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
+                              "[transition:visibility_0s_linear_350ms]",
+                              detaille === o.categorieId ? "" : "invisible",
+                            ].join(" ")}
+                          >
+                            <p className="text-[13px] font-semibold text-gold">
+                              {[
+                                cat?.couchages ? T.couchages(cat.couchages) : null,
+                                litDe(cat?.couchages ?? null) ? T.lit(litDe(cat!.couchages)!) : null,
+                                cat?.surface ? T.surface(cat.surface) : null,
+                              ].filter(Boolean).join(" · ")}
+                            </p>
+                            {DESCRIPTION_CATEGORIE[o.categorieId] && (
+                              <p className="text-[13.5px] leading-snug text-cream/85">
+                                {DESCRIPTION_CATEGORIE[o.categorieId][langue]}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     )}
 
                     <div className="flex min-w-0 flex-1 flex-col">
@@ -1300,7 +1484,10 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                             avec elle. */}
                         <button
                           type="button"
-                          onClick={() => setDetaille((d) => (d === o.categorieId ? null : o.categorieId))}
+                          onClick={() => {
+                            pulse();
+                            setDetaille((d) => (d === o.categorieId ? null : o.categorieId));
+                          }}
                           aria-expanded={detaille === o.categorieId}
                           // Pas d'aria-label : il remplacerait le nom de la
                           // chambre par « Détails », et un lecteur d'écran
@@ -1335,8 +1522,14 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                       )}
                     </div>
 
+                    {/* Le depliage sous le nom est la reponse du grand ecran.
+                        Sous `sm`, c'est le dos de la photo qui porte ces deux
+                        phrases : les montrer aux deux endroits les dirait deux
+                        fois. Sauf si la chambre n'a pas de photo — il n'y a
+                        alors pas de dos ou les mettre, et le depliage reprend
+                        du service a toutes les largeurs. */}
                     {detaille === o.categorieId && (
-                      <div className="mt-1.5">
+                      <div className={photo ? "mt-1.5 hidden sm:block" : "mt-1.5"}>
                         {/* Couchage et surface viennent de la configuration Mews,
                             jamais d'ici : l'hotel corrige une surface dans son
                             back-office, l'ecran suit. */}
@@ -1385,13 +1578,16 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                             key={p.tarifId}
                             type="button"
                             aria-pressed={retenu}
-                            onClick={() => setChoix(retenu ? null : {
-                              categorieId: o.categorieId,
-                              tarifId: p.tarifId,
-                              total: p.total,
-                              parNuit: p.parNuit,
-                              pourPersonnes: o.pourPersonnes,
-                            })}
+                            onClick={() => {
+                              pulse();
+                              setChoix(retenu ? null : {
+                                categorieId: o.categorieId,
+                                tarifId: p.tarifId,
+                                total: p.total,
+                                parNuit: p.parNuit,
+                                pourPersonnes: o.pourPersonnes,
+                              });
+                            }}
                             className={[
                               "flex w-full flex-col gap-1.5 rounded-xl border px-4 py-3.5 text-left transition-colors",
                               retenu
@@ -1500,15 +1696,6 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   {" · "}{T.nuits(nuits)}
                 </p>
 
-                <div className="mt-4 flex items-baseline justify-between gap-3">
-                  <span className="text-[15px] font-semibold text-[#3c4a52]">{T.totalSejour}</span>
-                  <span className="text-[26px] font-bold tabular-nums text-navy">
-                    {montant(choix.total + taxeDe(choix.pourPersonnes), langue)}
-                  </span>
-                </div>
-                <p className="mt-1 text-[13px] text-[#8a9299]">
-                  {T.dontTaxe(montantCourt(taxeDe(choix.pourPersonnes), langue))}
-                </p>
               </>
             ) : (
               <p className="mt-4 border-t border-[#f0ece4] pt-4 text-[15px] leading-relaxed text-[#8a9299]">
@@ -1518,6 +1705,28 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           </div>
 
           <div className="mt-4 shrink-0">
+            {/* Le total est SORTI de la zone qui defile.
+                Sur PC la colonne a une hauteur fixe et son haut defile chez lui.
+                Le total y etait le dernier element : sur une fenetre de 900 px,
+                256 px de contenu dans 170 px de haut, il tombait sous la ligne
+                de flottaison et le prix devenait invisible — alors que les
+                garanties et le bouton, eux, restaient a l'ecran. Ce qui peut
+                disparaitre, ce sont les dates et le nom de la chambre : on les
+                a saisis, on s'en souvient. Pas le montant.
+                Il vit desormais avec ce qu'il paie, juste au-dessus du bouton. */}
+            {choix && (
+              <>
+                <div className="flex items-baseline justify-between gap-3 border-t border-[#f0ece4] pt-4">
+                  <span className="text-[15px] font-semibold text-[#3c4a52]">{T.totalSejour}</span>
+                  <span className="text-[26px] font-bold tabular-nums text-navy">
+                    <TotalRoulant valeur={choix.total + taxeDe(choix.pourPersonnes)} langue={langue} />
+                  </span>
+                </div>
+                <p className="mt-1 mb-3 text-[13px] text-[#8a9299]">
+                  {T.dontTaxe(montantCourt(taxeDe(choix.pourPersonnes), langue))}
+                </p>
+              </>
+            )}
             {/* Le moment ou se gagne ou se perd le dernier clic. Rien qui ne
                 soit verifiable : pas de note inventee, pas de fausse rarete. */}
             <ul className="mb-3 grid gap-1 border-t border-[#f0ece4] pt-3 text-[12px] leading-snug text-[#6b7a82]">
@@ -1599,7 +1808,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 {nomChambre(choix.categorieId, categories.get(choix.categorieId), langue)} · {T.nuits(nuits)}
               </span>
               <span className="block text-[20px] font-bold tabular-nums text-navy">
-                {montant(choix.total + taxeDe(choix.pourPersonnes), langue)}
+                <TotalRoulant valeur={choix.total + taxeDe(choix.pourPersonnes)} langue={langue} />
               </span>
             </span>
             <button
