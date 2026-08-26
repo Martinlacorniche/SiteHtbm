@@ -212,9 +212,29 @@ export default function Paiement({
     if (!ouverte) return;
     let annule = false;
 
+    /* Mode diagnostic : `?diag=nu` charge le checkout SANS rien de ce qu'on lui
+     * passe — ni styles, ni langue, ni restriction de moyens. Si le bouton
+     * fonctionne ainsi, la cause est dans notre configuration ; sinon elle est
+     * dans la demande de paiement ou chez Mews. Une seule manipulation au lieu
+     * de trois allers-retours. */
+    const nu = new URLSearchParams(window.location.search).get("diag") === "nu";
+
     const monter = () => {
       const api = window.Mews?.PaymentCheckout;
       if (annule || !api) return;
+      if (nu) {
+        console.warn("Mews checkout — mode nu (diag=nu), demande", ouverte.demandeId);
+        api.load({
+          containerId: "mews-checkout",
+          requestId: ouverte.demandeId,
+          onSuccess: (e?: unknown) => { console.warn("Mews checkout — succes", e); void finaliserRef.current(); },
+          onFailure: (e?: { type?: string; error?: string }) => {
+            console.error("Mews checkout —", e?.type, e?.error);
+            if (!annule) setErreur(T.echecPaiement);
+          },
+        });
+        return;
+      }
       api.load({
         containerId: "mews-checkout",
         requestId: ouverte.demandeId,
@@ -232,7 +252,10 @@ export default function Paiement({
          * fois son empreinte digitale donnée. Sur le prépayé, qui est un vrai
          * paiement, ils restent offerts. */
         ...(ouverte.reglement.debite ? {} : { enabledPaymentMethods: ["paymentCard"] }),
-        onSuccess: () => { if (!annule) void finaliserRef.current(); },
+        onSuccess: (e?: unknown) => {
+          console.warn("Mews checkout — succes", e);
+          if (!annule) void finaliserRef.current();
+        },
         /* Mews donne la raison dans `event.error` — un texte lisible, pas un
          * code stable. On la journalise telle quelle : sans elle, un refus
          * ressemble à une panne et on cherche du mauvais côté. Le client, lui,
