@@ -93,6 +93,54 @@ export async function confirmerReservations(ids: string[]): Promise<void> {
   await callMews('reservations/confirm', { ReservationIds: ids });
 }
 
+/* ─────────────────────── La demande de paiement ──────────────────────────────
+ *
+ * C'est elle que Mews Payments Checkout consomme : on la crée ici, côté
+ * serveur, et le navigateur ne reçoit que son identifiant. Le montant est donc
+ * FIXÉ PAR NOUS et invérifiable depuis la page — c'est tout l'intérêt du
+ * « Flow 1 » de Mews sur le « Flow 2 », où le montant se lit dans la
+ * configuration du navigateur et se modifie à la console.
+ *
+ * ⚠️ `SendPaymentRequestEmails: false`. Par défaut Mews envoie au client un
+ * courriel « Autoriser un paiement » avec un lien vers SA page de paiement.
+ * Ici le client a le formulaire sous les yeux : ce courriel ne ferait que
+ * semer le doute, et le renverrait ailleurs au pire moment. Vérifié le
+ * 26/08/2026 — sans ce champ, le courriel part bien.
+ *
+ * ⚠️ `Reason: 'Other'` impose une `Description`, et cette description est LUE
+ * PAR LE CLIENT dans le checkout. Elle doit donc être écrite pour lui.
+ */
+export type TypeReglement = 'Payment' | 'Preauthorization';
+
+export async function creerDemandePaiement(
+  { customerId, reservationId, montant, type, description, expireUtc }:
+  {
+    customerId: string; reservationId: string; montant: number;
+    type: TypeReglement; description: string; expireUtc: string;
+  },
+): Promise<string | null> {
+  const r = await callMews<{ PaymentRequests?: { Id: string }[] }>('paymentRequests/add', {
+    PaymentRequests: [{
+      AccountId: customerId,
+      ReservationId: reservationId,
+      Amount: { Currency: 'EUR', Value: montant },
+      Type: type,
+      Reason: 'Other',
+      Description: description,
+      ExpirationUtc: expireUtc,
+    }],
+    SendPaymentRequestEmails: false,
+  });
+  return r.PaymentRequests?.[0]?.Id ?? null;
+}
+
+/** Renonce à une demande restée en plan — le client a fermé l'onglet. */
+export async function annulerDemandePaiement(id: string): Promise<void> {
+  try {
+    await callMews('paymentRequests/cancel', { PaymentRequestIds: [id] });
+  } catch { /* elle expirera d'elle-même */ }
+}
+
 /* ─────────────────────── La note de contrôle réception ───────────────────────
  *
  * Elle ne décrit pas le tarif : elle dit à la réception CE QU'ELLE DOIT FAIRE.

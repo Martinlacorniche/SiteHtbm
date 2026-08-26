@@ -116,6 +116,39 @@ export const estPrepaye = (tarif: Tarif | undefined, groupes: GroupeTarifaire[])
   );
 };
 
+/* Ce qui va arriver a la carte, lu chez Mews et jamais ecrit en dur.
+ *
+ * Le groupe tarifaire porte la regle complete :
+ *   Flexible  → CreatePreauthorization, SettlementValue 0.01  → empreinte de 1 %
+ *   NANR BB   → ChargeCreditCard,       SettlementValue 1.0   → debit de 100 %
+ *
+ * On CALCULE au lieu d'ecrire « 1 % ». Le jour ou l'hotel passera son empreinte
+ * a 30 %, une phrase codee en dur continuerait d'annoncer 1 % pendant qu'on
+ * preleve trente fois plus — et la demande de paiement envoyee a Mews porterait
+ * le mauvais montant.
+ *
+ * Vit ici et non dans l'ecran : c'est le SERVEUR qui fixe le montant demande,
+ * et l'ecran qui l'annonce. Deux copies de cette regle, c'est un jour ou elles
+ * divergent. */
+export type Reglement = { debite: boolean; montant: number; part: number | null };
+
+export const reglementDe = (
+  tarif: Tarif | undefined,
+  groupes: GroupeTarifaire[],
+  total: number,
+): Reglement | null => {
+  const g = groupes.find((x) => x.Id === tarif?.RateGroupId);
+  if (!g) return null;
+  const debite = g.SettlementAction === 'ChargeCreditCard';
+  if (!debite && g.SettlementAction !== 'CreatePreauthorization') return null;
+  const fixe = typeof g.SettlementFlatValue === 'number' ? g.SettlementFlatValue : null;
+  const part = typeof g.SettlementValue === 'number' ? g.SettlementValue : null;
+  if (fixe !== null) return { debite, montant: fixe, part: null };
+  if (part === null) return null;
+  // Mews arrondit au centime : une demande a 1.2345 € est refusee.
+  return { debite, montant: Math.round(total * part * 100) / 100, part };
+};
+
 export type Offre = {
   categorieId: string;
   chambresRestantes: number;
@@ -271,55 +304,11 @@ export async function chargerCategories(langue: Langue): Promise<Map<string, Cat
  * Les règles d'encaissement (préautorisation ou débit) sont portées par les rate
  * groups et s'exécutent côté Mews : rien à décider ici.
  */
-/* La configuration de paiement de l'hôtel, relevée chez Mews.
- *
- * On en veut UNE chose : la `PublicKey`, l'identifiant marchand que le script
- * PciProxy exige pour monter ses deux iframes (numéro, cryptogramme). Elle
- * n'est pas secrète — c'est l'équivalent d'une clé publiable Stripe — mais elle
- * n'est pas non plus à nous : c'est Mews qui la porte, elle peut changer avec
- * le contrat de l'hôtel, et la figer dans le code ferait tomber le paiement le
- * jour où elle bougerait, sans que rien ne le dise. On la lit.
- *
- * Le reste de la réponse est relevé ici pour mémoire, parce qu'il répond à des
- * questions qui se poseront : `SupportedCreditCardTypes` (Visa, MasterCard,
- * Amex) dit quels logos afficher sans les inventer, `SurchargeFees` est à 0 sur
- * les trois — donc aucun supplément carte à annoncer — et ApplePay comme
- * GooglePay sont actifs côté passerelle, disponibles le jour où on voudra les
- * proposer. */
-export type ConfigPaiement = {
-  /** L'identifiant marchand PciProxy, à passer à `Paiement.tsx`. */
-  publicKey: string;
-  /** 'Visa' | 'MasterCard' | 'Amex' — tels que Mews les nomme. */
-  cartes: string[];
-  /** Supplément par réseau, en pourcentage. Tous à 0 aux Voiles au 26/08/2026. */
-  surcharges: Record<string, number>;
-};
-
-type ReponseConfigPaiement = {
-  PaymentGateway?: {
-    PublicKey?: string | null;
-    SupportedCreditCardTypes?: string[] | null;
-  } | null;
-  SurchargeConfiguration?: { SurchargeFees?: Record<string, number> | null } | null;
-};
-
-export async function chargerConfigPaiement(langue: Langue): Promise<ConfigPaiement> {
-  const j = await appel<ReponseConfigPaiement>('hotels/getPaymentConfiguration', {
-    HotelId: HOTEL_ID,
-    ConfigurationId: CONFIGURATION_ID,
-  }, langue);
-
-  const publicKey = j.PaymentGateway?.PublicKey?.trim() ?? '';
-  // Sans elle, les iframes ne montent pas : mieux vaut échouer ici, en amont du
-  // tunnel, que d'ouvrir un écran de paiement où le champ carte reste vide.
-  if (!publicKey) throw new Error('Mews getPaymentConfiguration → PublicKey absente');
-
-  return {
-    publicKey,
-    cartes: j.PaymentGateway?.SupportedCreditCardTypes ?? [],
-    surcharges: j.SurchargeConfiguration?.SurchargeFees ?? {},
-  };
-}
+/* La configuration de paiement PciProxy (`hotels/getPaymentConfiguration`) a
+ * été retirée le 26/08/2026 : elle ne servait qu'à donner sa `PublicKey` aux
+ * champs sécurisés, et c'est Mews Payments Checkout qui collecte désormais la
+ * carte, dans son propre iframe et avec sa propre configuration. L'appel reste
+ * lisible dans l'historique si le besoin revient. */
 
 export type ClientResa = {
   prenom: string;
@@ -354,14 +343,22 @@ export type ResaCreee = {
   /** Les réservations elles-mêmes. La note de réception se pose sur CELLES-CI
    *  (`serviceOrderNotes` veut un `ServiceOrderId`), jamais sur le groupe. */
   reservationIds: string[];
+  /** Le compte client créé par Mews. C'est lui que `paymentRequests/add`
+   *  attend en `AccountId` — sans lui, pas de demande de paiement. */
+  customerId: string;
 };
 
 type ReponseCreate = {
   ReservationGroupId?: string;
   Id?: string;
+  CustomerId?: string;
   Reservations?: { Id?: string; Number?: string; ConfirmationNumber?: string }[];
 };
 
+/* ⚠️ `carte` n'est plus utilisée depuis le passage à Mews Payments Checkout.
+ * On crée la réservation SANS moyen de paiement, puis Mews collecte la carte
+ * lui-même dans son iframe — le numéro ne passe plus jamais près de ce site.
+ * Le paramètre reste pour ne pas casser d'appelant, mais rien ne le remplit. */
 export async function creerReservation(
   { client, lignes, carte, langue }:
   { client: ClientResa; lignes: LigneResa[]; carte?: Carte; langue: Langue },
@@ -407,6 +404,7 @@ export async function creerReservation(
       .map((r) => r.ConfirmationNumber ?? r.Number ?? r.Id ?? '')
       .filter(Boolean),
     reservationIds: (j.Reservations ?? []).map((r) => r.Id ?? '').filter(Boolean),
+    customerId: j.CustomerId ?? '',
   };
 }
 

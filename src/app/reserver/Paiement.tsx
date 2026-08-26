@@ -3,104 +3,83 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Langue } from "@/lib/mewsBooking";
 
-/* L'écran de règlement.
+/* L'écran de règlement, en deux temps.
  *
- * ⚠️ LA CARTE NE PASSE PAS PAR NOUS. Le numéro et le cryptogramme sont saisis
- * dans deux iframes servies par PciProxy : ni cette page, ni notre serveur, ni
- * nos journaux ne les voient jamais. PciProxy rend un `transactionId` — un jeton
- * inutilisable ailleurs, valable trente minutes — et c'est lui seul qui part
- * vers `/api/reserver`, puis vers Mews. C'est la condition pour rester hors du
- * périmètre lourd de PCI-DSS, et c'est pour ça qu'on passe par la Booking
- * Engine plutôt que par le Connector.
+ * ⚠️ LA CARTE NE PASSE PLUS DU TOUT PAR NOUS — ni en clair, ni tokenisée.
+ * L'écran a d'abord monté les iframes PciProxy et récolté un `transactionId`.
+ * Ça marchait, mais le mode `TOKENIZE` ne fait que tokeniser : aucune
+ * autorisation, donc aucun 3-D Secure, et la demande de préautorisation créée
+ * par Mews expirait sans que personne ne la règle. Constaté le 26/08/2026 sur
+ * les réservations 29816 et 29817.
  *
- * Les règles d'encaissement (préautorisation ou débit immédiat) sont portées
- * par les rate groups Mews et s'exécutent chez eux : rien ne se décide ici.
+ * On passe à Mews Payments Checkout : un iframe servi par Mews, injecté dans
+ * notre page. Il collecte la carte, joue le 3-D Secure, et poste le paiement
+ * dans le PMS. Mews porte la certification PCI-DSS ; nous ne voyons plus rien.
+ * Apple Pay et Google Pay viennent avec, sans rien coder — la configuration de
+ * paiement de l'hôtel les annonce actifs depuis le début.
+ *
+ * Deux temps, parce que la demande de paiement a besoin d'un client et d'une
+ * réservation pour exister :
+ *   1. les coordonnées, chez nous ;
+ *   2. le checkout, une fois l'option posée et la demande ouverte.
  */
 
-const SCRIPT_PCIPROXY = "https://pay.datatrans.com/upp/payment/js/secure-fields-2.0.0.js";
+const SCRIPT_CHECKOUT = "https://cdn.mews.com/payments/checkout-embed.js";
 
-type SecureFieldsApi = {
-  initTokenize: (
-    marchand: string,
-    champs: Record<string, string | { placeholderElementId: string }>,
-  ) => void;
-  submit: (donnees: { expm: number; expy: number }) => void;
-  on: (evenement: string, rappel: (donnees: Record<string, unknown>) => void) => void;
+type Checkout = {
+  load: (c: Record<string, unknown>) => void;
   destroy?: () => void;
-  setStyle?: (champ: string, style: Record<string, string>) => void;
 };
-
 declare global {
-  interface Window {
-    SecureFields?: new () => SecureFieldsApi;
-  }
+  interface Window { Mews?: { PaymentCheckout?: Checkout } }
 }
 
 const TEXTES = {
   fr: {
     titre: "Vos coordonnées",
-    sousTitre: "Puis votre carte, pour garantir la chambre.",
-    prenom: "Prénom",
-    nom: "Nom",
-    email: "Email",
-    telephone: "Téléphone",
+    sousTitre: "Puis le règlement, chez notre prestataire.",
+    prenom: "Prénom", nom: "Nom", email: "Email", telephone: "Téléphone",
     telephoneAide: "Pour vous joindre le jour de votre arrivée.",
     mot: "Un mot pour l'hôtel (facultatif)",
-    // Pas de « lits jumeaux » : une suggestion est une promesse implicite, et
-    // celle-la se paie a la reception un soir de complet. On ne propose que ce
-    // qu'on tient sans effort.
     motAide: "Heure d'arrivée prévue, occasion particulière…",
-    carte: "Votre carte",
-    porteur: "Nom sur la carte",
-    numero: "Numéro de carte",
-    expiration: "Expiration",
-    crypto: "Cryptogramme",
-    payer: (m: string) => `Réserver · ${m}`,
-    envoi: "Nous réservons votre chambre…",
-    fermer: "Fermer",
-    retour: "Retour",
-    /* Dit AUSSI pourquoi le remplissage automatique ne marche qu'à moitié.
-     * Le nom et l'expiration sont des champs de cette page, le numéro et le
-     * cryptogramme sont des iframes de notre prestataire : le navigateur ne
-     * peut pas écrire dedans depuis ici. C'est la barrière même qui fait que
-     * le numéro ne touche jamais ce site — mais sans un mot, deux champs
-     * remplis sur quatre ressemblent à une panne. */
-    sur: "Le numéro et le cryptogramme sont saisis directement chez notre prestataire de paiement : ils ne transitent pas par ce site, et le remplissage automatique du navigateur ne peut pas les atteindre.",
+    continuer: "Continuer vers le paiement",
+    prepare: "On prépare votre réservation…",
+    titrePaiement: "Votre règlement",
+    empreinte: (m: string) => `Votre carte n'est pas débitée : une préautorisation de ${m} garantit la chambre. Le séjour se règle à l'hôtel.`,
+    debit: (m: string) => `Votre carte est débitée de ${m}. Ce tarif n'est pas remboursable.`,
+    fermer: "Fermer", retour: "Retour",
+    sur: "Le paiement est traité par Mews, notre prestataire : vos données bancaires ne transitent pas par ce site.",
     retractation:
       "Conformément à l'article L221-28 du code de la consommation, une réservation d'hébergement à date déterminée ne donne pas de droit de rétractation. Les conditions d'annulation de votre tarif s'appliquent.",
     champsManquants: "Il manque vos coordonnées : prénom, nom et email.",
     emailInvalide: "Cette adresse email ne semble pas valide.",
-    expInvalide: "La date d'expiration n'est pas valide.",
-    carteRefusee: "Votre carte n'a pas été acceptée. Vérifiez le numéro, la date et le cryptogramme.",
+    plusDispo: "Cette chambre vient d'être prise. Revenez en arrière pour en choisir une autre.",
     echec: "La réservation n'a pas abouti. Rien n'a été débité — appelez-nous au 04 94 41 36 23 et nous la prenons avec vous.",
+    echecPaiement: "Le paiement n'est pas passé. Vous pouvez réessayer ci-dessus, ou nous appeler au 04 94 41 36 23.",
+    tenue: "Votre chambre est tenue 20 minutes, le temps du règlement.",
   },
   en: {
     titre: "Your details",
-    sousTitre: "Then your card, to hold the room.",
-    prenom: "First name",
-    nom: "Last name",
-    email: "Email",
-    telephone: "Phone",
+    sousTitre: "Then payment, with our provider.",
+    prenom: "First name", nom: "Last name", email: "Email", telephone: "Phone",
     telephoneAide: "So we can reach you on the day you arrive.",
     mot: "A word for the hotel (optional)",
     motAide: "Expected arrival time, a special occasion…",
-    carte: "Your card",
-    porteur: "Name on card",
-    numero: "Card number",
-    expiration: "Expiry",
-    crypto: "Security code",
-    payer: (m: string) => `Book · ${m}`,
-    envoi: "Booking your room…",
-    fermer: "Close",
-    retour: "Back",
-    sur: "Your card number and security code are entered directly with our payment provider — they never pass through this site, and your browser's autofill cannot reach them.",
+    continuer: "Continue to payment",
+    prepare: "Preparing your booking…",
+    titrePaiement: "Your payment",
+    empreinte: (m: string) => `Your card is not charged: a ${m} hold secures the room. You settle at the hotel.`,
+    debit: (m: string) => `Your card is charged ${m}. This rate is non-refundable.`,
+    fermer: "Close", retour: "Back",
+    sur: "Payment is handled by Mews, our provider — your card details never pass through this site.",
     retractation:
       "Under French consumer law (art. L221-28), accommodation booked for a set date carries no right of withdrawal. Your rate's cancellation terms apply.",
     champsManquants: "Your details are incomplete: first name, last name and email.",
     emailInvalide: "That email address doesn't look valid.",
-    expInvalide: "That expiry date isn't valid.",
-    carteRefusee: "Your card wasn't accepted. Check the number, the expiry date and the security code.",
+    plusDispo: "That room has just been taken. Go back to choose another one.",
     echec: "The booking didn't go through. Nothing was charged — call us on +33 4 94 41 36 23 and we'll take it with you.",
+    echecPaiement: "The payment didn't go through. You can try again above, or call us on +33 4 94 41 36 23.",
+    tenue: "Your room is held for 20 minutes while you pay.",
   },
 } as const;
 
@@ -114,23 +93,25 @@ export type SejourAPayer = {
   resume: string;
   /** Le total, formaté dans la langue de la page. */
   totalFormate: string;
-  /** Ce qui va arriver a la carte, en une phrase — calcule depuis le groupe
-   *  tarifaire Mews (`SettlementAction` / `SettlementValue`), jamais ecrit en
-   *  dur. Vide si Mews ne dit rien : on prefere le silence a une supposition. */
+  /** Ce qui va arriver à la carte, en une phrase — calculé depuis le groupe
+   *  tarifaire Mews, jamais écrit en dur. Vide si Mews ne dit rien. */
   reglement: string;
 };
 
+type Ouverte = {
+  groupeId: string;
+  numeros: string[];
+  reservationIds: string[];
+  demandeId: string;
+  reglement: { debite: boolean; montant: number };
+};
+
 export default function Paiement({
-  sejour, langue, publicKey, onFermer, onReserve,
+  sejour, langue, onFermer, onReserve,
 }: {
   sejour: SejourAPayer;
   langue: Langue;
-  /** La `PublicKey` de `hotels/getPaymentConfiguration` — l'identifiant marchand PciProxy. */
-  publicKey: string;
   onFermer: () => void;
-  /* `client` remonte avec la réservation : l'écran de confirmation propose une
-   * table au rooftop, et il ne doit RIEN redemander de ce qui vient d'être
-   * saisi ici. C'est toute la différence entre un bouton et un formulaire. */
   onReserve: (resa: {
     groupeId: string; numeros: string[];
     client: { prenom: string; nom: string; email: string; telephone: string };
@@ -143,128 +124,153 @@ export default function Paiement({
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
   const [motHotel, setMotHotel] = useState("");
-  const [porteur, setPorteur] = useState("");
-  const [exp, setExp] = useState("");
 
-  const [pret, setPret] = useState(false);
+  const [ouverte, setOuverte] = useState<Ouverte | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  const sf = useRef<SecureFieldsApi | null>(null);
   const boite = useRef<HTMLDivElement | null>(null);
-  // Les rappels de PciProxy vivent hors de React : ils liraient des valeurs
+  // Les rappels du checkout vivent hors de React : ils liraient des valeurs
   // figées au montage. On leur donne une référence toujours à jour.
   const enCours = useRef(false);
 
-  /* Le formulaire est-il complet ? Vérifié ici ET dans la route serveur : le
-   * client mérite un message avant de donner sa carte, le serveur ne fait
-   * jamais confiance au navigateur. */
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const moisAn = exp.match(/^(\d{2})\s*\/?\s*(\d{2})$/);
-  const expOk = !!moisAn && Number(moisAn[1]) >= 1 && Number(moisAn[1]) <= 12;
-  const complet = prenom.trim() && nom.trim() && emailOk && porteur.trim() && expOk && pret;
+  const complet = prenom.trim() && nom.trim() && emailOk;
 
-  // ── Envoi final, une fois la carte tokenisée ───────────────────────────────
-  const finaliser = useCallback(async (jeton: string) => {
-    if (!moisAn) return;
+  /* Temps 1 — poser l'option et ouvrir la demande de paiement. */
+  const ouvrir = async () => {
+    if (enCours.current) return;
+    setErreur(null);
+    if (!prenom.trim() || !nom.trim() || !email.trim()) { setErreur(T.champsManquants); return; }
+    if (!emailOk) { setErreur(T.emailInvalide); return; }
+    enCours.current = true;
+    setEnvoi(true);
     try {
       const r = await fetch("/api/reserver", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           langue,
-          client: { prenom, nom, email, telephone },
+          client: { prenom: prenom.trim(), nom: nom.trim(), email: email.trim(), telephone: telephone.trim() },
           sejour: {
-            categorieId: sejour.categorieId,
-            tarifId: sejour.tarifId,
-            arrivee: sejour.arrivee,
-            depart: sejour.depart,
-            adultes: sejour.adultes,
+            categorieId: sejour.categorieId, tarifId: sejour.tarifId,
+            arrivee: sejour.arrivee, depart: sejour.depart, adultes: sejour.adultes,
             notes: motHotel.trim() || undefined,
-          },
-          carte: {
-            jeton,
-            // Mews attend 'AAAA-MM' quand PciProxy raisonne en MM/AA.
-            expiration: `20${moisAn[2]}-${moisAn[1]}`,
-            porteur: porteur.trim(),
           },
         }),
       });
       const j = await r.json().catch(() => null);
-      if (!r.ok || !j?.groupeId) {
-        setErreur(T.echec);
-        setEnvoi(false);
-        enCours.current = false;
-        return;
-      }
-      // `numeros` porte les numeros de confirmation rendus par Mews. Ils
-      // etaient lus par la route, puis jetes ici : c'est pourtant la seule
-      // chose que le client aura a citer s'il appelle l'hotel.
-      onReserve({
-        groupeId: j.groupeId as string,
-        numeros: Array.isArray(j.numeros) ? (j.numeros as string[]) : [],
-        client: {
-          prenom: prenom.trim(), nom: nom.trim(),
-          email: email.trim(), telephone: telephone.trim(),
-        },
-      });
+      if (r.status === 409) { setErreur(T.plusDispo); setEnvoi(false); enCours.current = false; return; }
+      if (!r.ok || !j?.demandeId) { setErreur(T.echec); setEnvoi(false); enCours.current = false; return; }
+      setOuverte(j as Ouverte);
+      setEnvoi(false);
+      enCours.current = false;
     } catch {
       setErreur(T.echec);
       setEnvoi(false);
       enCours.current = false;
     }
-  }, [moisAn, langue, prenom, nom, email, telephone, motHotel, porteur, sejour, onReserve, T]);
+  };
+
+  /* Temps 2 — la vente se ferme SEULEMENT quand le paiement a abouti. */
+  const finaliser = useCallback(async () => {
+    if (!ouverte) return;
+    try {
+      const r = await fetch("/api/reserver/confirmer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          langue,
+          reservationIds: ouverte.reservationIds,
+          demandeId: ouverte.demandeId,
+          sejour: {
+            categorieId: sejour.categorieId, tarifId: sejour.tarifId,
+            arrivee: sejour.arrivee, depart: sejour.depart, adultes: sejour.adultes,
+          },
+        }),
+      });
+      if (!r.ok) { setErreur(T.echec); return; }
+      onReserve({
+        groupeId: ouverte.groupeId,
+        numeros: ouverte.numeros,
+        client: { prenom: prenom.trim(), nom: nom.trim(), email: email.trim(), telephone: telephone.trim() },
+      });
+    } catch {
+      setErreur(T.echec);
+    }
+  }, [ouverte, langue, sejour, onReserve, prenom, nom, email, telephone, T]);
 
   const finaliserRef = useRef(finaliser);
   useEffect(() => { finaliserRef.current = finaliser; }, [finaliser]);
 
-  // ── Chargement de PciProxy et montage des deux iframes ─────────────────────
+  /* Le checkout de Mews, injecté dans notre page.
+   *
+   * ⚠️ PAS DE `dataBaseUrl` ICI. Ce paramètre pointe le checkout sur
+   * l'environnement de démonstration : laissé en production, le trafic réel y
+   * partirait en silence et aucun paiement ne serait encaissé. */
   useEffect(() => {
+    if (!ouverte) return;
     let annule = false;
 
     const monter = () => {
-      if (annule || !window.SecureFields) return;
-      const api = new window.SecureFields();
-      sf.current = api;
-      api.initTokenize(publicKey, {
-        cardNumber: "pciproxy-numero",
-        cvv: "pciproxy-crypto",
-      });
-      api.on("ready", () => { if (!annule) setPret(true); });
-      api.on("success", (d) => {
-        const jeton = typeof d.transactionId === "string" ? d.transactionId : null;
-        if (!jeton) { setErreur(T.carteRefusee); setEnvoi(false); enCours.current = false; return; }
-        void finaliserRef.current(jeton);
-      });
-      api.on("error", () => {
-        if (annule) return;
-        setErreur(T.carteRefusee);
-        setEnvoi(false);
-        enCours.current = false;
+      const api = window.Mews?.PaymentCheckout;
+      if (annule || !api) return;
+      api.load({
+        containerId: "mews-checkout",
+        requestId: ouverte.demandeId,
+        languageCode: langue === "fr" ? "fr-FR" : "en-GB",
+        onSuccess: () => { if (!annule) void finaliserRef.current(); },
+        onFailure: () => { if (!annule) setErreur(T.echecPaiement); },
+        // Aux couleurs de la maison. Mews ne laisse pas régler la typographie,
+        // mais les couleurs et le rayon suffisent à ce que le cadre n'ait pas
+        // l'air d'appartenir à quelqu'un d'autre au moment de payer.
+        styles: {
+          global: {
+            textColorPrimary: "#20323d",
+            textColorSecondary: "#6b7a82",
+            backgroundColor: "#ffffff",
+            borderRadius: 12,
+          },
+          button: {
+            backgroundColor: "#c6a972",
+            textColor: "#00263a",
+            hover: { backgroundColor: "#d4bb8c" },
+          },
+          input: { borderColor: "#e3e0d9", focus: { borderColor: "#c6a972" } },
+          spinner: { primaryColor: "#004e7c", secondaryColor: "#c6a972", tertiaryColor: "#e3e0d9" },
+        },
       });
     };
 
-    if (window.SecureFields) { monter(); return () => { annule = true; }; }
-
-    const balise = document.createElement("script");
-    balise.src = SCRIPT_PCIPROXY;
-    balise.async = true;
-    balise.onload = monter;
-    balise.onerror = () => { if (!annule) setErreur(T.echec); };
-    document.head.appendChild(balise);
+    if (window.Mews?.PaymentCheckout) { monter(); }
+    else {
+      const balise = document.createElement("script");
+      balise.src = SCRIPT_CHECKOUT;
+      balise.async = true;
+      balise.onload = monter;
+      balise.onerror = () => { if (!annule) setErreur(T.echec); };
+      document.head.appendChild(balise);
+    }
 
     return () => {
       annule = true;
-      try { sf.current?.destroy?.(); } catch { /* PciProxy n'expose pas toujours destroy */ }
+      try { window.Mews?.PaymentCheckout?.destroy?.(); } catch { /* déjà parti */ }
     };
-  }, [publicKey, T]);
+  }, [ouverte, langue, T]);
 
-  // Échap ferme, et le focus ne quitte pas la surcouche — même règle que la
-  // galerie : un écran de paiement qu'on peut quitter au clavier sans le voir
-  // est pire qu'inutile.
+  /* Fermer avant d'avoir payé : on renonce à la demande. L'option, elle,
+   * s'éteint toute seule au bout de vingt minutes. */
+  const fermer = () => {
+    if (ouverte) {
+      void fetch(`/api/reserver/confirmer?demande=${ouverte.demandeId}`, { method: "DELETE" }).catch(() => {});
+    }
+    onFermer();
+  };
+
+  // Échap ferme, et le focus ne quitte pas la surcouche.
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !envoi) { e.preventDefault(); onFermer(); }
+      if (e.key === "Escape" && !envoi) { e.preventDefault(); fermer(); }
       if (e.key === "Tab" && boite.current) {
         const cibles = boite.current.querySelectorAll<HTMLElement>(
           "button:not([disabled]), input, textarea, a[href]",
@@ -277,19 +283,8 @@ export default function Paiement({
     };
     document.addEventListener("keydown", touche);
     return () => document.removeEventListener("keydown", touche);
-  }, [onFermer, envoi]);
-
-  const envoyer = () => {
-    if (enCours.current) return;
-    setErreur(null);
-    if (!prenom.trim() || !nom.trim() || !email.trim()) { setErreur(T.champsManquants); return; }
-    if (!emailOk) { setErreur(T.emailInvalide); return; }
-    if (!moisAn) { setErreur(T.expInvalide); return; }
-    enCours.current = true;
-    setEnvoi(true);
-    // À partir d'ici la main passe à PciProxy : la suite arrive dans `success`.
-    sf.current?.submit({ expm: Number(moisAn[1]), expy: Number(moisAn[2]) });
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [envoi, ouverte]);
 
   const champ = "w-full rounded-xl border border-[#e3e0d9] bg-white px-3.5 py-2.5 text-[15px] text-navy outline-none transition-colors placeholder:text-[#b0b6ba] focus:border-gold";
   const etiquette = "block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8a9299]";
@@ -298,118 +293,89 @@ export default function Paiement({
     <div
       role="dialog" aria-modal="true" aria-label={T.titre}
       className="fixed inset-0 z-50 overflow-y-auto bg-navy-deep/92 p-3 sm:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget && !envoi) onFermer(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !envoi) fermer(); }}
     >
       <div ref={boite} className="mx-auto w-full max-w-[560px] rounded-2xl bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-serif text-2xl leading-tight text-navy">{T.titre}</h2>
-            <p className="mt-1 text-[13.5px] text-[#6b7a82]">{T.sousTitre}</p>
+            <h2 className="font-serif text-2xl leading-tight text-navy">
+              {ouverte ? T.titrePaiement : T.titre}
+            </h2>
+            <p className="mt-1 text-[13.5px] text-[#6b7a82]">{ouverte ? T.tenue : T.sousTitre}</p>
           </div>
           <button
-            type="button" onClick={onFermer} disabled={envoi} aria-label={T.fermer}
+            type="button" onClick={fermer} disabled={envoi} aria-label={T.fermer}
             className="shrink-0 rounded-full border border-[#e3e0d9] px-3 py-1.5 text-[13px] font-semibold text-[#6b7a82] transition-colors hover:border-gold disabled:opacity-40"
           >
             {T.retour}
           </button>
         </div>
 
-        {/* Ce qu'on achète, rappelé sous les yeux : on ne demande pas une carte
+        {/* Ce qu'on achète, rappelé sous les yeux : on ne demande pas d'argent
             sans redire pourquoi, ni combien. */}
         <div className="mt-4 flex items-baseline justify-between gap-3 rounded-xl bg-[#faf7f1] px-4 py-3">
           <span className="text-[13.5px] leading-snug text-[#3c4a52]">{sejour.resume}</span>
           <span className="shrink-0 text-[20px] font-bold tabular-nums text-navy">{sejour.totalFormate}</span>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5">
-            <span className={etiquette}>{T.prenom}</span>
-            <input className={champ} value={prenom} onChange={(e) => setPrenom(e.target.value)} autoComplete="given-name" />
-          </label>
-          <label className="grid gap-1.5">
-            <span className={etiquette}>{T.nom}</span>
-            <input className={champ} value={nom} onChange={(e) => setNom(e.target.value)} autoComplete="family-name" />
-          </label>
-          <label className="grid gap-1.5 sm:col-span-2">
-            <span className={etiquette}>{T.email}</span>
-            <input className={champ} type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-          </label>
-          <label className="grid gap-1.5 sm:col-span-2">
-            <span className={etiquette}>{T.telephone}</span>
-            <input className={champ} type="tel" inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} autoComplete="tel" />
-            <span className="text-[12px] text-[#8a9299]">{T.telephoneAide}</span>
-          </label>
-          <label className="grid gap-1.5 sm:col-span-2">
-            <span className={etiquette}>{T.mot}</span>
-            <textarea className={`${champ} min-h-[64px] resize-y`} value={motHotel} onChange={(e) => setMotHotel(e.target.value)} maxLength={500} />
-            <span className="text-[12px] text-[#8a9299]">{T.motAide}</span>
-          </label>
-        </div>
+        {!ouverte ? (
+          <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5">
+                <span className={etiquette}>{T.prenom}</span>
+                <input className={champ} value={prenom} onChange={(e) => setPrenom(e.target.value)} autoComplete="given-name" />
+              </label>
+              <label className="grid gap-1.5">
+                <span className={etiquette}>{T.nom}</span>
+                <input className={champ} value={nom} onChange={(e) => setNom(e.target.value)} autoComplete="family-name" />
+              </label>
+              <label className="grid gap-1.5 sm:col-span-2">
+                <span className={etiquette}>{T.email}</span>
+                <input className={champ} type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+              </label>
+              <label className="grid gap-1.5 sm:col-span-2">
+                <span className={etiquette}>{T.telephone}</span>
+                <input className={champ} type="tel" inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} autoComplete="tel" />
+                <span className="text-[12px] text-[#8a9299]">{T.telephoneAide}</span>
+              </label>
+              <label className="grid gap-1.5 sm:col-span-2">
+                <span className={etiquette}>{T.mot}</span>
+                <textarea className={`${champ} min-h-[64px] resize-y`} value={motHotel} onChange={(e) => setMotHotel(e.target.value)} maxLength={500} />
+                <span className="text-[12px] text-[#8a9299]">{T.motAide}</span>
+              </label>
+            </div>
 
-        <h3 className="mt-6 font-serif text-xl text-navy">{T.carte}</h3>
-        {/* Ce qui va lui arriver, AVANT les champs et non apres le bouton.
-            Les deux tarifs demandent une carte, et c'est tout ce que la page
-            disait : l'un la debite en entier a la seconde ou l'on valide,
-            l'autre y pose une preautorisation de 1 %. Un client qui decouvre
-            un debit complet la ou il croyait laisser une empreinte appelle sa
-            banque, pas l'hotel. La phrase est calculee depuis Mews, donc elle
-            suit la regle reelle du tarif retenu. */}
-        {sejour.reglement && (
-          <p className="mt-2 flex items-start gap-2 rounded-xl border border-[#e3e0d9] bg-[#faf7f1] px-3.5 py-3 text-[13px] leading-snug text-[#3c4a52]">
-            <svg aria-hidden viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="4" y="10.5" width="16" height="10" rx="2" />
-              <path d="M8 10.5V7.2a4 4 0 0 1 8 0v3.3" />
-            </svg>
-            {sejour.reglement}
-          </p>
-        )}
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5 sm:col-span-2">
-            <span className={etiquette}>{T.porteur}</span>
-            <input className={champ} value={porteur} onChange={(e) => setPorteur(e.target.value)} autoComplete="cc-name" />
-          </label>
-          <div className="grid gap-1.5 sm:col-span-2">
-            <span className={etiquette}>{T.numero}</span>
-            {/* PciProxy injecte son iframe ICI. Le conteneur porte la hauteur :
-                l'iframe arrive sans dimensions et s'écraserait à zéro. */}
-            <div id="pciproxy-numero" className={`${champ} h-[44px] py-0`} />
-          </div>
-          <label className="grid gap-1.5">
-            <span className={etiquette}>{T.expiration}</span>
-            <input
-              className={champ} value={exp} placeholder="MM/AA" inputMode="numeric" autoComplete="cc-exp"
-              onChange={(e) => {
-                // On formate en saisissant : MMAA devient MM/AA sans que le
-                // client ait à chercher la barre oblique sur un clavier mobile.
-                const n = e.target.value.replace(/\D/g, "").slice(0, 4);
-                setExp(n.length > 2 ? `${n.slice(0, 2)}/${n.slice(2)}` : n);
-              }}
-            />
-          </label>
-          <div className="grid gap-1.5">
-            <span className={etiquette}>{T.crypto}</span>
-            <div id="pciproxy-crypto" className={`${champ} h-[44px] py-0`} />
-          </div>
-        </div>
+            {sejour.reglement && (
+              <p className="mt-4 flex items-start gap-2 rounded-xl border border-[#e3e0d9] bg-[#faf7f1] px-3.5 py-3 text-[13px] leading-snug text-[#3c4a52]">
+                <svg aria-hidden viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="4" y="10.5" width="16" height="10" rx="2" />
+                  <path d="M8 10.5V7.2a4 4 0 0 1 8 0v3.3" />
+                </svg>
+                {sejour.reglement}
+              </p>
+            )}
 
-        <p className="mt-3 text-[12px] leading-relaxed text-[#6b7a82]">{T.sur}</p>
+            {erreur && <p className="mt-3 text-[13.5px] leading-snug text-[#a8571f]">{erreur}</p>}
 
-        {erreur && (
-          <p role="alert" className="mt-4 rounded-xl border border-[#e8c7b0] bg-[#fdf6f1] px-4 py-3 text-[13.5px] leading-relaxed text-[#a8571f]">
-            {erreur}
-          </p>
+            <button
+              type="button" onClick={ouvrir} disabled={!complet || envoi}
+              className="mt-4 w-full rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-navy-deep transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
+            >
+              {envoi ? T.prepare : T.continuer}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Mews injecte son iframe ICI. Le conteneur porte une hauteur
+                minimale : l'application arrive sans dimensions et le cadre
+                sauterait au montage. */}
+            <div id="mews-checkout" className="mt-5 min-h-[560px]" />
+            {erreur && <p className="mt-3 text-[13.5px] leading-snug text-[#a8571f]">{erreur}</p>}
+          </>
         )}
 
-        <button
-          type="button"
-          onClick={envoyer}
-          disabled={!complet || envoi}
-          className="mt-5 w-full rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-navy-deep transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
-        >
-          {envoi ? T.envoi : T.payer(sejour.totalFormate)}
-        </button>
-
-        <p className="mt-3 text-[11.5px] leading-relaxed text-[#8a9299]">{T.retractation}</p>
+        <p className="mt-4 text-[12px] leading-relaxed text-[#8a9299]">{T.sur}</p>
+        <p className="mt-2 text-[11.5px] leading-relaxed text-[#a0a8ad]">{T.retractation}</p>
       </div>
     </div>
   );

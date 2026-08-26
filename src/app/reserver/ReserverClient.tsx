@@ -10,7 +10,7 @@ import {
   type TablePrise, type ChoixTable,
 } from "./TableRooftop";
 import {
-  chercherDisponibilite, chargerCategories, chargerConfigPaiement, urlPhoto, t,
+  chercherDisponibilite, chargerCategories, reglementDe, urlPhoto, t,
   type CategorieChambre, type Disponibilite, type GroupeTarifaire, type Langue,
   type Offre, type Tarif,
 } from "@/lib/mewsBooking";
@@ -71,8 +71,6 @@ const TEXTES = {
     tarifFlexible: "Tarif flexible", tarifPrepaye: "Prépayé, non remboursable",
     totalSejour: "Total du séjour",
     payer: "Réserver et payer",
-    paiementIndispo:
-      "Le règlement en ligne est momentanément indisponible. Appelez-nous, on prend votre réservation avec vous.",
     /* L'ecran de confirmation. Il ne promet QUE ce qu'on a verifie : la
      * reservation est enregistree, et voici son numero. Pas de « vous allez
      * recevoir un email » tant que le premier test n'aura pas montre que Mews
@@ -167,8 +165,6 @@ const TEXTES = {
     tarifFlexible: "Flexible rate", tarifPrepaye: "Prepaid, non-refundable",
     totalSejour: "Stay total",
     payer: "Book and pay",
-    paiementIndispo:
-      "Online payment is temporarily unavailable. Call us and we'll take your booking with you.",
     confirmeTitre: "You're booked.",
     confirmeSous: "Your stay is registered with the hotel.",
     confirmeNumero: "Your confirmation number",
@@ -440,39 +436,6 @@ const estPrepaye = (tarif: Tarif | undefined, groupes: GroupeTarifaire[]): boole
   return /non[\s-]*remboursable|non[\s-]*refundable|prépaiement|prepay/.test(
     `${String(tarif?.Name ?? "")} ${String(tarif?.Description ?? "")}`.toLowerCase(),
   );
-};
-
-/* Ce qui va arriver a la carte — lu chez Mews, jamais ecrit ici.
- *
- * Le groupe tarifaire porte la regle complete, en clair :
- *   Flexible  → CreatePreauthorization, SettlementValue 0.01  → empreinte de 1 %
- *   NAR BB    → ChargeCreditCard,       SettlementValue 1.0   → debit de 100 %
- * les deux au declencheur `Confirmation`, offset nul : ca se passe au moment ou
- * le client valide, pas plus tard.
- *
- * On CALCULE au lieu d'ecrire « 1 % ». Le jour ou l'hotel passera son empreinte
- * a 30 % dans son back-office, une phrase codee en dur continuerait d'annoncer
- * 1 % — et un client verrait partir de sa carte cinquante fois ce qu'on lui a
- * promis. Une phrase fausse sur un montant preleve, ca ne se rattrape pas.
- *
- * `SettlementFlatValue` prime quand il est pose : Mews sait exprimer la regle
- * en montant fixe autant qu'en pourcentage. */
-type Reglement = { debite: boolean; montant: number; part: number | null };
-
-const reglementDe = (
-  tarif: Tarif | undefined,
-  groupes: GroupeTarifaire[],
-  total: number,
-): Reglement | null => {
-  const g = groupes.find((x) => x.Id === tarif?.RateGroupId);
-  if (!g) return null;
-  const debite = g.SettlementAction === "ChargeCreditCard";
-  if (!debite && g.SettlementAction !== "CreatePreauthorization") return null;
-  const fixe = typeof g.SettlementFlatValue === "number" ? g.SettlementFlatValue : null;
-  const part = typeof g.SettlementValue === "number" ? g.SettlementValue : null;
-  if (fixe !== null) return { debite, montant: fixe, part: null };
-  if (part === null) return null;
-  return { debite, montant: total * part, part };
 };
 
 /* La date reelle d'annulation gratuite.
@@ -1173,37 +1136,23 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * chambre a l'autre annoncerait une hausse qui n'existe pas. */
   const [tour, setTour] = useState(0);
 
-  /* Le reglement.
-   *
-   * `publicKey` est l'identifiant marchand PciProxy, releve chez Mews par
-   * `hotels/getPaymentConfiguration`. Il n'est pas secret, mais il n'est pas a
-   * nous : le figer dans le code ferait tomber le paiement le jour ou l'hotel
-   * changerait de contrat, sans que rien ne le dise.
-   *
-   * Il se charge quand un tarif est retenu, pas au montage de la page : la
-   * plupart des visiteurs ne vont pas jusqu'au paiement, et leur faire payer
-   * une requete pour rien est une seconde de moins pour les chambres. Retenir
-   * un tarif, en revanche, est le premier geste qui rend le paiement plausible
-   * — la cle est donc la bien avant le clic, et le bouton n'attend jamais. */
-  /* Ce que le même séjour coûte sur Booking, par catégorie.
-   *
-   * Les tarifs OTA vivent dans le même Mews, mais ne sont pas publiés sur la
-   * configuration du moteur — et ne doivent pas l'être, ils deviendraient
-   * réservables en direct. Seul le Connector les lit, donc ça passe par notre
+  /* Ce que le meme sejour coute sur Booking, par categorie.
+   * Les tarifs OTA vivent dans le meme Mews mais ne sont pas publies sur la
+   * configuration du moteur — et ne doivent pas l'etre, ils deviendraient
+   * reservables en direct. Seul le Connector les lit, donc ca passe par notre
    * serveur, qui les garde quinze minutes en cache. */
   const [tarifPublic, setTarifPublic] = useState<Record<string, { flexible: number; prepaye: number }> | null>(null);
 
-  /* La table du rooftop, choisie AVEC la chambre.
-   * `tableHeure` est le créneau retenu, ou null si le client n'en veut pas.
-   * `tablePrise` n'existe qu'après la réservation : la table se prend une fois
-   * la chambre acquise, jamais avant — une table tenue pour un paiement qui
-   * échoue est une table perdue et une promesse en l'air. */
+  /* La table du rooftop, choisie AVEC la chambre. `tablePrise` n'existe
+   * qu'apres la reservation : une table tenue pour un paiement qui echoue est
+   * une table perdue et une promesse en l'air. */
   const [tableChoix, setTableChoix] = useState<ChoixTable | null>(null);
   const [tablePrise, setTablePrise] = useState<TablePrise>(null);
   const [dosRooftop, setDosRooftop] = useState(false);
 
-  const [publicKey, setPublicKey] = useState<string | null>(null);
-  const [paiementKo, setPaiementKo] = useState(false);
+  /* Le reglement. Plus de cle marchande ni de jeton : depuis Mews Payments
+   * Checkout, la carte est collectee par un iframe de Mews et le paiement se
+   * joue entierement chez eux. L'ecran n'a plus qu'a s'ouvrir. */
   const [paiementOuvert, setPaiementOuvert] = useState(false);
   const [reserve, setReserve] = useState<{
     groupeId: string; numeros: string[];
@@ -1412,19 +1361,6 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       .catch(() => { /* on se tait : le tunnel n'en dépend pas */ });
     return () => { annule = true; };
   }, [cherche]);
-
-  /* La cle marchande, des qu'un tarif est retenu — et une seule fois.
-   * Si l'appel echoue, le bouton reste inerte et dit pourquoi : ouvrir un
-   * ecran de paiement dont le champ carte ne montera jamais est pire que ne
-   * pas l'ouvrir du tout. */
-  useEffect(() => {
-    if (!choix || publicKey) return;
-    let annule = false;
-    chargerConfigPaiement(langue)
-      .then((c) => { if (!annule) { setPublicKey(c.publicKey); setPaiementKo(false); } })
-      .catch(() => { if (!annule) setPaiementKo(true); });
-    return () => { annule = true; };
-  }, [choix, publicKey, langue]);
 
   /* Ce que l'ecran de paiement doit redire au client avant de lui demander sa
    * carte. Le total est celui qu'il a sous les yeux depuis le debut — taxe de
@@ -2287,26 +2223,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 c'est le seul or de cette colonne — il doit dire ou l'on va. */}
             {choix && (
               <>
-                {/* Il n'attend qu'une chose : la cle marchande. Elle part des
-                    qu'un tarif est retenu, donc elle est la bien avant que le
-                    doigt n'arrive — le cas « desactive » ne se voit qu'en cas
-                    d'echec reel, et il dit alors ou appeler. */}
                 <button
                   type="button"
-                  disabled={!publicKey}
                   onClick={() => { pulse(); setPaiementOuvert(true); }}
-                  className={[
-                    "w-full rounded-full px-6 py-3.5 text-[16px] font-bold transition",
-                    publicKey
-                      ? "bg-gold text-navy-deep hover:brightness-105"
-                      : "cursor-not-allowed bg-[#ddd8ce] text-[#9a9a95]",
-                  ].join(" ")}
+                  className="w-full rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-navy-deep transition hover:brightness-105"
                 >
                   {T.payer}
                 </button>
-                {paiementKo && (
-                  <p className="mt-2 text-[12px] leading-relaxed text-[#a8571f]">{T.paiementIndispo}</p>
-                )}
                 {/* Colle au bouton, et a lui seul : c'est la, carte en main,
                     que la question se pose.
                     UNE ligne, et pas la phrase entiere. La colonne vit sous
@@ -2389,11 +2312,10 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           champ carte vide, sans rien pour le lui expliquer.
           La barre collante du bas, elle, se retire pendant ce temps : elle
           traversait deja les galeries pour la meme raison. */}
-      {paiementOuvert && sejourAPayer && publicKey && !reserve && (
+      {paiementOuvert && sejourAPayer && !reserve && (
         <Paiement
           sejour={sejourAPayer}
           langue={langue}
-          publicKey={publicKey}
           onFermer={() => setPaiementOuvert(false)}
           onReserve={(r) => {
             setPaiementOuvert(false);

@@ -1,74 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  creerReservation, chercherDisponibilite, chargerCategories, estPrepaye, t,
-  type Langue,
+  creerReservation, chercherDisponibilite, reglementDe, type Langue,
 } from '@/lib/mewsBooking';
-import { ajouterNote, noteDeControle, confirmerReservations } from '@/lib/mewsConnector';
+import { creerDemandePaiement } from '@/lib/mewsConnector';
 
-// Taxe de séjour Toulon, 3 étoiles. Le même chiffre que l'écran — il entre dans
-// la note de réception, qui décide d'un geste de caisse.
+/* Pose l'option, et prépare son règlement.
+ *
+ * ⚠️ CETTE ROUTE NE VEND RIEN. Elle crée la réservation SANS moyen de paiement
+ * — `reservationGroups/create` la sort en `State: Optional`, tenue vingt
+ * minutes — puis ouvre une demande de paiement chez Mews. C'est le checkout
+ * embarqué qui encaisse ensuite, dans la page, et `/api/reserver/confirmer`
+ * qui ferme la vente une fois le paiement passé.
+ *
+ * Le client qui abandonne au paiement ne laisse donc rien derrière lui : on ne
+ * confirme pas, et Mews relâche la chambre tout seul. Ce `ReleasedUtc` de vingt
+ * minutes, qui nous a coûté une réservation le 26/08 faute de la confirmer,
+ * fait ici exactement le travail d'une garde de panier.
+ *
+ * ⚠️ AUCUNE DONNÉE DE CARTE NE PASSE PAR ICI, ni même un jeton. Mews collecte
+ * la carte dans son propre iframe et porte la certification PCI-DSS. Le
+ * navigateur ne reçoit de nous qu'un identifiant de demande de paiement, et le
+ * montant est fixé de ce côté-ci — il n'est pas modifiable à la console, ce qui
+ * serait le cas si on laissait le checkout le lire dans sa configuration.
+ */
+
 const TAXE_PAR_ADULTE_NUIT = 1.86;
-
-/* Pose la note que la réception lira, APRÈS que la chambre soit acquise.
- *
- * Trois précautions, toutes délibérées :
- *
- *  1. Elle ne peut pas faire échouer la réservation. La nuit est vendue, la
- *     carte est engagée : refuser un 200 au client parce qu'une note n'est pas
- *     partie serait échanger un vrai problème contre un bien pire.
- *  2. Elle relit la catégorie et le groupe tarifaire CHEZ MEWS au lieu de
- *     croire le navigateur. La note décide si la réception réclame de l'argent
- *     au comptoir : elle ne se construit pas sur une valeur qu'un client
- *     pourrait poser.
- *  3. Elle s'ajoute, elle n'écrase rien — le mot du client est déjà posé par la
- *     Booking Engine en note `General`, et il doit le rester.
- */
-async function poserNoteReception(
-  { reservationIds, sejour, adultes, langue }:
-  { reservationIds: string[]; sejour: NonNullable<Corps['sejour']>; adultes: number; langue: Langue },
-): Promise<void> {
-  if (!reservationIds.length) return;
-  const [dispo, cats] = await Promise.all([
-    chercherDisponibilite({
-      arrivee: sejour.arrivee!, depart: sejour.depart!, adultes, langue: 'fr',
-    }),
-    chargerCategories('fr'),
-  ]);
-  const nuits = Math.max(
-    1,
-    Math.round((Date.parse(sejour.depart!) - Date.parse(sejour.arrivee!)) / 86_400_000),
-  );
-  const taxe = TAXE_PAR_ADULTE_NUIT * adultes * nuits;
-  // Le montant vient de Mews, jamais du navigateur : c'est lui qui décide de
-  // ce que la réception réclame au comptoir.
-  const prixMews = dispo.offres
-    .find((o) => o.categorieId === sejour.categorieId && o.pourPersonnes === adultes)
-    ?.prix.find((p) => p.tarifId === sejour.tarifId)?.total ?? 0;
-  const texte = noteDeControle({
-    chambre: cats.get(sejour.categorieId!)?.nomFr || t(cats.get(sejour.categorieId!)?.nom, 'fr'),
-    prepaye: estPrepaye(dispo.tarifs.find((r) => r.Id === sejour.tarifId), dispo.groupes),
-    total: prixMews + taxe,
-    taxe,
-    langueClient: langue,
-  });
-  await Promise.all(reservationIds.map((id) => ajouterNote(id, texte)));
-}
-
-/* Écrit la réservation dans le PMS des Voiles.
- *
- * Pourquoi le serveur et pas le navigateur, alors que la Booking Engine API est
- * conçue pour être appelée depuis la page ? Parce que la création est le seul
- * appel qui ne soit pas rejouable : si l'onglet meurt entre la tokenisation et
- * l'écriture, le client a donné sa carte pour rien. Ici, la requête part une
- * fois, et c'est aussi le seul endroit où la table du rooftop pourra être
- * réservée dans la foulée sans envoyer un second courriel.
- *
- * ⚠️ CE QUI NE PASSE PAS PAR NOUS : les données de carte. Le navigateur les
- * remet directement à PciProxy, qui rend un `transactionId`. C'est ce jeton —
- * inutilisable ailleurs, valable trente minutes — qui arrive ici. Aucun PAN,
- * aucun CVV ne touche ce serveur ni nos journaux, et c'est la condition pour
- * rester hors du périmètre lourd de PCI-DSS.
- */
 
 type Corps = {
   langue?: Langue;
@@ -81,7 +37,6 @@ type Corps = {
     adultes?: number;
     notes?: string;
   };
-  carte?: { jeton?: string; expiration?: string; porteur?: string };
 };
 
 const estDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -100,12 +55,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erreur: 'requete illisible' }, { status: 400 });
   }
 
-  const { client, sejour, carte } = corps;
+  const { client, sejour } = corps;
   const langue: Langue = corps.langue === 'en' ? 'en' : 'fr';
 
   // On valide avant d'appeler Mews : un 400 renvoyé par eux au milieu d'un
-  // tunnel de paiement est illisible pour le client, et le jeton de carte est
-  // déjà consommé quand il arrive.
+  // tunnel est illisible pour le client.
   if (!client?.prenom?.trim() || !client?.nom?.trim() || !estEmail(client?.email)) {
     return NextResponse.json({ erreur: 'coordonnees incompletes' }, { status: 400 });
   }
@@ -119,15 +73,44 @@ export async function POST(req: NextRequest) {
   if (!Number.isInteger(adultes) || adultes < 1 || adultes > 4) {
     return NextResponse.json({ erreur: 'occupation invalide' }, { status: 400 });
   }
-  // La carte est facultative pour Mews, mais pas pour nous : sans elle, les
-  // règles d'encaissement des rate groups n'ont rien à saisir et la chambre
-  // partirait sans garantie.
-  if (!carte?.jeton || !/^\d{4}-\d{2}$/.test(carte?.expiration ?? '') || !carte?.porteur?.trim()) {
-    return NextResponse.json({ erreur: 'carte manquante' }, { status: 400 });
+
+  /* Le prix se relit CHEZ MEWS, jamais dans la requête.
+   * C'est lui qui fixe le montant réellement demandé au client : le laisser
+   * venir du navigateur reviendrait à laisser choisir combien on encaisse. */
+  let dispo;
+  try {
+    dispo = await chercherDisponibilite({
+      arrivee: sejour.arrivee, depart: sejour.depart, adultes, langue: 'fr',
+    });
+  } catch (e) {
+    console.error('Mews getAvailability', e instanceof Error ? e.message : e);
+    return NextResponse.json({ erreur: 'indisponible' }, { status: 502 });
   }
 
+  const prixMews = dispo.offres
+    .find((o) => o.categorieId === sejour.categorieId && o.pourPersonnes === adultes)
+    ?.prix.find((p) => p.tarifId === sejour.tarifId)?.total;
+  if (!prixMews) {
+    // La chambre est partie, ou le tarif n'est plus offert sur ces dates.
+    return NextResponse.json({ erreur: 'plus disponible' }, { status: 409 });
+  }
+
+  const nuits = Math.max(
+    1, Math.round((Date.parse(sejour.depart) - Date.parse(sejour.arrivee)) / 86_400_000),
+  );
+  const taxe = TAXE_PAR_ADULTE_NUIT * adultes * nuits;
+  const total = prixMews + taxe;
+
+  const tarif = dispo.tarifs.find((r) => r.Id === sejour.tarifId);
+  const reglement = reglementDe(tarif, dispo.groupes, total);
+  if (!reglement) {
+    console.error('Mews : regle de reglement introuvable pour', sejour.tarifId);
+    return NextResponse.json({ erreur: 'reglement inconnu' }, { status: 502 });
+  }
+
+  let resa;
   try {
-    const resa = await creerReservation({
+    resa = await creerReservation({
       langue,
       client: {
         prenom: client.prenom, nom: client.nom,
@@ -141,50 +124,49 @@ export async function POST(req: NextRequest) {
         adultes,
         notes: sejour.notes?.slice(0, 500) || undefined,
       }],
-      carte: { jeton: carte.jeton, expiration: carte.expiration!, porteur: carte.porteur },
     });
-
-    if (!resa.groupeId) {
-      // Mews a répondu 200 sans identifiant : la réservation existe peut-être.
-      // On ne rejoue SURTOUT pas — on renvoie le client vers le téléphone.
-      console.error('Mews create sans ReservationGroupId', resa);
-      return NextResponse.json({ erreur: 'reponse inattendue' }, { status: 502 });
-    }
-    /* ⚠️ CONFIRMER, SINON LA CHAMBRE N'EST PAS VENDUE.
-     *
-     * La Booking Engine pose une OPTION, pas une réservation ferme : elle sort
-     * en `Optional` et Mews la relâche vingt minutes plus tard. Sans cet appel,
-     * le client repart avec un numéro de confirmation qui ne vaut rien, et
-     * l'hôtel ne voit jamais la vente. Vécu le 26/08/2026 sur la 29816.
-     *
-     * En premier, avant la note : c'est ce qui décide qu'il y a une
-     * réservation. Un échec est journalisé fort — la réservation existe encore
-     * vingt minutes, l'hôtel peut la rattraper — mais on ne le renvoie pas au
-     * client : sa chambre est prise et sa carte engagée, lui rendre une erreur
-     * le ferait réserver deux fois. */
-    try {
-      await confirmerReservations(resa.reservationIds);
-    } catch (e) {
-      console.error(
-        'MEWS CONFIRMATION ECHOUEE — reservation relachee dans 20 min :',
-        resa.numeros.join(', '), e instanceof Error ? e.message : e,
-      );
-    }
-
-    // La note part APRÈS coup et sans bloquer la réponse au client : la chambre
-    // est prise, c'est ce qui compte. Un échec ici se lit dans les journaux et
-    // se rattrape au comptoir ; un échec renvoyé au client, non.
-    try {
-      await poserNoteReception({ reservationIds: resa.reservationIds, sejour, adultes, langue });
-    } catch (e) {
-      console.error('Mews note de reception', e instanceof Error ? e.message : e);
-    }
-
-    return NextResponse.json({ groupeId: resa.groupeId, numeros: resa.numeros });
   } catch (e) {
-    // Le message de Mews peut contenir les coordonnées du client : il va dans
-    // les journaux du serveur, jamais dans la réponse.
     console.error('Mews reservationGroups/create', e instanceof Error ? e.message : e);
     return NextResponse.json({ erreur: 'refus' }, { status: 502 });
   }
+
+  if (!resa.groupeId || !resa.reservationIds.length || !resa.customerId) {
+    console.error('Mews create : reponse incomplete', resa);
+    return NextResponse.json({ erreur: 'reponse inattendue' }, { status: 502 });
+  }
+
+  /* La demande de paiement, que le checkout va consommer.
+   * Elle expire en même temps que l'option — inutile de laisser vivre une
+   * demande pour une chambre que Mews a déjà relâchée. */
+  const expireUtc = new Date(Date.now() + 20 * 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  let demandeId: string | null = null;
+  try {
+    demandeId = await creerDemandePaiement({
+      customerId: resa.customerId,
+      reservationId: resa.reservationIds[0],
+      montant: reglement.montant,
+      type: reglement.debite ? 'Payment' : 'Preauthorization',
+      // Lue par le client dans le checkout : elle doit lui parler, à lui.
+      description: reglement.debite
+        ? (langue === 'fr' ? 'Règlement de votre séjour' : 'Payment for your stay')
+        : (langue === 'fr' ? 'Garantie de votre réservation' : 'Guarantee for your booking'),
+      expireUtc,
+    });
+  } catch (e) {
+    console.error('Mews paymentRequests/add', e instanceof Error ? e.message : e);
+  }
+  if (!demandeId) {
+    // Sans demande, le checkout n'a rien à afficher. On ne confirme pas : Mews
+    // relâchera l'option, et le client voit un message plutôt qu'un cadre vide.
+    return NextResponse.json({ erreur: 'paiement indisponible' }, { status: 502 });
+  }
+
+  return NextResponse.json({
+    groupeId: resa.groupeId,
+    numeros: resa.numeros,
+    reservationIds: resa.reservationIds,
+    demandeId,
+    // Ce que le client va régler, pour que l'écran l'annonce sans le recalculer.
+    reglement: { debite: reglement.debite, montant: reglement.montant },
+  });
 }
