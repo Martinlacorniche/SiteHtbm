@@ -37,9 +37,29 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-          // Aucune de ces API n'est utilisée par le site ; le paiement, lui,
-          // se passe chez Stripe, sur son propre domaine.
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
+          /* ⚠️ `payment` DOIT être ouvert aux domaines de Mews.
+           *
+           * Le commentaire d'avant disait « le paiement se passe chez Stripe,
+           * sur son propre domaine » — ce n'est plus vrai depuis que le tunnel
+           * /reserver encaisse : Mews Payments Checkout s'exécute dans un
+           * iframe SUR CETTE PAGE, et il charge Stripe.js pour Google Pay.
+           *
+           * Une directive absente prend sa valeur par défaut, `self` : l'iframe
+           * de Mews se voyait donc refuser l'API de paiement, et le formulaire
+           * restait muet — le bouton « Confirmer l'autorisation » ne déclenchait
+           * aucune requête, sans la moindre erreur. Diagnostiqué le 26/08/2026
+           * au navigateur : zéro POST au clic.
+           *
+           * `publickey-credentials-get` suit, parce que le 3-D Secure peut
+           * passer par une clé d'accès. */
+          {
+            key: "Permissions-Policy",
+            value: [
+              "camera=()", "microphone=()", "geolocation=()", "browsing-topics=()",
+              'payment=(self "https://app.mews.com" "https://pay.datatrans.com" "https://js.stripe.com")',
+              'publickey-credentials-get=(self "https://app.mews.com")',
+            ].join(", "),
+          },
         ],
       },
       { source: "/media/:chemin*", headers: [{ key: "Cache-Control", value: medias }] },

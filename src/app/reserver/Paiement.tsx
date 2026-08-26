@@ -220,7 +220,14 @@ export default function Paiement({
         requestId: ouverte.demandeId,
         languageCode: langue === "fr" ? "fr-FR" : "en-GB",
         onSuccess: () => { if (!annule) void finaliserRef.current(); },
-        onFailure: () => { if (!annule) setErreur(T.echecPaiement); },
+        /* Mews donne la raison dans `event.error` — un texte lisible, pas un
+         * code stable. On la journalise telle quelle : sans elle, un refus
+         * ressemble à une panne et on cherche du mauvais côté. Le client, lui,
+         * ne voit que la phrase utile et le téléphone. */
+        onFailure: (e?: { type?: string; error?: string }) => {
+          console.error("Mews checkout —", e?.type, e?.error);
+          if (!annule) setErreur(T.echecPaiement);
+        },
         // Aux couleurs de la maison. Mews ne laisse pas régler la typographie,
         // mais les couleurs et le rayon suffisent à ce que le cadre n'ait pas
         // l'air d'appartenir à quelqu'un d'autre au moment de payer.
