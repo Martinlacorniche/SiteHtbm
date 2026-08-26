@@ -1,5 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { creerReservation, type Langue } from '@/lib/mewsBooking';
+import {
+  creerReservation, chercherDisponibilite, chargerCategories, estPrepaye, t,
+  type Langue,
+} from '@/lib/mewsBooking';
+import { ajouterNote, noteDeControle } from '@/lib/mewsConnector';
+
+// Taxe de séjour Toulon, 3 étoiles. Le même chiffre que l'écran — il entre dans
+// la note de réception, qui décide d'un geste de caisse.
+const TAXE_PAR_ADULTE_NUIT = 1.86;
+
+/* Pose la note que la réception lira, APRÈS que la chambre soit acquise.
+ *
+ * Trois précautions, toutes délibérées :
+ *
+ *  1. Elle ne peut pas faire échouer la réservation. La nuit est vendue, la
+ *     carte est engagée : refuser un 200 au client parce qu'une note n'est pas
+ *     partie serait échanger un vrai problème contre un bien pire.
+ *  2. Elle relit la catégorie et le groupe tarifaire CHEZ MEWS au lieu de
+ *     croire le navigateur. La note décide si la réception réclame de l'argent
+ *     au comptoir : elle ne se construit pas sur une valeur qu'un client
+ *     pourrait poser.
+ *  3. Elle s'ajoute, elle n'écrase rien — le mot du client est déjà posé par la
+ *     Booking Engine en note `General`, et il doit le rester.
+ */
+async function poserNoteReception(
+  { reservationIds, sejour, adultes, langue }:
+  { reservationIds: string[]; sejour: NonNullable<Corps['sejour']>; adultes: number; langue: Langue },
+): Promise<void> {
+  if (!reservationIds.length) return;
+  const [dispo, cats] = await Promise.all([
+    chercherDisponibilite({
+      arrivee: sejour.arrivee!, depart: sejour.depart!, adultes, langue: 'fr',
+    }),
+    chargerCategories('fr'),
+  ]);
+  const nuits = Math.max(
+    1,
+    Math.round((Date.parse(sejour.depart!) - Date.parse(sejour.arrivee!)) / 86_400_000),
+  );
+  const taxe = TAXE_PAR_ADULTE_NUIT * adultes * nuits;
+  // Le montant vient de Mews, jamais du navigateur : c'est lui qui décide de
+  // ce que la réception réclame au comptoir.
+  const prixMews = dispo.offres
+    .find((o) => o.categorieId === sejour.categorieId && o.pourPersonnes === adultes)
+    ?.prix.find((p) => p.tarifId === sejour.tarifId)?.total ?? 0;
+  const texte = noteDeControle({
+    chambre: cats.get(sejour.categorieId!)?.nomFr || t(cats.get(sejour.categorieId!)?.nom, 'fr'),
+    prepaye: estPrepaye(dispo.tarifs.find((r) => r.Id === sejour.tarifId), dispo.groupes),
+    total: prixMews + taxe,
+    taxe,
+    langueClient: langue,
+  });
+  await Promise.all(reservationIds.map((id) => ajouterNote(id, texte)));
+}
 
 /* Écrit la réservation dans le PMS des Voiles.
  *
@@ -97,6 +150,15 @@ export async function POST(req: NextRequest) {
       console.error('Mews create sans ReservationGroupId', resa);
       return NextResponse.json({ erreur: 'reponse inattendue' }, { status: 502 });
     }
+    // La note part APRÈS coup et sans bloquer la réponse au client : la chambre
+    // est prise, c'est ce qui compte. Un échec ici se lit dans les journaux et
+    // se rattrape au comptoir ; un échec renvoyé au client, non.
+    try {
+      await poserNoteReception({ reservationIds: resa.reservationIds, sejour, adultes, langue });
+    } catch (e) {
+      console.error('Mews note de reception', e instanceof Error ? e.message : e);
+    }
+
     return NextResponse.json({ groupeId: resa.groupeId, numeros: resa.numeros });
   } catch (e) {
     // Le message de Mews peut contenir les coordonnées du client : il va dans

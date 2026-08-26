@@ -442,8 +442,14 @@ export default function PageUltimeV15() {
             </button>
             <div className="flex flex-col gap-4 md:gap-6 text-center font-serif text-3xl md:text-5xl">
               <a href="/group-packages" className="text-cream hover:text-gold transition-colors">Packages Groupes</a>
-              <a href={CONFIG.corniche.bookingUrl} className="text-cream hover:text-gold transition-colors">{CONFIG.corniche.title}</a>
-              <a href={CONFIG.voiles.bookingUrl} className="text-cream hover:text-gold transition-colors">{CONFIG.voiles.title}</a>
+              {/* Le lien suit la langue affichée, il ne la devine pas.
+                  `CONFIG.*.bookingUrl` est calcule une fois, hors du composant,
+                  donc fige en francais : depuis le menu en anglais, « Les
+                  Voiles » renvoyait sur /reserver au lieu de /en/book — et
+                  c'est le lien le plus visible du site apres les deux boutons
+                  des cartes. Les boutons, eux, passaient deja `lang`. */}
+              <a href={lienReservation("corniche", lang)} className="text-cream hover:text-gold transition-colors">{CONFIG.corniche.title}</a>
+              <a href={lienReservation("voiles", lang)} className="text-cream hover:text-gold transition-colors">{CONFIG.voiles.title}</a>
               <a href={CONFIG.villa.bookingUrl} className="text-cream hover:text-gold transition-colors">{CONFIG.villa.title}</a>
               {rooftopOn && <Link href="/rooftop-les-voiles" className="text-cream hover:text-gold transition-colors">Le Rooftop</Link>}
               <Link href="/journal" className="text-2xl md:text-4xl italic text-cream/70 hover:text-cream transition-colors mt-2">
@@ -705,16 +711,23 @@ export default function PageUltimeV15() {
                     <MapPin className="w-4 h-4"/> <span>{t.viewMap}</span>
                  </a>
               </div>
-              {rooftopOn && (
-                <Link href="/rooftop-les-voiles" className="btn btn-or pointer-events-auto relative z-20 w-fit px-8 py-4 font-bold tracking-wide shadow-lg hover:scale-105">
-                  🍸 {lang === "en" ? "Discover the Rooftop" : "Découvrir le Rooftop"} <ArrowRight className="w-4 h-4" />
-                </Link>
-              )}
-              {/* Même précaution que sur la Corniche : l'overlay /wifiv couvre la
-                  carte entière, le bouton doit repasser au-dessus. */}
-              <a href={lienReservation("voiles", lang)} className="btn btn-clair pointer-events-auto relative z-20 w-fit px-8 py-4 font-bold tracking-wide shadow-lg hover:scale-105">
-                {t.book} <ArrowRight className="w-4 h-4" />
-              </a>
+              {/* Les deux boutons sont des `inline-flex` : postes en freres, ils se
+                  touchaient au pixel pres — JSX supprime le retour a la ligne qui
+                  les separe dans la source, et il ne reste aucune espace entre eux.
+                  L'enveloppe pose l'ecart explicitement ; `flex-wrap` les empile
+                  quand la carte est trop etroite pour les tenir cote a cote. */}
+              <div className="flex flex-wrap items-center gap-3">
+                {rooftopOn && (
+                  <Link href="/rooftop-les-voiles" className="btn btn-or pointer-events-auto relative z-20 w-fit px-8 py-4 font-bold tracking-wide shadow-lg hover:scale-105">
+                    🍸 {lang === "en" ? "Discover the Rooftop" : "Découvrir le Rooftop"} <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
+                {/* Même précaution que sur la Corniche : l'overlay /wifiv couvre la
+                    carte entière, le bouton doit repasser au-dessus. */}
+                <a href={lienReservation("voiles", lang)} className="btn btn-clair pointer-events-auto relative z-20 w-fit px-8 py-4 font-bold tracking-wide shadow-lg hover:scale-105">
+                  {t.book} <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
             </div>
           </div>
         </div>

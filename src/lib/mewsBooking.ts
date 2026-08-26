@@ -96,6 +96,26 @@ type ReponseDisponibilite = {
 };
 
 /** Ce que l'écran affiche : une chambre, son stock, et un prix par tarif. */
+/* Prepaye ou flexible ? La reponse est STRUCTURELLE, pas textuelle.
+ *
+ * Le groupe tarifaire dit si la carte est debitee (`ChargeCreditCard`) ou
+ * seulement preautorisee (`CreatePreauthorization`). On ne retombe sur le
+ * libelle que si le groupe manque — un libelle faux sur une condition
+ * d'annulation se paierait au comptoir.
+ *
+ * Vit ici et non dans l'ecran : la note posee dans le PMS doit qualifier le
+ * tarif avec exactement les memes yeux que la page qui l'a vendu. Deux copies
+ * de cette regle, c'est un jour ou elles divergent — et ce jour-la, la
+ * reception encaisse un client qui a deja paye. */
+export const estPrepaye = (tarif: Tarif | undefined, groupes: GroupeTarifaire[]): boolean => {
+  const groupe = groupes.find((g) => g.Id === tarif?.RateGroupId);
+  if (groupe?.SettlementAction === 'ChargeCreditCard') return true;
+  if (groupe?.SettlementAction === 'CreatePreauthorization') return false;
+  return /non[\s-]*remboursable|non[\s-]*refundable|prépaiement|prepay/.test(
+    `${String(tarif?.Name ?? '')} ${String(tarif?.Description ?? '')}`.toLowerCase(),
+  );
+};
+
 export type Offre = {
   categorieId: string;
   chambresRestantes: number;
@@ -251,6 +271,56 @@ export async function chargerCategories(langue: Langue): Promise<Map<string, Cat
  * Les règles d'encaissement (préautorisation ou débit) sont portées par les rate
  * groups et s'exécutent côté Mews : rien à décider ici.
  */
+/* La configuration de paiement de l'hôtel, relevée chez Mews.
+ *
+ * On en veut UNE chose : la `PublicKey`, l'identifiant marchand que le script
+ * PciProxy exige pour monter ses deux iframes (numéro, cryptogramme). Elle
+ * n'est pas secrète — c'est l'équivalent d'une clé publiable Stripe — mais elle
+ * n'est pas non plus à nous : c'est Mews qui la porte, elle peut changer avec
+ * le contrat de l'hôtel, et la figer dans le code ferait tomber le paiement le
+ * jour où elle bougerait, sans que rien ne le dise. On la lit.
+ *
+ * Le reste de la réponse est relevé ici pour mémoire, parce qu'il répond à des
+ * questions qui se poseront : `SupportedCreditCardTypes` (Visa, MasterCard,
+ * Amex) dit quels logos afficher sans les inventer, `SurchargeFees` est à 0 sur
+ * les trois — donc aucun supplément carte à annoncer — et ApplePay comme
+ * GooglePay sont actifs côté passerelle, disponibles le jour où on voudra les
+ * proposer. */
+export type ConfigPaiement = {
+  /** L'identifiant marchand PciProxy, à passer à `Paiement.tsx`. */
+  publicKey: string;
+  /** 'Visa' | 'MasterCard' | 'Amex' — tels que Mews les nomme. */
+  cartes: string[];
+  /** Supplément par réseau, en pourcentage. Tous à 0 aux Voiles au 26/08/2026. */
+  surcharges: Record<string, number>;
+};
+
+type ReponseConfigPaiement = {
+  PaymentGateway?: {
+    PublicKey?: string | null;
+    SupportedCreditCardTypes?: string[] | null;
+  } | null;
+  SurchargeConfiguration?: { SurchargeFees?: Record<string, number> | null } | null;
+};
+
+export async function chargerConfigPaiement(langue: Langue): Promise<ConfigPaiement> {
+  const j = await appel<ReponseConfigPaiement>('hotels/getPaymentConfiguration', {
+    HotelId: HOTEL_ID,
+    ConfigurationId: CONFIGURATION_ID,
+  }, langue);
+
+  const publicKey = j.PaymentGateway?.PublicKey?.trim() ?? '';
+  // Sans elle, les iframes ne montent pas : mieux vaut échouer ici, en amont du
+  // tunnel, que d'ouvrir un écran de paiement où le champ carte reste vide.
+  if (!publicKey) throw new Error('Mews getPaymentConfiguration → PublicKey absente');
+
+  return {
+    publicKey,
+    cartes: j.PaymentGateway?.SupportedCreditCardTypes ?? [],
+    surcharges: j.SurchargeConfiguration?.SurchargeFees ?? {},
+  };
+}
+
 export type ClientResa = {
   prenom: string;
   nom: string;
@@ -281,6 +351,9 @@ export type ResaCreee = {
   /** Sert de clé à la page de gestion : `reservationGroups/get` le relit. */
   groupeId: string;
   numeros: string[];
+  /** Les réservations elles-mêmes. La note de réception se pose sur CELLES-CI
+   *  (`serviceOrderNotes` veut un `ServiceOrderId`), jamais sur le groupe. */
+  reservationIds: string[];
 };
 
 type ReponseCreate = {
@@ -324,11 +397,16 @@ export async function creerReservation(
     } : {}),
   }, langue);
 
+  /* Releve le 26/08/2026 sur une creation reelle (resa 29814) : la reponse ne
+   * porte NI `ReservationGroupId` (c'est `Id`) NI `ConfirmationNumber` (c'est
+   * `Number`). Les replis ci-dessous etaient justes — ils le sont maintenant
+   * pour une raison connue, et non par prudence. */
   return {
     groupeId: j.ReservationGroupId ?? j.Id ?? '',
     numeros: (j.Reservations ?? [])
       .map((r) => r.ConfirmationNumber ?? r.Number ?? r.Id ?? '')
       .filter(Boolean),
+    reservationIds: (j.Reservations ?? []).map((r) => r.Id ?? '').filter(Boolean),
   };
 }
 

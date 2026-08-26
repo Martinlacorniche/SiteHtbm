@@ -46,7 +46,10 @@ const TEXTES = {
     telephone: "Téléphone",
     telephoneAide: "Pour vous joindre le jour de votre arrivée.",
     mot: "Un mot pour l'hôtel (facultatif)",
-    motAide: "Heure d'arrivée prévue, lits jumeaux, occasion particulière…",
+    // Pas de « lits jumeaux » : une suggestion est une promesse implicite, et
+    // celle-la se paie a la reception un soir de complet. On ne propose que ce
+    // qu'on tient sans effort.
+    motAide: "Heure d'arrivée prévue, occasion particulière…",
     carte: "Votre carte",
     porteur: "Nom sur la carte",
     numero: "Numéro de carte",
@@ -74,7 +77,7 @@ const TEXTES = {
     telephone: "Phone",
     telephoneAide: "So we can reach you on the day you arrive.",
     mot: "A word for the hotel (optional)",
-    motAide: "Expected arrival time, twin beds, a special occasion…",
+    motAide: "Expected arrival time, a special occasion…",
     carte: "Your card",
     porteur: "Name on card",
     numero: "Card number",
@@ -105,6 +108,10 @@ export type SejourAPayer = {
   resume: string;
   /** Le total, formaté dans la langue de la page. */
   totalFormate: string;
+  /** Ce qui va arriver a la carte, en une phrase — calcule depuis le groupe
+   *  tarifaire Mews (`SettlementAction` / `SettlementValue`), jamais ecrit en
+   *  dur. Vide si Mews ne dit rien : on prefere le silence a une supposition. */
+  reglement: string;
 };
 
 export default function Paiement({
@@ -115,7 +122,13 @@ export default function Paiement({
   /** La `PublicKey` de `hotels/getPaymentConfiguration` — l'identifiant marchand PciProxy. */
   publicKey: string;
   onFermer: () => void;
-  onReserve: (groupeId: string) => void;
+  /* `client` remonte avec la réservation : l'écran de confirmation propose une
+   * table au rooftop, et il ne doit RIEN redemander de ce qui vient d'être
+   * saisi ici. C'est toute la différence entre un bouton et un formulaire. */
+  onReserve: (resa: {
+    groupeId: string; numeros: string[];
+    client: { prenom: string; nom: string; email: string; telephone: string };
+  }) => void;
 }) {
   const T = TEXTES[langue];
 
@@ -178,7 +191,17 @@ export default function Paiement({
         enCours.current = false;
         return;
       }
-      onReserve(j.groupeId as string);
+      // `numeros` porte les numeros de confirmation rendus par Mews. Ils
+      // etaient lus par la route, puis jetes ici : c'est pourtant la seule
+      // chose que le client aura a citer s'il appelle l'hotel.
+      onReserve({
+        groupeId: j.groupeId as string,
+        numeros: Array.isArray(j.numeros) ? (j.numeros as string[]) : [],
+        client: {
+          prenom: prenom.trim(), nom: nom.trim(),
+          email: email.trim(), telephone: telephone.trim(),
+        },
+      });
     } catch {
       setErreur(T.echec);
       setEnvoi(false);
@@ -318,6 +341,22 @@ export default function Paiement({
         </div>
 
         <h3 className="mt-6 font-serif text-xl text-navy">{T.carte}</h3>
+        {/* Ce qui va lui arriver, AVANT les champs et non apres le bouton.
+            Les deux tarifs demandent une carte, et c'est tout ce que la page
+            disait : l'un la debite en entier a la seconde ou l'on valide,
+            l'autre y pose une preautorisation de 1 %. Un client qui decouvre
+            un debit complet la ou il croyait laisser une empreinte appelle sa
+            banque, pas l'hotel. La phrase est calculee depuis Mews, donc elle
+            suit la regle reelle du tarif retenu. */}
+        {sejour.reglement && (
+          <p className="mt-2 flex items-start gap-2 rounded-xl border border-[#e3e0d9] bg-[#faf7f1] px-3.5 py-3 text-[13px] leading-snug text-[#3c4a52]">
+            <svg aria-hidden viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="10.5" width="16" height="10" rx="2" />
+              <path d="M8 10.5V7.2a4 4 0 0 1 8 0v3.3" />
+            </svg>
+            {sejour.reglement}
+          </p>
+        )}
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1.5 sm:col-span-2">
             <span className={etiquette}>{T.porteur}</span>

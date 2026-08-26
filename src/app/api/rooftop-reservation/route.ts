@@ -8,7 +8,17 @@ import { SITE_URL } from '@/lib/site';
 // L'enregistrement en base est fait via la RPC rooftop_book côté client.
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { nom, telephone, email, date, heure, couverts, message, table } = await req.json();
+  const { nom, telephone, email, date, heure, couverts, message, table, source } = await req.json();
+
+  /* ⚠️ PAS DEUX COURRIELS POUR UN MÊME SÉJOUR.
+   *
+   * Quand la table est prise depuis le tunnel de réservation (`source:
+   * 'tunnel'`), le client vient de recevoir la confirmation de sa chambre et a
+   * la table sous les yeux sur l'écran de confirmation. Lui envoyer en plus la
+   * confirmation rooftop, c'est deux courriels à la minute près pour une seule
+   * décision — et le second fait douter du premier.
+   * L'équipe, elle, est prévenue dans TOUS les cas : c'est elle qui dresse. */
+  const depuisTunnel = source === 'tunnel';
 
   const dateFr = (() => {
     try {
@@ -73,7 +83,8 @@ export async function POST(req: NextRequest) {
   if (teamErr) console.error('Resend error (rooftop team):', teamErr);
 
   // ── 2) Confirmation client (best-effort) ────────────────────────────────────
-  if (email) {
+  // Sautée depuis le tunnel : voir `depuisTunnel` en tête de fichier.
+  if (email && !depuisTunnel) {
     const { error: clientErr } = await resend.emails.send({
       from: 'Rooftop Les Voiles <demandes@send.hotel-corniche.com>',
       to: email,

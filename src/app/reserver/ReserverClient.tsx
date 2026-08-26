@@ -4,8 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import CalendrierSejour from "./CalendrierSejour";
 import Image from "next/image";
+import Paiement, { type SejourAPayer } from "./Paiement";
 import {
-  chercherDisponibilite, chargerCategories, urlPhoto, t,
+  PanneauRooftop, TableConfirmee, useSoirsRooftop, prendreTable, heureLisible,
+  type TablePrise, type ChoixTable,
+} from "./TableRooftop";
+import {
+  chercherDisponibilite, chargerCategories, chargerConfigPaiement, urlPhoto, t,
   type CategorieChambre, type Disponibilite, type GroupeTarifaire, type Langue,
   type Offre, type Tarif,
 } from "@/lib/mewsBooking";
@@ -66,15 +71,59 @@ const TEXTES = {
     tarifFlexible: "Tarif flexible", tarifPrepaye: "Prépayé, non remboursable",
     totalSejour: "Total du séjour",
     payer: "Réserver et payer",
-    paiementAVenir: "Le règlement en ligne ouvre très bientôt sur cette page.",
+    paiementIndispo:
+      "Le règlement en ligne est momentanément indisponible. Appelez-nous, on prend votre réservation avec vous.",
+    /* L'ecran de confirmation. Il ne promet QUE ce qu'on a verifie : la
+     * reservation est enregistree, et voici son numero. Pas de « vous allez
+     * recevoir un email » tant que le premier test n'aura pas montre que Mews
+     * en envoie un — une promesse d'email qui n'arrive jamais coute plus cher
+     * qu'un silence. */
+    confirmeTitre: "C'est réservé.",
+    confirmeSous: "Votre séjour est enregistré à l'hôtel.",
+    confirmeNumero: "Votre numéro de confirmation",
+    confirmeNumeroAide: "À citer si vous nous appelez. Notez-le quelque part.",
+    confirmeQuestion: "Une question sur votre séjour ?",
+    confirmeRetour: "Revenir à l'accueil",
     economisez: (m: string) => `Économisez ${m}`,
     annulableJusque: (d: string, h: number) => `Annulable sans frais jusqu'au ${d}, ${h} h`,
     modifier: "Modifier",
     voirRecap: "Voir le récapitulatif",
-    confiance: "Réservation en direct, auprès de l'hôtel lui-même.",
     simplicite: "Volontairement simples : pas de minibar dans les chambres — mais une cuisine en libre-service pour vos repas, et le rooftop au 4ᵉ étage, face à la mer, pour l'apéro.",
     exclusif: "Exclu direct",
     majPrix: "Mettre à jour les prix",
+    // L'etat de repos du bouton de recherche. Il ne dit pas ce qu'on peut
+    // faire — il dit qu'il n'y a rien a faire, et c'est justement pour ca
+    // qu'il reste a l'ecran : un bouton qui disparait emporte sa ligne avec
+    // lui, et tout ce qui est en dessous remonte d'un cran.
+    aJour: "Prix à jour",
+    /* Les deux reperes de confiance. Ils ne se placent pas au meme endroit
+     * parce qu'ils ne repondent pas a la meme question, ni au meme moment :
+     * « ou suis-je » se demande en arrivant, « a qui je donne ma carte » se
+     * demande au dernier clic. */
+    siteOfficiel: "Site officiel",
+    /* La phrase se découpe pour que la marque et le montant soient des
+     * éléments à part : « Booking » se cite en toutes lettres — l'usage
+     * nominatif d'une marque pour comparer des prix est licite, son logo et
+     * son identité visuelle ne le sont pas — et le montant se barre. */
+    surBooking: ["Sur ", ", ce séjour est à ", "."] as const,
+    rooftopAjouter: "Ajouter une table au rooftop",
+    rooftopChoisie: (h: string) => `Table au rooftop · ${h}`,
+    gainDirect: (m: string) => `Bien vu — vous gardez ${m} en réservant ici.`,
+    /* Ce qui arrive a la carte. Court sur la carte de tarif — il y a deux
+     * cartes cote a cote et la place est comptee — entier sur l'ecran de
+     * paiement, ou le client a la sienne en main. Les montants sont calcules
+     * depuis le groupe tarifaire Mews, jamais ecrits ici. */
+    empreinteCourt: (m: string) => `Carte en garantie · ${m} préautorisés`,
+    debitCourt: (m: string) => `Débit immédiat · ${m}`,
+    empreinteLong: (m: string, pc: string) =>
+      `Votre carte n'est pas débitée. Une préautorisation de ${m} (${pc} du séjour) garantit la chambre ; le séjour se règle à l'hôtel.`,
+    debitLong: (m: string) =>
+      `Votre carte est débitée de ${m} dès la confirmation, soit la totalité du séjour. Ce tarif n'est pas remboursable.`,
+    debitLongPartiel: (m: string, pc: string) =>
+      `Votre carte est débitée de ${m} (${pc} du séjour) dès la confirmation. Le solde se règle à l'hôtel.`,
+    paiementSecurise: "Paiement sécurisé",
+    paiementSecuriseAide:
+      "Votre carte est saisie chez notre prestataire de paiement : elle ne transite pas par ce site.",
     couchages: (n: number) => (n <= 1 ? "1 personne" : `${n} personnes`),
     surface: (n: number) => `${n} m²`,
     lit: (cm: number) => `lit ${cm} cm`,
@@ -115,7 +164,14 @@ const TEXTES = {
     tarifFlexible: "Flexible rate", tarifPrepaye: "Prepaid, non-refundable",
     totalSejour: "Stay total",
     payer: "Book and pay",
-    paiementAVenir: "Online payment opens on this page very soon.",
+    paiementIndispo:
+      "Online payment is temporarily unavailable. Call us and we'll take your booking with you.",
+    confirmeTitre: "You're booked.",
+    confirmeSous: "Your stay is registered with the hotel.",
+    confirmeNumero: "Your confirmation number",
+    confirmeNumeroAide: "Quote it if you call us. Write it down somewhere.",
+    confirmeQuestion: "A question about your stay?",
+    confirmeRetour: "Back to the home page",
     economisez: (m: string) => `Save ${m}`,
     // Mews ne decrit ses tarifs qu'en francais : l'heure arrive en 24 h, il
     // faut la rendre en 12 h ici, sinon on affiche « 18 pm ».
@@ -123,10 +179,26 @@ const TEXTES = {
       `Free cancellation until ${d}, ${h > 12 ? h - 12 : h === 0 ? 12 : h} ${h >= 12 ? "pm" : "am"}`,
     modifier: "Change",
     voirRecap: "See the summary",
-    confiance: "Booking direct, with the hotel itself.",
     simplicite: "Deliberately simple: no minibar in the rooms — but a self-service kitchen for your meals, and the rooftop on the 4th floor, facing the sea, for a drink.",
     exclusif: "Direct only",
     majPrix: "Update prices",
+    aJour: "Prices up to date",
+    siteOfficiel: "Official website",
+    surBooking: ["On ", ", this stay is ", "."] as const,
+    rooftopAjouter: "Add a rooftop table",
+    rooftopChoisie: (h: string) => `Rooftop table · ${h}`,
+    gainDirect: (m: string) => `Nice move — you keep ${m} by booking direct.`,
+    empreinteCourt: (m: string) => `Card as guarantee · ${m} held`,
+    debitCourt: (m: string) => `Charged now · ${m}`,
+    empreinteLong: (m: string, pc: string) =>
+      `Your card is not charged. A ${m} hold (${pc} of the stay) secures the room; you settle at the hotel.`,
+    debitLong: (m: string) =>
+      `Your card is charged ${m} on confirmation — the full stay. This rate is non-refundable.`,
+    debitLongPartiel: (m: string, pc: string) =>
+      `Your card is charged ${m} (${pc} of the stay) on confirmation. The balance is settled at the hotel.`,
+    paiementSecurise: "Secure payment",
+    paiementSecuriseAide:
+      "Your card is entered directly with our payment provider — it never passes through this site.",
     couchages: (n: number) => (n <= 1 ? "1 guest" : `${n} guests`),
     surface: (n: number) => `${n} m²`,
     lit: (cm: number) => `${cm} cm bed`,
@@ -157,6 +229,10 @@ const montant = (n: number, langue: Langue) =>
     style: "currency", currency: "EUR",
     minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(n);
+
+/** « 1 % » — `Intl` sait ou va l'espace insecable, elle n'y est pas en anglais. */
+const pourcent = (part: number, langue: Langue) =>
+  new Intl.NumberFormat(LOCALE[langue], { style: "percent", maximumFractionDigits: 0 }).format(part);
 
 const montantCourt = (n: number, langue: Langue) =>
   new Intl.NumberFormat(LOCALE[langue], {
@@ -201,6 +277,16 @@ function TotalRoulant({ valeur, langue, court = false }: { valeur: number; langu
   const image = useRef<number | null>(null);
 
   useEffect(() => {
+    /* Rien d'infini n'entre ici, et surtout rien ne s'y installe.
+     *
+     * Une valeur non finie traversait l'animation sans encombre — `NaN === 0`
+     * est faux, donc la course partait — et la ligne `depuis.current = valeur`
+     * la gravait dans la reference. Tout ecart calcule ensuite valait NaN :
+     * le montant restait « NaN € » indefiniment, y compris apres le retour de
+     * donnees parfaitement valides.
+     * On garde le dernier montant connu. Un prix perime se corrige au rendu
+     * suivant ; « NaN € » sous les yeux de quelqu'un qui sort sa carte, non. */
+    if (!Number.isFinite(valeur)) return;
     const depart = depuis.current;
     const ecart = valeur - depart;
     if (ecart === 0) return;
@@ -226,8 +312,11 @@ function TotalRoulant({ valeur, langue, court = false }: { valeur: number; langu
     return () => { if (image.current) cancelAnimationFrame(image.current); };
   }, [valeur]);
 
+  // Meme garde a l'affichage : `aria-label` lit `valeur` directement, il
+  // annoncerait « NaN euros » a un lecteur d'ecran.
+  const sur = Number.isFinite(valeur) ? valeur : affiche;
   return (
-    <span aria-label={format(valeur, langue)}>
+    <span aria-label={format(sur, langue)}>
       <span aria-hidden>{format(affiche, langue)}</span>
     </span>
   );
@@ -247,13 +336,28 @@ const dansNJours = (n: number) => {
 const joli = (iso: string, langue: Langue) => {
   if (!iso) return "";
   const [a, m, j] = iso.split("-").map(Number);
+  // Meme fenetre que `nuitsEntre` : entre les deux clics du calendrier, une
+  // date peut arriver tronquee. `new Date(NaN, …)` se rend en « Invalid Date »,
+  // en toutes lettres, au milieu du recapitulatif.
+  if (!Number.isFinite(a) || !Number.isFinite(m) || !Number.isFinite(j)) return "";
   return new Date(a, m - 1, j).toLocaleDateString(langue === "fr" ? "fr-FR" : "en-GB", {
     day: "numeric", month: "short",
   });
 };
 
-const nuitsEntre = (a: string, b: string) =>
-  Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000));
+/* ⚠️ `Math.max(0, NaN)` vaut NaN — il ne protege de rien.
+ *
+ * Entre les deux clics du calendrier, le sejour est a moitie choisi : l'arrivee
+ * est posee, le depart vaut '' (voir `CalendrierSejour` → `onChange(jour, null)`).
+ * `Date.parse('')` rend NaN, la soustraction aussi, et le garde-fou le laissait
+ * passer. La taxe de sejour devenait NaN, le total avec — et `TotalRoulant`
+ * memorisait ce NaN, donc le total restait mort meme une fois les dates
+ * redevenues bonnes.
+ * Un sejour incomplet, c'est zero nuit. Pas « pas un nombre ». */
+const nuitsEntre = (a: string, b: string) => {
+  const jours = (Date.parse(b) - Date.parse(a)) / 86_400_000;
+  return Number.isFinite(jours) ? Math.max(0, Math.round(jours)) : 0;
+};
 
 // Taxe de séjour Toulon, 3 étoiles : 1,86 € par adulte et par nuit, taxes
 // additionnelles comprises. Elle entre dans le total et son montant est dit :
@@ -303,6 +407,39 @@ const estPrepaye = (tarif: Tarif | undefined, groupes: GroupeTarifaire[]): boole
   return /non[\s-]*remboursable|non[\s-]*refundable|prépaiement|prepay/.test(
     `${String(tarif?.Name ?? "")} ${String(tarif?.Description ?? "")}`.toLowerCase(),
   );
+};
+
+/* Ce qui va arriver a la carte — lu chez Mews, jamais ecrit ici.
+ *
+ * Le groupe tarifaire porte la regle complete, en clair :
+ *   Flexible  → CreatePreauthorization, SettlementValue 0.01  → empreinte de 1 %
+ *   NAR BB    → ChargeCreditCard,       SettlementValue 1.0   → debit de 100 %
+ * les deux au declencheur `Confirmation`, offset nul : ca se passe au moment ou
+ * le client valide, pas plus tard.
+ *
+ * On CALCULE au lieu d'ecrire « 1 % ». Le jour ou l'hotel passera son empreinte
+ * a 30 % dans son back-office, une phrase codee en dur continuerait d'annoncer
+ * 1 % — et un client verrait partir de sa carte cinquante fois ce qu'on lui a
+ * promis. Une phrase fausse sur un montant preleve, ca ne se rattrape pas.
+ *
+ * `SettlementFlatValue` prime quand il est pose : Mews sait exprimer la regle
+ * en montant fixe autant qu'en pourcentage. */
+type Reglement = { debite: boolean; montant: number; part: number | null };
+
+const reglementDe = (
+  tarif: Tarif | undefined,
+  groupes: GroupeTarifaire[],
+  total: number,
+): Reglement | null => {
+  const g = groupes.find((x) => x.Id === tarif?.RateGroupId);
+  if (!g) return null;
+  const debite = g.SettlementAction === "ChargeCreditCard";
+  if (!debite && g.SettlementAction !== "CreatePreauthorization") return null;
+  const fixe = typeof g.SettlementFlatValue === "number" ? g.SettlementFlatValue : null;
+  const part = typeof g.SettlementValue === "number" ? g.SettlementValue : null;
+  if (fixe !== null) return { debite, montant: fixe, part: null };
+  if (part === null) return null;
+  return { debite, montant: total * part, part };
 };
 
 /* La date reelle d'annulation gratuite.
@@ -995,6 +1132,50 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   // l'ecran, le bouton or n'a rien a faire la : il pointerait vers une action
   // deja faite, alors que le seul bouton or de la page doit designer l'achat.
   const [cherche, setCherche] = useState<{ a: string; d: string; pax: number } | null>(null);
+  /* Compte les recherches abouties. Sert d'unique declencheur a l'animation
+   * d'entree des montants : le changer remonte les cartes de tarif, donc
+   * rejoue leur animation. On ne peut pas s'appuyer sur le prix lui-meme —
+   * passer de « seul » a « a deux » ne change pas seulement les montants,
+   * il change les chambres proposees, et faire courir un chiffre d'une
+   * chambre a l'autre annoncerait une hausse qui n'existe pas. */
+  const [tour, setTour] = useState(0);
+
+  /* Le reglement.
+   *
+   * `publicKey` est l'identifiant marchand PciProxy, releve chez Mews par
+   * `hotels/getPaymentConfiguration`. Il n'est pas secret, mais il n'est pas a
+   * nous : le figer dans le code ferait tomber le paiement le jour ou l'hotel
+   * changerait de contrat, sans que rien ne le dise.
+   *
+   * Il se charge quand un tarif est retenu, pas au montage de la page : la
+   * plupart des visiteurs ne vont pas jusqu'au paiement, et leur faire payer
+   * une requete pour rien est une seconde de moins pour les chambres. Retenir
+   * un tarif, en revanche, est le premier geste qui rend le paiement plausible
+   * — la cle est donc la bien avant le clic, et le bouton n'attend jamais. */
+  /* Ce que le même séjour coûte sur Booking, par catégorie.
+   *
+   * Les tarifs OTA vivent dans le même Mews, mais ne sont pas publiés sur la
+   * configuration du moteur — et ne doivent pas l'être, ils deviendraient
+   * réservables en direct. Seul le Connector les lit, donc ça passe par notre
+   * serveur, qui les garde quinze minutes en cache. */
+  const [tarifPublic, setTarifPublic] = useState<Record<string, { flexible: number; prepaye: number }> | null>(null);
+
+  /* La table du rooftop, choisie AVEC la chambre.
+   * `tableHeure` est le créneau retenu, ou null si le client n'en veut pas.
+   * `tablePrise` n'existe qu'après la réservation : la table se prend une fois
+   * la chambre acquise, jamais avant — une table tenue pour un paiement qui
+   * échoue est une table perdue et une promesse en l'air. */
+  const [tableChoix, setTableChoix] = useState<ChoixTable | null>(null);
+  const [tablePrise, setTablePrise] = useState<TablePrise>(null);
+  const [dosRooftop, setDosRooftop] = useState(false);
+
+  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [paiementKo, setPaiementKo] = useState(false);
+  const [paiementOuvert, setPaiementOuvert] = useState(false);
+  const [reserve, setReserve] = useState<{
+    groupeId: string; numeros: string[];
+    client: { prenom: string; nom: string; email: string; telephone: string };
+  } | null>(null);
 
   const nuits = nuitsEntre(arrivee, depart);
   const adultes = voyage === "seul" ? 1 : 2;
@@ -1016,6 +1197,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       setCategories(cats);
       setChoix(null); // les prix changent avec les dates : on ne garde pas l'ancien choix
       setCherche({ a, d, pax });
+      setTour((t) => t + 1);
       const url = new URL(window.location.href);
       url.searchParams.set("arrivee", a);
       url.searchParams.set("depart", d);
@@ -1143,6 +1325,10 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     });
   }, [choix, principales, tarifs, groupes, arriveeCeJour]);
   // Annulation gratuite du tarif retenu — nulle si c'est un prepaye.
+  /* Les soirs où le rooftop peut recevoir, sur toute la durée du séjour.
+   * Vide = le bloc ne s'affiche pas du tout. */
+  const soirsRooftop = useSoirsRooftop(arrivee, depart, choix?.pourPersonnes ?? adultes);
+
   const heureChoix = choix ? heureLimite(tarifs.find((r) => r.Id === choix.tarifId), langue) : null;
   /* Un seul nombre, et ce qu'il y a dedans.
    *
@@ -1159,6 +1345,90 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * faudrait rouvrir, pas le montant. */
   const taxeDe = (pax: number) => TAXE_PAR_ADULTE_NUIT * pax * nuits;
 
+  /* Voir l'écran de confirmation sans passer de carte.
+   *
+   * Il ne s'atteint autrement qu'au bout d'un vrai paiement — donc on ne peut
+   * ni relire son texte, ni régler la table du rooftop, ni vérifier l'anglais
+   * sans engager une réservation réelle. `/reserver?apercu=confirmation` le
+   * monte avec un jeu de données factices.
+   *
+   * ⚠️ Coupé en production par `NODE_ENV`, et pas par une condition d'URL :
+   * un écran qui annonce « c'est réservé » alors que rien ne l'est doit être
+   * INATTEIGNABLE en ligne, pas seulement difficile à trouver. */
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    if (new URLSearchParams(window.location.search).get("apercu") !== "confirmation") return;
+    setReserve({
+      groupeId: "apercu", numeros: ["29814"],
+      client: { prenom: "Junio", nom: "Leboss", email: "contact-lesvoiles@htbm.fr", telephone: "0494413623" },
+    });
+  }, []);
+
+  /* La comparaison suit la recherche, jamais le choix : elle porte sur toutes
+   * les chambres d'un coup, et le client change d'avis plus souvent qu'il ne
+   * change de dates. Un échec est sans conséquence — la comparaison est un
+   * bonus, pas une pièce du tunnel. */
+  useEffect(() => {
+    if (!cherche) return;
+    let annule = false;
+    setTarifPublic(null);
+    const q = new URLSearchParams({ arrivee: cherche.a, depart: cherche.d, adultes: String(cherche.pax) });
+    fetch(`/api/tarif-public?${q}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!annule && j?.prix) setTarifPublic(j.prix); })
+      .catch(() => { /* on se tait : le tunnel n'en dépend pas */ });
+    return () => { annule = true; };
+  }, [cherche]);
+
+  /* La cle marchande, des qu'un tarif est retenu — et une seule fois.
+   * Si l'appel echoue, le bouton reste inerte et dit pourquoi : ouvrir un
+   * ecran de paiement dont le champ carte ne montera jamais est pire que ne
+   * pas l'ouvrir du tout. */
+  useEffect(() => {
+    if (!choix || publicKey) return;
+    let annule = false;
+    chargerConfigPaiement(langue)
+      .then((c) => { if (!annule) { setPublicKey(c.publicKey); setPaiementKo(false); } })
+      .catch(() => { if (!annule) setPaiementKo(true); });
+    return () => { annule = true; };
+  }, [choix, publicKey, langue]);
+
+  /* Ce que l'ecran de paiement doit redire au client avant de lui demander sa
+   * carte. Le total est celui qu'il a sous les yeux depuis le debut — taxe de
+   * sejour comprise — et le resume dit ou elle se trouve : afficher un montant
+   * different de celui du recapitulatif au moment de payer est la meilleure
+   * facon de perdre quelqu'un a la derniere seconde. */
+  const sejourAPayer: SejourAPayer | null = useMemo(() => {
+    if (!choix) return null;
+    const taxe = TAXE_PAR_ADULTE_NUIT * choix.pourPersonnes * nuits;
+    const tarif = tarifs.find((r) => r.Id === choix.tarifId);
+    return {
+      categorieId: choix.categorieId,
+      tarifId: choix.tarifId,
+      arrivee,
+      depart,
+      adultes: choix.pourPersonnes,
+      resume: [
+        nomChambre(choix.categorieId, categories.get(choix.categorieId), langue),
+        libelleTarif(tarif, groupes, langue, T),
+        T.nuits(nuits),
+        T.dontTaxe(montantCourt(taxe, langue)),
+      ].filter(Boolean).join(" · "),
+      totalFormate: montant(choix.total + taxe, langue),
+      reglement: (() => {
+        const reg = reglementDe(tarif, groupes, choix.total + taxe);
+        if (!reg) return "";
+        const m = montant(reg.montant, langue);
+        if (!reg.debite) return T.empreinteLong(m, reg.part === null ? "" : pourcent(reg.part, langue));
+        // 100 % et un acompte ne se disent pas pareil : dans un cas il ne
+        // restera rien a payer, dans l'autre si.
+        return reg.part !== null && reg.part < 1
+          ? T.debitLongPartiel(m, pourcent(reg.part, langue))
+          : T.debitLong(m);
+      })(),
+    };
+  }, [choix, categories, tarifs, groupes, arrivee, depart, nuits, langue, T]);
+
   return (
     /* Sur PC, l'écran EST la page : hauteur fixe, aucune barre de défilement
        générale, chaque colonne défile chez elle. Un tunnel qui oblige à
@@ -1167,9 +1437,27 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     <main className="bg-cream text-[#222] lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
 
       <header className="mx-auto w-full max-w-[1600px] shrink-0 px-4 pt-5 lg:px-6 lg:pt-6">
-        <Link href="/" className="text-[13px] tracking-wide text-navy hover:underline">
-          ← Hôtels Toulon Bord de Mer
-        </Link>
+        {/* « Site officiel » partage la ligne du lien de retour, et ne coute
+            donc pas un pixel de hauteur — l'en-tete en prenait deja 460 sur
+            telephone avant la premiere chambre, c'est la contrainte qui a fait
+            disparaitre le chapo en dessous de `sm`.
+            Il est ici et pas plus bas parce qu'il repond a « ou suis-je ? »,
+            question qu'on se pose en arrivant, pas au moment de payer — et
+            parce que c'est la reponse qui separe cette page d'une OTA. En
+            navy sourd, jamais en or : l'or de cette page est reserve a ce qui
+            se clique et a ce que le direct donne de plus. */}
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/" className="text-[13px] tracking-wide text-navy hover:underline">
+            ← Hôtels Toulon Bord de Mer
+          </Link>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-navy/[0.07] px-2.5 py-1 text-[11.5px] font-semibold text-navy">
+            <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2.6l7.4 3v5.8c0 4.4-3 8.3-7.4 9.9-4.4-1.6-7.4-5.5-7.4-9.9V5.6z" />
+              <path d="M9 12l2.1 2.1L15.3 10" />
+            </svg>
+            {T.siteOfficiel}
+          </span>
+        </div>
         {/* Titre et promesse sur la même ligne : chaque pixel pris en hauteur
             est un pixel de moins pour le calendrier et les chambres. */}
         {/* Sur telephone, l'en-tete occupait 460 px avant la premiere chambre.
@@ -1333,20 +1621,71 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             </div>
           </fieldset>
 
-          {/* Le bouton n'existe que si l'ecran ne correspond plus a la recherche.
-              La recherche partant toute seule au chargement, un bouton or permanent
-              designait une action deja faite — et c'etait le seul element or de la
-              page, donc le point vers lequel l'oeil partait. */}
-          {(!aJour || chargement) && (
-            <button
-              type="button"
-              disabled={!voyage || nuits < 1 || chargement}
-              onClick={() => chercher(adultes)}
-              className="mt-4 w-full shrink-0 rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-navy-deep transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
-            >
-              {chargement ? T.recherche : voyage ? T.majPrix : T.choisir}
-            </button>
-          )}
+          {/* Le bouton ne se demonte plus jamais : il change d'etat.
+   *
+   * Il n'existait qu'en cas de decalage entre l'ecran et la recherche
+   * (`!aJour || chargement`) — pour ne pas laisser un bouton or permanent
+   * designer une action deja faite, seul point or de la page, aimant a
+   * regard. L'intention etait juste, le moyen coutait cher : choisir
+   * l'occupation RELANCE la recherche (voir le `lancer` des pastilles
+   * ci-dessus), donc `chargement` passait a vrai, le bouton se montait et
+   * poussait la carte de l'hotel vers le bas ; la reponse revenait, il se
+   * demontait, tout remontait. Deux sauts de mise en page pour une action
+   * que personne n'avait demandee — le bouton servait de temoin de
+   * chargement, pas d'appel a l'action.
+   *
+   * Il porte desormais les deux sens dans sa couleur, jamais dans sa
+   * presence : or et actif quand quelque chose attend un clic, sourd et
+   * inerte quand les prix sont a jour. L'or ne revient que s'il y a
+   * vraiment a faire, donc il garde son role d'unique point or ; et rien
+   * ne bouge plus d'un pixel sous lui.
+   *
+   * Le temoin de chargement, lui, a demenage dans la colonne des chambres :
+   * c'est la que le resultat arrive, donc c'est la que l'oeil est deja. */}
+          {(() => {
+            const aFaire = !aJour && !chargement;
+            return (
+              <button
+                type="button"
+                disabled={!aFaire || !voyage || nuits < 1}
+                onClick={() => chercher(adultes)}
+                className={[
+                  "mt-4 w-full shrink-0 rounded-full border px-6 py-3.5 text-[16px] font-bold",
+                  "transition-[background-color,border-color,color] duration-300",
+                  aFaire && voyage && nuits >= 1
+                    ? "border-gold bg-gold text-navy-deep hover:brightness-105"
+                    : "cursor-default border-[#e8e4dc] bg-[#f7f4ee] text-[#9aa2a8]",
+                ].join(" ")}
+              >
+                {/* Le seul endroit de la page ou un lecteur d'ecran apprend
+                    qu'une recherche est partie, puis qu'elle est revenue. */}
+                <span aria-live="polite" className="inline-flex items-center justify-center gap-2">
+                  {chargement ? (
+                    <>
+                      {/* Le disque tourne pendant que la colonne des chambres
+                          se prepare : sans lui, l'etat de repos et l'etat
+                          « en cours » se ressemblent trop. */}
+                      <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 animate-spin motion-reduce:animate-none" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+                        <path d="M12 3a9 9 0 0 1 9 9" />
+                      </svg>
+                      {T.recherche}
+                    </>
+                  ) : !voyage ? (
+                    T.choisir
+                  ) : aJour ? (
+                    <>
+                      <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 12.5l5 5L20 6.5" />
+                      </svg>
+                      {T.aJour}
+                    </>
+                  ) : (
+                    T.majPrix
+                  )}
+                </span>
+              </button>
+            );
+          })()}
 
           <Maison recit={recit} T={T} variante="colonne" onGalerie={() => setGalerie("hotel")} />
         </section>
@@ -1380,14 +1719,29 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             )}
 
             {dispo && !erreur && offresAffichees.length > 0 && (
-              /* Lignes a hauteur libre.
+              /* L'enveloppe du temoin de recherche.
+                 Pendant l'appel a Mews, la colonne gardait les anciens prix a
+                 pleine opacite et parfaitement cliquables : on pouvait retenir
+                 un tarif qui n'existait deja plus. Elle s'estompe maintenant,
+                 se fige, et un balayage la traverse. On ne vide pas l'ecran de
+                 ce qu'on vient d'y mettre — les prix restent lisibles — mais on
+                 voit qu'ils sont en train d'etre remplaces.
+                 `aria-busy` le dit aussi a ceux qui ne voient pas le balayage. */
+              <div
+                aria-busy={chargement || undefined}
+                className={[
+                  "relative overflow-hidden transition-opacity duration-200",
+                  chargement ? "balayage select-none opacity-40 [&_*]:pointer-events-none" : "",
+                ].join(" ")}
+              >
+              {/* Lignes a hauteur libre.
                  Elles partageaient la hauteur de la colonne (`auto-rows-fr`), ce
                  qui etirait les photos pour remplir l'ecran — mais deployer les
                  details d'UNE chambre rallongeait alors les TROIS lignes, et les
                  trois photos grandissaient d'un coup. Chaque ligne fait
-                 desormais sa taille, et la photo garde la sienne. */
+                 desormais sa taille, et la photo garde la sienne. */}
               <ul className="grid gap-5">
-                {offresAffichees.map((o) => {
+                {offresAffichees.map((o, rang) => {
                   const cat = categories.get(o.categorieId);
                   const photo = couvertureDe(o.categorieId, cat, 480);
                   const nbPhotos = photosDe(o.categorieId, cat, "").length;
@@ -1568,10 +1922,22 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                         prepaye ne s'affiche plus : la carte seule restait plantee
                         a gauche avec la moitie droite vide, alors qu'il n'y a
                         plus rien a comparer. */}
-                    <div className={[
-                      "mt-3 grid gap-2",
-                      cartesDe(o.prix, tarifs, groupes, arriveeCeJour).length > 1 ? "sm:grid-cols-2" : "",
-                    ].join(" ")}>
+                    {/* `key={tour}` remonte les cartes a chaque recherche
+                        aboutie, et c'est tout ce qui rejoue l'animation. On ne
+                        peut pas se fier au montant lui-meme : passer de « seul »
+                        a « a deux » ne change pas que les prix, il change les
+                        chambres, et faire courir un chiffre de l'une a l'autre
+                        annoncerait une hausse qui n'a pas eu lieu.
+                        L'echelonnement suit l'ordre de lecture : les prix se
+                        posent de haut en bas, comme on les parcourt. */}
+                    <div
+                      key={tour}
+                      style={{ animationDelay: `${rang * 45}ms` }}
+                      className={[
+                        "prix-entre mt-3 grid gap-2",
+                        cartesDe(o.prix, tarifs, groupes, arriveeCeJour).length > 1 ? "sm:grid-cols-2" : "",
+                      ].join(" ")}
+                    >
                       {cartesDe(o.prix, tarifs, groupes, arriveeCeJour).map((carte) => {
                         const p = carte.direct;
                         const retenu = choix?.categorieId === o.categorieId
@@ -1671,6 +2037,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   );
                 })}
               </ul>
+              </div>
             )}
 
           </div>
@@ -1683,12 +2050,40 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           ref={zoneRecap}
           className="flex min-h-0 scroll-mt-4 flex-col rounded-2xl bg-white p-4 shadow-[0_2px_20px_rgba(0,78,124,0.07)] lg:p-5 lg:max-h-full lg:self-start"
         >
+          {/* La COLONNE ENTIÈRE se retourne — pas un bloc posé dedans.
+              Deux tentatives ont échoué avant : tout ce qu'on ajoute dans le
+              flux de cette colonne la fait défiler, parce qu'elle n'a pas de
+              place libre. Le blanc qu'on croit voir sous le nom de la chambre
+              dépend de la hauteur de fenêtre et disparaît dès que le séjour
+              fait deux lignes de plus. Un dos ne coûte rien.
+              Les deux faces font `h-full` : à la première tentative le dos
+              était court, `backface-visibility` ne suffisait pas, et on lisait
+              le récapitulatif en miroir dessous. */}
+          <div className="min-h-0 flex-1 [perspective:1600px]">
+          <div className={[
+            "grid h-full min-h-0 transition-transform duration-700 ease-in-out [transform-style:preserve-3d]",
+            dosRooftop ? "[transform:rotateY(180deg)]" : "",
+          ].join(" ")}>
+
+          {/* ── Face avant : le séjour ─────────────────────────────────── */}
+          <div
+            inert={dosRooftop ? true : undefined}
+            className={[
+              "col-start-1 row-start-1 flex h-full min-h-0 flex-col",
+              "[backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+              "[transition:visibility_0s_linear_350ms]",
+              dosRooftop ? "invisible" : "",
+            ].join(" ")}
+          >
           <h2 className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
             {T.colRecap}
           </h2>
 
           <div className="mt-3 min-h-0 flex-1 lg:overflow-y-auto">
-            <dl className="grid gap-2 text-[15px]">
+            {/* Serré d'un cran : ces trois lignes se relisent d'un coup d'œil,
+                on ne les étudie pas. Les pixels rendus vont au bas de la
+                colonne, où le téléphone passait sous la ligne de flottaison. */}
+            <dl className="grid gap-1 text-[14px]">
               <div className="flex justify-between gap-3">
                 <dt className="text-[#8a9299]">{T.arrivee}</dt>
                 <dd className="font-semibold text-[#3c4a52]">{joli(arrivee, langue) || "—"}</dd>
@@ -1721,7 +2116,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             )}
           </div>
 
-          <div className="mt-4 shrink-0">
+          <div className="mt-3 shrink-0">
             {/* Le total est SORTI de la zone qui defile.
                 Sur PC la colonne a une hauteur fixe et son haut defile chez lui.
                 Le total y etait le dernier element : sur une fenetre de 900 px,
@@ -1739,14 +2134,57 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                     <TotalRoulant valeur={choix.total + taxeDe(choix.pourPersonnes)} langue={langue} />
                   </span>
                 </div>
-                <p className="mt-1 mb-3 text-[13px] text-[#8a9299]">
+                <p className="mt-1 text-[13px] text-[#8a9299]">
                   {T.dontTaxe(montantCourt(taxeDe(choix.pourPersonnes), langue))}
                 </p>
+                {/* Ce qu'il aurait payé ailleurs.
+                 *
+                 * Ici et nulle part ailleurs : dans la liste des chambres, on
+                 * compare des chambres entre elles ; c'est en regardant SON
+                 * total qu'on se demande si on a bien fait. Le chiffre est lu
+                 * chez Mews, dans les tarifs que l'hôtel pousse lui-même sur
+                 * les plateformes — il n'est pas fabriqué pour la démonstration.
+                 *
+                 * La taxe de séjour est ajoutée des deux côtés : elle se paie
+                 * aussi quand on réserve sur Booking, et comparer un total taxe
+                 * comprise à un total qui ne l'est pas gonflerait l'écart. */}
+                {(() => {
+                  const pub = tarifPublic?.[choix.categorieId];
+                  // L'écart n'est juste que si la comparaison porte sur la même
+                  // occupation que la recherche : le petit-déjeuner du prix
+                  // public est compté par personne. Sinon on se tait.
+                  if (!pub || !cherche || cherche.pax !== choix.pourPersonnes) return null;
+                  const prepaye = estPrepaye(tarifs.find((r) => r.Id === choix.tarifId), groupes);
+                  const taxe = taxeDe(choix.pourPersonnes);
+                  const ailleurs = (prepaye ? pub.prepaye : pub.flexible) + taxe;
+                  const gain = ailleurs - (choix.total + taxe);
+                  // Sous un euro, l'écart ne vaut pas une ligne — et un « vous
+                  // économisez 0,40 € » dessert plus qu'il ne sert.
+                  if (gain < 1) return null;
+                  return (
+                    <div className="mt-2 rounded-lg bg-[#f4f8f5] px-3 py-2 text-[12.5px] leading-snug">
+                      <p className="text-[#6b7a82]">
+                        {T.surBooking[0]}
+                        <span className="font-semibold text-navy">Booking</span>
+                        {T.surBooking[1]}
+                        {/* Pas de barré : la phrase dit déjà que ce prix est
+                            ailleurs, et le gain juste en dessous dit ce qu'on
+                            garde. Le rayer par-dessus ne fait que charger. */}
+                        <span className="tabular-nums">{montant(ailleurs, langue)}</span>
+                        {T.surBooking[2]}
+                      </p>
+                      <p className="mt-0.5 font-semibold text-[#2d6a4f]">
+                        {T.gainDirect(montant(gain, langue))}
+                      </p>
+                    </div>
+                  );
+                })()}
+                <div className="mb-3" />
               </>
             )}
             {/* Le moment ou se gagne ou se perd le dernier clic. Rien qui ne
                 soit verifiable : pas de note inventee, pas de fausse rarete. */}
-            <ul className="mb-3 grid gap-1 border-t border-[#f0ece4] pt-3 text-[12px] leading-snug text-[#6b7a82]">
+            <ul className="mb-2.5 grid gap-1 border-t border-[#f0ece4] pt-2.5 text-[12px] leading-snug text-[#6b7a82]">
               {/* Contextuel, pas une redite du bandeau : ce qui compte ici, c'est
                   la date d'annulation du tarif que le client vient de choisir. */}
               {heureChoix !== null && (
@@ -1755,37 +2193,136 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   {T.annulableJusque(joli(arrivee, langue), heureChoix)}
                 </li>
               )}
-              <li className="flex items-start gap-1.5">
-                <span aria-hidden className="text-gold-ink">✓</span>
-                {PRIVILEGES.voiles[langue][0]?.texte}
-              </li>
+              {/* Ce qui sera pris sur la carte. Il vivait sur CHAQUE carte de
+                  tarif, dans la liste des chambres : un troisieme chiffre a lire
+                  par ligne, a un moment ou l'on compare des chambres et des prix,
+                  pas des modalites de debit. Il se dit une fois, ici, ou l'on
+                  regarde ce qu'on a choisi — puis en entier sur l'ecran de
+                  paiement, carte en main.
+                  Il prend la place de la ligne qui recopiait le premier avantage
+                  du bandeau or de l'en-tete : la colonne vit sous
+                  `lg:overflow-y-auto`, et deux lignes de plus la font scroller. */}
+              {(() => {
+                const reg = reglementDe(
+                  tarifs.find((r) => r.Id === choix?.tarifId),
+                  groupes,
+                  choix ? choix.total + taxeDe(choix.pourPersonnes) : 0,
+                );
+                if (!choix || !reg) return null;
+                return (
+                  <li className="flex items-start gap-1.5">
+                    <span aria-hidden className="text-gold-ink">✓</span>
+                    {reg.debite
+                      ? T.debitCourt(montant(reg.montant, langue))
+                      : T.empreinteCourt(montant(reg.montant, langue))}
+                  </li>
+                );
+              })()}
               <li className="flex items-start gap-1.5">
                 <span aria-hidden className="text-gold-ink">✓</span>
                 {T.checkin}
               </li>
-              <li>{T.confiance}</li>
             </ul>
+            {/* L'entrée du dos. Une seule ligne, et elle dit son état : sans
+                quoi on choisit un créneau, on revient, et on l'oublie.
+                Elle n'apparaît que si le rooftop peut recevoir un des soirs du
+                séjour — une porte qui mène à un refus vaut moins qu'aucune. */}
+            {choix && soirsRooftop.length > 0 && (
+              /* Un LIEN, pas un bouton. Encadré et posé juste au-dessus du
+                 bouton de paiement, il en avait la taille et la couleur : deux
+                 blocs dorés empilés, dont le secondaire pesait autant que le
+                 principal. Le seul or de cette colonne appartient au règlement.
+                 Sans boîte, la ligne s'efface derrière lui, et le texte peut
+                 redevenir explicite — la place ne se paie plus. */
+              <button
+                type="button"
+                onClick={() => { pulse(); setDosRooftop(true); }}
+                className="mb-2 flex w-full items-center gap-2 py-0.5 text-left text-[13.5px] font-semibold text-navy transition-colors hover:text-gold-ink"
+              >
+                <span aria-hidden className="text-[15px] leading-none">🍸</span>
+                <span className="min-w-0 flex-1 underline decoration-gold/60 underline-offset-4">
+                  {tableChoix ? T.rooftopChoisie(heureLisible(tableChoix.heure, langue)) : T.rooftopAjouter}
+                </span>
+                <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </button>
+            )}
+
             {/* Le bouton n'existe QUE si un tarif est retenu : un bouton de
                 paiement sans rien a payer designe une action impossible, et
                 c'est le seul or de cette colonne — il doit dire ou l'on va. */}
             {choix && (
               <>
+                {/* Il n'attend qu'une chose : la cle marchande. Elle part des
+                    qu'un tarif est retenu, donc elle est la bien avant que le
+                    doigt n'arrive — le cas « desactive » ne se voit qu'en cas
+                    d'echec reel, et il dit alors ou appeler. */}
                 <button
                   type="button"
-                  disabled
-                  className="w-full cursor-not-allowed rounded-full bg-[#ddd8ce] px-6 py-3.5 text-[16px] font-bold text-[#9a9a95]"
+                  disabled={!publicKey}
+                  onClick={() => { pulse(); setPaiementOuvert(true); }}
+                  className={[
+                    "w-full rounded-full px-6 py-3.5 text-[16px] font-bold transition",
+                    publicKey
+                      ? "bg-gold text-navy-deep hover:brightness-105"
+                      : "cursor-not-allowed bg-[#ddd8ce] text-[#9a9a95]",
+                  ].join(" ")}
                 >
                   {T.payer}
                 </button>
-                <p className="mt-2 text-[12px] leading-relaxed text-[#a8571f]">{T.paiementAVenir}</p>
+                {paiementKo && (
+                  <p className="mt-2 text-[12px] leading-relaxed text-[#a8571f]">{T.paiementIndispo}</p>
+                )}
+                {/* Colle au bouton, et a lui seul : c'est la, carte en main,
+                    que la question se pose.
+                    UNE ligne, et pas la phrase entiere. La colonne vit sous
+                    `lg:overflow-y-auto` dans une page en `h-screen` : trois
+                    lignes de plus ici, et elle se met a scroller de vingt
+                    pixels — une barre de defilement pour rien, qui donne a la
+                    colonne l'air cassee. L'explication complete existe deja
+                    dans `Paiement.tsx`, au-dessus des iframes PciProxy, la ou
+                    le client tape vraiment son numero : c'est le bon endroit
+                    pour la phrase longue. Ici, il faut un repere, pas un cours. */}
+                <p className="mt-2 flex items-center justify-center gap-1.5 text-[12px] font-semibold text-[#6b7a82]">
+                  <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-[#8a9299]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="10.5" width="16" height="10" rx="2" />
+                    <path d="M8 10.5V7.2a4 4 0 0 1 8 0v3.3" />
+                  </svg>
+                  {T.paiementSecurise}
+                </p>
               </>
             )}
-            <p className="mt-3 border-t border-[#f0ece4] pt-3 text-[13px] text-[#6b7a82]">
+            <p className="mt-2.5 border-t border-[#f0ece4] pt-2.5 text-[12.5px] text-[#6b7a82]">
               {T.aideAvant}{" "}
               <a href={`tel:${TELEPHONE.en.replace(/\s/g, "")}`} className="whitespace-nowrap font-semibold text-navy underline underline-offset-4 hover:text-gold-ink">
                 {TELEPHONE[langue]}
               </a>
             </p>
+          </div>
+          </div>
+
+          {/* ── Dos : la table du rooftop, pleine hauteur ──────────────── */}
+          <div
+            inert={dosRooftop ? undefined : true}
+            className={[
+              "col-start-1 row-start-1 h-full min-h-0",
+              "[backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+              "[transform:rotateY(180deg)] [transition:visibility_0s_linear_350ms]",
+              dosRooftop ? "" : "invisible",
+            ].join(" ")}
+          >
+            <PanneauRooftop
+              soirs={soirsRooftop}
+              choix={tableChoix}
+              onChoix={setTableChoix}
+              onFermer={() => { pulse(); setDosRooftop(false); }}
+              nuits={nuits}
+              langue={langue}
+            />
+          </div>
+
+          </div>
           </div>
         </aside>
 
@@ -1812,6 +2349,115 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
         />
       )}
 
+      {/* Le reglement, en surcouche.
+          Il ne se monte QUE quand la cle marchande est la : `Paiement` appelle
+          `initTokenize(publicKey, …)` des son montage, et sans cle les deux
+          iframes PciProxy ne montent jamais — le client resterait devant un
+          champ carte vide, sans rien pour le lui expliquer.
+          La barre collante du bas, elle, se retire pendant ce temps : elle
+          traversait deja les galeries pour la meme raison. */}
+      {paiementOuvert && sejourAPayer && publicKey && !reserve && (
+        <Paiement
+          sejour={sejourAPayer}
+          langue={langue}
+          publicKey={publicKey}
+          onFermer={() => setPaiementOuvert(false)}
+          onReserve={(r) => {
+            setPaiementOuvert(false);
+            setReserve(r);
+            // La chambre est acquise : on peut poser la table. Un échec ici
+            // n'annule rien, il s'affiche et donne le téléphone.
+            if (tableChoix && choix) {
+              void prendreTable({
+                choix: tableChoix, pax: choix.pourPersonnes, client: r.client, langue,
+              }).then(setTablePrise);
+            }
+          }}
+        />
+      )}
+
+      {/* La confirmation.
+       *
+       * Elle ne promet QUE ce qu'on sait : la reservation est ecrite chez Mews,
+       * et voici son numero. Pas de « vous allez recevoir un email » — on n'a
+       * pas encore verifie que Mews en envoie un sur une creation Booking
+       * Engine, et une promesse d'email qui n'arrive pas fait appeler l'hotel
+       * le soir meme. La ligne s'ajoutera apres le premier test.
+       *
+       * Elle ne se ferme pas d'un clic dans le vide, contrairement aux
+       * galeries et a l'ecran de paiement : le numero de confirmation est la
+       * seule chose que le client aura a citer, et le faire disparaitre par
+       * megarde n'a aucun rattrapage. On en sort par le lien, ou pas du tout. */}
+      {reserve && (
+        <div
+          role="dialog" aria-modal="true" aria-label={T.confirmeTitre}
+          className="fixed inset-0 z-50 overflow-y-auto bg-navy-deep/92 p-3 sm:p-6"
+        >
+          <div className="mx-auto w-full max-w-[520px] rounded-2xl bg-white p-6 text-center shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:p-8">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gold/20">
+              <svg aria-hidden viewBox="0 0 24 24" className="h-7 w-7 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12.5l5 5L20 6.5" />
+              </svg>
+            </span>
+            <h2 className="mt-4 font-serif text-3xl leading-tight text-navy">{T.confirmeTitre}</h2>
+            <p className="mt-1.5 text-[15px] text-[#6b7a82]">{T.confirmeSous}</p>
+
+            {/* Le numero avant le detail : c'est ce qu'on vient chercher ici,
+                et ce qu'on recopie. En `tabular-nums` et espace, pour qu'il se
+                lise a voix haute sans se perdre dans les chiffres. */}
+            {reserve.numeros.length > 0 && (
+              <div className="mt-5 rounded-xl border border-[#e3e0d9] bg-[#faf7f1] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
+                  {T.confirmeNumero}
+                </p>
+                <p className="mt-1.5 select-all font-mono text-[22px] font-bold tracking-wide text-navy">
+                  {reserve.numeros.join(" · ")}
+                </p>
+                <p className="mt-1.5 text-[12px] text-[#8a9299]">{T.confirmeNumeroAide}</p>
+              </div>
+            )}
+
+            {sejourAPayer && (
+              <dl className="mt-5 grid gap-2 border-t border-[#f0ece4] pt-4 text-left text-[14px]">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[#8a9299]">{T.arrivee}</dt>
+                  <dd className="font-semibold text-[#3c4a52]">{joli(arrivee, langue)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[#8a9299]">{T.depart}</dt>
+                  <dd className="font-semibold text-[#3c4a52]">{joli(depart, langue)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[#8a9299]">{T.colOffres}</dt>
+                  <dd className="text-right font-semibold text-[#3c4a52]">{sejourAPayer.resume}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3 border-t border-[#f0ece4] pt-2">
+                  <dt className="font-semibold text-[#3c4a52]">{T.totalSejour}</dt>
+                  <dd className="text-[22px] font-bold tabular-nums text-navy">{sejourAPayer.totalFormate}</dd>
+                </div>
+              </dl>
+            )}
+
+            {/* Ce qu'il est advenu de la table, si une table a été demandée. */}
+            {tableChoix && <TableConfirmee prise={tablePrise} langue={langue} />}
+
+            <p className="mt-5 border-t border-[#f0ece4] pt-4 text-[13px] text-[#6b7a82]">
+              {T.confirmeQuestion}{" "}
+              <a href={`tel:${TELEPHONE.en.replace(/\s/g, "")}`} className="whitespace-nowrap font-semibold text-navy underline underline-offset-4 hover:text-gold-ink">
+                {TELEPHONE[langue]}
+              </a>
+            </p>
+
+            <Link
+              href="/"
+              className="mt-4 inline-block w-full rounded-full bg-navy px-6 py-3 text-[15px] font-bold text-white transition hover:brightness-110"
+            >
+              {T.confirmeRetour}
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Mobile : le total suit le client. Le recapitulatif est la troisieme
           colonne — sur telephone elle arrive apres toute la liste des chambres,
           donc hors de vue au moment ou l'on choisit.
@@ -1824,7 +2470,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           surcouche ne couvre le fond qu'a 90 %, la barre transparaissait au
           bas d'une photo plein ecran avec un bouton qu'on ne pouvait pas
           atteindre. */}
-      {choix && !recapVisible && !calendrierOuvert && !galerie && (
+      {choix && !recapVisible && !calendrierOuvert && !galerie && !paiementOuvert && !reserve && (
         <div className="sticky bottom-0 z-30 border-t border-[#e3e0d9] bg-white/95 px-5 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between gap-4">
             <span className="min-w-0">

@@ -111,3 +111,51 @@
     box-shadow: 0 15px 35px rgba(0,0,0,0.1);
   }
 }
+
+/* ---------- TUNNEL DE RÉSERVATION ---------- */
+
+/* Le témoin de recherche de /reserver.
+ *
+ * Changer d'occupation ou de dates relance l'appel à Mews, et pendant ce
+ * temps la colonne des chambres continuait d'afficher les anciens prix,
+ * cliquables, sans rien dire. Elle s'estompe désormais et se laisse
+ * traverser par un balayage : les prix restent lisibles — on ne vide pas
+ * l'écran de ce qu'on vient d'y mettre — mais on voit qu'ils sont en train
+ * d'être remplacés, et on ne peut plus en retenir un qui est déjà périmé. */
+@keyframes balayage {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(220%); }
+}
+.balayage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.62) 45%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  height: 45%;
+  animation: balayage 1.15s ease-in-out infinite;
+}
+
+/* Les nouveaux montants se posent au lieu d'apparaître d'un coup.
+ * Trois dixièmes : assez pour qu'on voie que le chiffre a changé, trop court
+ * pour qu'on ait le sentiment d'attendre le prix. */
+@keyframes prixEntre {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.prix-entre {
+  animation: prixEntre 300ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+/* Le système peut demander moins d'animations : le balayage s'arrête, les
+ * montants se posent sans course. L'estompage de la colonne suffit alors à
+ * dire que la recherche est en cours. */
+@media (prefers-reduced-motion: reduce) {
+  .balayage::after { animation: none; opacity: 0; }
+  .prix-entre { animation: none; }
+}
