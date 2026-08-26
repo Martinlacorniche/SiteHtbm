@@ -340,19 +340,25 @@ const dansNJours = (n: number) => {
 
 /* Un lien « ajouter à mon agenda », sans dépendance ni service tiers.
  *
- * Google Calendar accepte un événement par simple URL. Le format `dates` est en
- * jours pleins (`AAAAMMJJ/AAAAMMJJ`) et sa borne de fin est EXCLUSIVE : on
- * passe donc la date de départ telle quelle, et l'événement couvre bien la
- * dernière nuit sans déborder d'un jour. */
+ * ⚠️ AVEC DES HEURES, PAS EN JOURNÉE ENTIÈRE. La première version passait
+ * `AAAAMMJJ/AAAAMMJJ`, que Google rend en événement « toute la journée » : le
+ * séjour s'affichait comme un bandeau en haut de l'agenda, sans dire quand
+ * arriver ni quand partir — or c'est exactement ce qu'on veut y retrouver.
+ * On pose donc l'heure d'arrivée (15 h) et l'heure de départ (12 h), celles
+ * que la page annonce partout ailleurs.
+ *
+ * Le format `AAAAMMJJTHHMMSS` sans `Z` est lu dans le fuseau de l'agenda du
+ * client. C'est volontaire : quelqu'un qui note un voyage veut lire « 15 h »,
+ * l'heure de l'hôtel, pas l'heure de chez lui convertie. */
 const lienAgenda = (
   { titre, arrivee, depart, details }:
   { titre: string; arrivee: string; depart: string; details: string },
 ) => {
-  const jour = (iso: string) => iso.replace(/-/g, "");
+  const instant = (iso: string, heure: string) => `${iso.replace(/-/g, "")}T${heure}00`;
   const p = new URLSearchParams({
     action: "TEMPLATE",
     text: titre,
-    dates: `${jour(arrivee)}/${jour(depart)}`,
+    dates: `${instant(arrivee, "1500")}/${instant(depart, "1200")}`,
     details,
     location: "Hôtel-Rooftop Les Voiles, 124 rue Gubler, 83000 Toulon",
   });
