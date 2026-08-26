@@ -60,7 +60,10 @@ const TEXTES = {
     retirer: "Retirer la table",
     choisie: (h: string) => `Table réservée · ${h}`,
     faitTitre: "Table réservée",
-    fait: (t: string | null) => (t ? `Table ${t}. On vous attend.` : "On vous attend."),
+    /* Le nom de table ne se montre PAS. « Front de mer 3pax » est un repère de
+     * salle : il dit le placement et la capacité, pas au client. Il l'inquiète
+     * plutôt (« pourquoi 3 si on est 2 ? ») et il peut changer d'ici au soir. */
+    fait: "On vous attend au 4ᵉ.",
     rate: "La table n'a pas pu être prise — appelez-nous au 04 94 41 36 23, on vous place.",
   },
   en: {
@@ -74,7 +77,7 @@ const TEXTES = {
     retirer: "Remove the table",
     choisie: (h: string) => `Table booked · ${h}`,
     faitTitre: "Table booked",
-    fait: (t: string | null) => (t ? `Table ${t}. See you there.` : "See you there."),
+    fait: "See you on the 4th floor.",
     rate: "The table could not be booked — call us on +33 4 94 41 36 23 and we'll seat you.",
   },
 } as const;
@@ -274,7 +277,7 @@ export function TableConfirmee({ prise, langue }: { prise: TablePrise; langue: L
       <p className="font-serif text-[17px] text-navy">
         🍸 {T.faitTitre} · <span className="capitalize">{soirLisible(prise.date, langue)}</span> {heureLisible(prise.heure, langue)}
       </p>
-      <p className="mt-0.5 text-[13.5px] text-[#5b6a72]">{T.fait(prise.table)}</p>
+      <p className="mt-0.5 text-[13.5px] text-[#5b6a72]">{T.fait}</p>
     </div>
   );
 }

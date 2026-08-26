@@ -83,6 +83,9 @@ const TEXTES = {
     confirmeNumero: "Votre numéro de confirmation",
     confirmeNumeroAide: "À citer si vous nous appelez. Notez-le quelque part.",
     confirmeQuestion: "Une question sur votre séjour ?",
+    confirmeChambre: "Votre chambre",
+    confirmeMail: "Un email de confirmation vient de vous être envoyé par l'hôtel.",
+    agenda: "Ajouter à mon agenda",
     confirmeRetour: "Revenir à l'accueil",
     economisez: (m: string) => `Économisez ${m}`,
     annulableJusque: (d: string, h: number) => `Annulable sans frais jusqu'au ${d}, ${h} h`,
@@ -171,6 +174,9 @@ const TEXTES = {
     confirmeNumero: "Your confirmation number",
     confirmeNumeroAide: "Quote it if you call us. Write it down somewhere.",
     confirmeQuestion: "A question about your stay?",
+    confirmeChambre: "Your room",
+    confirmeMail: "A confirmation email has just been sent to you by the hotel.",
+    agenda: "Add to my calendar",
     confirmeRetour: "Back to the home page",
     economisez: (m: string) => `Save ${m}`,
     // Mews ne decrit ses tarifs qu'en francais : l'heure arrive en 24 h, il
@@ -330,6 +336,27 @@ const dansNJours = (n: number) => {
   const d = new Date();
   d.setDate(d.getDate() + n);
   return isoLocal(d);
+};
+
+/* Un lien « ajouter à mon agenda », sans dépendance ni service tiers.
+ *
+ * Google Calendar accepte un événement par simple URL. Le format `dates` est en
+ * jours pleins (`AAAAMMJJ/AAAAMMJJ`) et sa borne de fin est EXCLUSIVE : on
+ * passe donc la date de départ telle quelle, et l'événement couvre bien la
+ * dernière nuit sans déborder d'un jour. */
+const lienAgenda = (
+  { titre, arrivee, depart, details }:
+  { titre: string; arrivee: string; depart: string; details: string },
+) => {
+  const jour = (iso: string) => iso.replace(/-/g, "");
+  const p = new URLSearchParams({
+    action: "TEMPLATE",
+    text: titre,
+    dates: `${jour(arrivee)}/${jour(depart)}`,
+    details,
+    location: "Hôtel-Rooftop Les Voiles, 124 rue Gubler, 83000 Toulon",
+  });
+  return `https://calendar.google.com/calendar/render?${p.toString()}`;
 };
 
 /** « 12 sept. » — court, parce qu'il partage la ligne avec le nombre de nuits. */
@@ -2414,6 +2441,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   {reserve.numeros.join(" · ")}
                 </p>
                 <p className="mt-1.5 text-[12px] text-[#8a9299]">{T.confirmeNumeroAide}</p>
+                {/* Vérifié le 26/08/2026 sur la résa 29816 : Mews envoie bien
+                    une confirmation au client, environ trois minutes après la
+                    création. On peut donc l'annoncer — ce qu'on s'interdisait
+                    tant qu'on ne l'avait pas constaté. */}
+                <p className="mt-2 border-t border-[#e8e2d6] pt-2 text-[12px] leading-snug text-[#6b7a82]">
+                  {T.confirmeMail}
+                </p>
               </div>
             )}
 
@@ -2428,7 +2462,9 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   <dd className="font-semibold text-[#3c4a52]">{joli(depart, langue)}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-[#8a9299]">{T.colOffres}</dt>
+                  {/* `colOffres` titrait la COLONNE des chambres — repris ici,
+                      il donnait « Nos chambres » en face de la chambre retenue. */}
+                  <dt className="text-[#8a9299]">{T.confirmeChambre}</dt>
                   <dd className="text-right font-semibold text-[#3c4a52]">{sejourAPayer.resume}</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3 border-t border-[#f0ece4] pt-2">
@@ -2440,6 +2476,35 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
             {/* Ce qu'il est advenu de la table, si une table a été demandée. */}
             {tableChoix && <TableConfirmee prise={tablePrise} langue={langue} />}
+
+            {/* Le séjour dans l'agenda du client.
+                Un événement « journée entière » de l'arrivée au départ : c'est
+                ainsi qu'on note un voyage, pas avec une heure de check-in. La
+                table du rooftop, si elle a été prise, part dans la description
+                — un second événement pour un apéro encombrerait l'agenda plus
+                qu'il ne servirait. Nouvel onglet : on ne quitte pas la page qui
+                porte le numéro de confirmation. */}
+            {sejourAPayer && (
+              <a
+                href={lienAgenda({
+                  titre: `${T.titre} — ${sejourAPayer.resume.split(" · ")[0]}`,
+                  arrivee, depart,
+                  details: [
+                    `${T.confirmeNumero} : ${reserve.numeros.join(", ")}`,
+                    sejourAPayer.resume,
+                    `${T.totalSejour} : ${sejourAPayer.totalFormate}`,
+                    tablePrise ? `🍸 ${heureLisible(tablePrise.heure, langue)}` : null,
+                  ].filter(Boolean).join("\n"),
+                })}
+                target="_blank" rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#e3e0d9] bg-white px-4 py-2 text-[13.5px] font-semibold text-navy transition-colors hover:border-gold hover:text-gold-ink"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 11h18" />
+                </svg>
+                {T.agenda}
+              </a>
+            )}
 
             <p className="mt-5 border-t border-[#f0ece4] pt-4 text-[13px] text-[#6b7a82]">
               {T.confirmeQuestion}{" "}

@@ -3,7 +3,7 @@ import {
   creerReservation, chercherDisponibilite, chargerCategories, estPrepaye, t,
   type Langue,
 } from '@/lib/mewsBooking';
-import { ajouterNote, noteDeControle } from '@/lib/mewsConnector';
+import { ajouterNote, noteDeControle, confirmerReservations } from '@/lib/mewsConnector';
 
 // Taxe de séjour Toulon, 3 étoiles. Le même chiffre que l'écran — il entre dans
 // la note de réception, qui décide d'un geste de caisse.
@@ -150,6 +150,27 @@ export async function POST(req: NextRequest) {
       console.error('Mews create sans ReservationGroupId', resa);
       return NextResponse.json({ erreur: 'reponse inattendue' }, { status: 502 });
     }
+    /* ⚠️ CONFIRMER, SINON LA CHAMBRE N'EST PAS VENDUE.
+     *
+     * La Booking Engine pose une OPTION, pas une réservation ferme : elle sort
+     * en `Optional` et Mews la relâche vingt minutes plus tard. Sans cet appel,
+     * le client repart avec un numéro de confirmation qui ne vaut rien, et
+     * l'hôtel ne voit jamais la vente. Vécu le 26/08/2026 sur la 29816.
+     *
+     * En premier, avant la note : c'est ce qui décide qu'il y a une
+     * réservation. Un échec est journalisé fort — la réservation existe encore
+     * vingt minutes, l'hôtel peut la rattraper — mais on ne le renvoie pas au
+     * client : sa chambre est prise et sa carte engagée, lui rendre une erreur
+     * le ferait réserver deux fois. */
+    try {
+      await confirmerReservations(resa.reservationIds);
+    } catch (e) {
+      console.error(
+        'MEWS CONFIRMATION ECHOUEE — reservation relachee dans 20 min :',
+        resa.numeros.join(', '), e instanceof Error ? e.message : e,
+      );
+    }
+
     // La note part APRÈS coup et sans bloquer la réponse au client : la chambre
     // est prise, c'est ce qui compte. Un échec ici se lit dans les journaux et
     // se rattrape au comptoir ; un échec renvoyé au client, non.

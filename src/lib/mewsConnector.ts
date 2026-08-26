@@ -72,6 +72,27 @@ export function codeChambre(nom: string | null | undefined): string {
   return (gamme || gardes[0] || mots[0] || 'chambre').toLowerCase();
 }
 
+/* ⚠️ SANS CET APPEL, LA RÉSERVATION EST PERDUE EN VINGT MINUTES.
+ *
+ * `reservationGroups/create` de la Booking Engine ne crée pas une réservation
+ * ferme : il pose une option. Elle sort en `State: Optional` avec un
+ * `ReleasedUtc` à création + 20 min, et Mews la relâche ensuite de lui-même
+ * (`CancellationReason: BookingAbandoned`). Constaté deux fois le 26/08/2026,
+ * sur la 29814 puis sur la 29816 — celle-ci avait pourtant une carte attachée
+ * et un client qui avait payé son geste jusqu'au bout.
+ *
+ * La Booking Engine n'expose AUCUN moyen de confirmer : `reservationGroups/
+ * confirm`, `/update`, `/pay`, `reservations/confirm` y répondent tous 404.
+ * Seul le Connector le sait faire. C'est donc lui qui ferme la vente, juste
+ * après que la Booking Engine l'a ouverte.
+ *
+ * C'est aussi ce passage en `Confirmed` que les rate groups attendent pour
+ * déclencher leur règlement (`SettlementTrigger: Confirmation`). */
+export async function confirmerReservations(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  await callMews('reservations/confirm', { ReservationIds: ids });
+}
+
 /* ─────────────────────── La note de contrôle réception ───────────────────────
  *
  * Elle ne décrit pas le tarif : elle dit à la réception CE QU'ELLE DOIT FAIRE.
