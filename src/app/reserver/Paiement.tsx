@@ -26,6 +26,22 @@ import type { Langue } from "@/lib/mewsBooking";
 
 const SCRIPT_CHECKOUT = "https://cdn.mews.com/payments/checkout-embed.js";
 
+/* ⚠️ LE REGLEMENT EN LIGNE EST COUPE — 26/08/2026, fin de journee.
+ *
+ * Le checkout de Mews s'affiche et accepte la saisie, mais son bouton ne
+ * soumet rien : aucune requete, aucun rappel, pas meme `onFailure`. Sur les
+ * portefeuilles, Mews repond au moins « Only PaymentCard is supported for
+ * preauthorizations » ; sur la carte, c'est le silence.
+ *
+ * Tant que ce n'est pas compris, laisser le formulaire ouvert coute plus qu'il
+ * ne rapporte : le client remplit ses coordonnees, se heurte a un bouton mort,
+ * et laisse derriere lui une option qui immobilise une chambre vingt minutes.
+ * Aucune vente n'est perdue en coupant — aucune ne passait.
+ *
+ * `?diag=nu` continue de charger le checkout, pour pouvoir chercher.
+ * A REMETTRE A `false` des que le paiement fonctionne. */
+const REGLEMENT_COUPE = true;
+
 type Checkout = {
   load: (c: Record<string, unknown>) => void;
   destroy?: () => void;
@@ -57,6 +73,8 @@ const TEXTES = {
     echec: "La réservation n'a pas abouti. Rien n'a été débité — appelez-nous au 04 94 41 36 23 et nous la prenons avec vous.",
     echecPaiement: "Le paiement n'est pas passé. Vous pouvez réessayer ci-dessus, ou nous appeler au 04 94 41 36 23.",
     tenue: "Votre chambre est tenue 20 minutes, le temps du règlement.",
+    coupeTitre: "Réservons ensemble, par téléphone",
+    coupe: "Le règlement en ligne est momentanément indisponible. Appelez-nous : nous prenons votre réservation avec vous en deux minutes, au même tarif et avec les mêmes avantages.",
   },
   en: {
     titre: "Your details",
@@ -80,6 +98,8 @@ const TEXTES = {
     echec: "The booking didn't go through. Nothing was charged — call us on +33 4 94 41 36 23 and we'll take it with you.",
     echecPaiement: "The payment didn't go through. You can try again above, or call us on +33 4 94 41 36 23.",
     tenue: "Your room is held for 20 minutes while you pay.",
+    coupeTitre: "Let's book it together, by phone",
+    coupe: "Online payment is temporarily unavailable. Call us — we'll take your booking with you in two minutes, at the same rate and with the same benefits.",
   },
 } as const;
 
@@ -133,6 +153,12 @@ export default function Paiement({
   // Les rappels du checkout vivent hors de React : ils liraient des valeurs
   // figées au montage. On leur donne une référence toujours à jour.
   const enCours = useRef(false);
+
+  /* `?diag=nu` passe outre : c'est le seul chemin qui reste pour chercher. */
+  const [coupe] = useState(() =>
+    REGLEMENT_COUPE
+    && !(typeof window !== "undefined"
+         && new URLSearchParams(window.location.search).get("diag") === "nu"));
 
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
   const complet = prenom.trim() && nom.trim() && emailOk;
@@ -361,7 +387,24 @@ export default function Paiement({
           <span className="shrink-0 text-[20px] font-bold tabular-nums text-navy">{sejour.totalFormate}</span>
         </div>
 
-        {!ouverte ? (
+        {coupe ? (
+          /* Rien n'est cree cote Mews dans ce cas : le client n'a pas rempli de
+             coordonnees et aucune option ne part. Il repart avec le telephone,
+             qui est de toute facon le chemin sans commission. */
+          <div className="mt-5">
+            <p className="font-serif text-xl text-navy">{T.coupeTitre}</p>
+            <p className="mt-2 text-[14.5px] leading-relaxed text-[#5b6a72]">{T.coupe}</p>
+            <a
+              href="tel:+33494413623"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gold px-6 py-3.5 text-[17px] font-bold text-navy-deep transition hover:brightness-105"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" />
+              </svg>
+              04 94 41 36 23
+            </a>
+          </div>
+        ) : !ouverte ? (
           <>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1.5">
