@@ -155,10 +155,11 @@ export default function Paiement({
   const enCours = useRef(false);
 
   /* `?diag=nu` passe outre : c'est le seul chemin qui reste pour chercher. */
-  const [coupe] = useState(() =>
-    REGLEMENT_COUPE
-    && !(typeof window !== "undefined"
-         && new URLSearchParams(window.location.search).get("diag") === "nu"));
+  const [diag] = useState(() =>
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("diag"));
+  const coupe = REGLEMENT_COUPE && diag !== "nu" && diag !== "payment";
 
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
   const complet = prenom.trim() && nom.trim() && emailOk;
@@ -183,6 +184,7 @@ export default function Paiement({
             arrivee: sejour.arrivee, depart: sejour.depart, adultes: sejour.adultes,
             notes: motHotel.trim() || undefined,
           },
+          ...(diag === "payment" ? { diagPayment: true } : {}),
         }),
       });
       const j = await r.json().catch(() => null);
@@ -243,7 +245,7 @@ export default function Paiement({
      * fonctionne ainsi, la cause est dans notre configuration ; sinon elle est
      * dans la demande de paiement ou chez Mews. Une seule manipulation au lieu
      * de trois allers-retours. */
-    const nu = new URLSearchParams(window.location.search).get("diag") === "nu";
+    const nu = diag === "nu" || diag === "payment";
 
     const monter = () => {
       const api = window.Mews?.PaymentCheckout;

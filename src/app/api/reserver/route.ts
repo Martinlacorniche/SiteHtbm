@@ -28,6 +28,11 @@ const TAXE_PAR_ADULTE_NUIT = 1.86;
 
 type Corps = {
   langue?: Langue;
+  /* Diagnostic uniquement (`?diag=payment`). Force une demande de type
+   * `Payment` a 1 € au lieu de la preautorisation calculee : c'est la derniere
+   * hypothese non testee sur le checkout qui refuse de soumettre. Un euro
+   * reellement debite, remboursable par `payments/refund`. */
+  diagPayment?: boolean;
   client?: { prenom?: string; nom?: string; email?: string; telephone?: string };
   sejour?: {
     categorieId?: string;
@@ -144,8 +149,8 @@ export async function POST(req: NextRequest) {
     demandeId = await creerDemandePaiement({
       customerId: resa.customerId,
       reservationId: resa.reservationIds[0],
-      montant: reglement.montant,
-      type: reglement.debite ? 'Payment' : 'Preauthorization',
+      montant: corps.diagPayment ? 1 : reglement.montant,
+      type: corps.diagPayment || reglement.debite ? 'Payment' : 'Preauthorization',
       // Lue par le client dans le checkout : elle doit lui parler, à lui.
       description: reglement.debite
         ? (langue === 'fr' ? 'Règlement de votre séjour' : 'Payment for your stay')
