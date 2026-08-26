@@ -59,7 +59,13 @@ const TEXTES = {
     envoi: "Nous réservons votre chambre…",
     fermer: "Fermer",
     retour: "Retour",
-    sur: "Carte saisie directement chez notre prestataire de paiement : elle ne transite pas par ce site.",
+    /* Dit AUSSI pourquoi le remplissage automatique ne marche qu'à moitié.
+     * Le nom et l'expiration sont des champs de cette page, le numéro et le
+     * cryptogramme sont des iframes de notre prestataire : le navigateur ne
+     * peut pas écrire dedans depuis ici. C'est la barrière même qui fait que
+     * le numéro ne touche jamais ce site — mais sans un mot, deux champs
+     * remplis sur quatre ressemblent à une panne. */
+    sur: "Le numéro et le cryptogramme sont saisis directement chez notre prestataire de paiement : ils ne transitent pas par ce site, et le remplissage automatique du navigateur ne peut pas les atteindre.",
     retractation:
       "Conformément à l'article L221-28 du code de la consommation, une réservation d'hébergement à date déterminée ne donne pas de droit de rétractation. Les conditions d'annulation de votre tarif s'appliquent.",
     champsManquants: "Il manque vos coordonnées : prénom, nom et email.",
@@ -87,7 +93,7 @@ const TEXTES = {
     envoi: "Booking your room…",
     fermer: "Close",
     retour: "Back",
-    sur: "Your card is entered directly with our payment provider — it never passes through this site.",
+    sur: "Your card number and security code are entered directly with our payment provider — they never pass through this site, and your browser's autofill cannot reach them.",
     retractation:
       "Under French consumer law (art. L221-28), accommodation booked for a set date carries no right of withdrawal. Your rate's cancellation terms apply.",
     champsManquants: "Your details are incomplete: first name, last name and email.",
