@@ -219,6 +219,19 @@ export default function Paiement({
         containerId: "mews-checkout",
         requestId: ouverte.demandeId,
         languageCode: langue === "fr" ? "fr-FR" : "en-GB",
+        /* ⚠️ UNE PRÉAUTORISATION NE SE FAIT QU'À LA CARTE.
+         *
+         * Mews, mot pour mot : « Only PaymentCard is supported for
+         * preauthorizations. Type Alternative is not supported. » Google Pay,
+         * Apple Pay, iDEAL et SEPA sont des moyens « alternatifs » : sur le
+         * tarif flexible, qui ne prend qu'une empreinte, ils sont refusés côté
+         * serveur.
+         *
+         * On les affichait quand même. Le client voyait donc un bouton Google
+         * Pay qui ne pouvait qu'échouer — et l'échec tombait APRÈS le clic, une
+         * fois son empreinte digitale donnée. Sur le prépayé, qui est un vrai
+         * paiement, ils restent offerts. */
+        ...(ouverte.reglement.debite ? {} : { enabledPaymentMethods: ["paymentCard"] }),
         onSuccess: () => { if (!annule) void finaliserRef.current(); },
         /* Mews donne la raison dans `event.error` — un texte lisible, pas un
          * code stable. On la journalise telle quelle : sans elle, un refus
