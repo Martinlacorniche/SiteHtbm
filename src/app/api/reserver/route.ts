@@ -50,14 +50,18 @@ type Corps = {
   /* Le jeton PciProxy, sur le seul chemin flexible. */
   carte?: { jeton?: string; expiration?: string; porteur?: string };
   sejour?: {
-    categorieId?: string;
-    tarifId?: string;
+    /** Une ou PLUSIEURS chambres, toutes du même groupe tarifaire. */
+    lignes?: { categorieId?: string; tarifId?: string; adultes?: number }[];
     arrivee?: string;
     depart?: string;
-    adultes?: number;
     notes?: string;
   };
 };
+
+/** Le tunnel ne compose pas des cars de tourisme. Au-delà, c'est un groupe et
+ *  ça se traite au téléphone — et ça évite qu'une boucle de requêtes pose
+ *  quarante options d'un coup. */
+const CHAMBRES_MAX = 5;
 
 const estDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const estGuid = (s: unknown): s is string =>
@@ -83,16 +87,32 @@ export async function POST(req: NextRequest) {
   if (!client?.prenom?.trim() || !client?.nom?.trim() || !estEmail(client?.email)) {
     return NextResponse.json({ erreur: 'coordonnees incompletes' }, { status: 400 });
   }
-  if (!estGuid(sejour?.categorieId) || !estGuid(sejour?.tarifId)) {
+  const brutes = sejour?.lignes ?? [];
+  if (!brutes.length || brutes.length > CHAMBRES_MAX) {
     return NextResponse.json({ erreur: 'sejour invalide' }, { status: 400 });
+  }
+  /* On valide EN CONSTRUISANT : `estGuid` est un garde de type, donc chaque
+   * ligne sort d'ici avec des champs sûrs, sans une seule assertion. */
+  const lignes: { categorieId: string; tarifId: string; adultes: number }[] = [];
+  for (const l of brutes) {
+    const categorieId = l?.categorieId;
+    const tarifId = l?.tarifId;
+    const adultes = Number(l?.adultes);
+    if (!estGuid(categorieId) || !estGuid(tarifId)) {
+      return NextResponse.json({ erreur: 'sejour invalide' }, { status: 400 });
+    }
+    if (!Number.isInteger(adultes) || adultes < 1 || adultes > 4) {
+      return NextResponse.json({ erreur: 'occupation invalide' }, { status: 400 });
+    }
+    lignes.push({ categorieId, tarifId, adultes });
   }
   if (!estDate(sejour?.arrivee) || !estDate(sejour?.depart) || sejour.depart <= sejour.arrivee) {
     return NextResponse.json({ erreur: 'dates invalides' }, { status: 400 });
   }
-  const adultes = Number(sejour?.adultes);
-  if (!Number.isInteger(adultes) || adultes < 1 || adultes > 4) {
-    return NextResponse.json({ erreur: 'occupation invalide' }, { status: 400 });
-  }
+  // Sorties de `sejour` : TypeScript perd son affinage à l'entrée d'une
+  // fermeture, et on en ouvre une pour composer les lignes.
+  const arrivee = sejour.arrivee;
+  const depart = sejour.depart;
 
   /* Le prix se relit CHEZ MEWS, jamais dans la requête.
    * C'est lui qui fixe le montant réellement demandé au client : le laisser
@@ -100,31 +120,53 @@ export async function POST(req: NextRequest) {
   let dispo;
   try {
     dispo = await chercherDisponibilite({
-      arrivee: sejour.arrivee, depart: sejour.depart, adultes, langue: 'fr',
+      arrivee, depart, adultes: lignes[0].adultes, langue: 'fr',
     });
   } catch (e) {
     console.error('Mews getAvailability', e instanceof Error ? e.message : e);
     return NextResponse.json({ erreur: 'indisponible' }, { status: 502 });
   }
 
-  const prixMews = dispo.offres
-    .find((o) => o.categorieId === sejour.categorieId && o.pourPersonnes === adultes)
-    ?.prix.find((p) => p.tarifId === sejour.tarifId)?.total;
-  if (!prixMews) {
-    // La chambre est partie, ou le tarif n'est plus offert sur ces dates.
-    return NextResponse.json({ erreur: 'plus disponible' }, { status: 409 });
+  const nuits = Math.max(
+    1, Math.round((Date.parse(depart) - Date.parse(arrivee)) / 86_400_000),
+  );
+
+  /* Chaque chambre se chiffre chez Mews, puis on additionne.
+   * Le total est ce qui fixe le montant réellement porté à la carte : le
+   * laisser venir du navigateur reviendrait à laisser choisir combien on
+   * encaisse. */
+  let total = 0;
+  for (const l of lignes) {
+    const prixMews = dispo.offres
+      .find((o) => o.categorieId === l.categorieId && o.pourPersonnes === l.adultes)
+      ?.prix.find((p) => p.tarifId === l.tarifId)?.total;
+    if (!prixMews) {
+      // La chambre est partie, ou le tarif n'est plus offert sur ces dates.
+      return NextResponse.json({ erreur: 'plus disponible' }, { status: 409 });
+    }
+    total += prixMews + TAXE_PAR_ADULTE_NUIT * l.adultes * nuits;
   }
 
-  const nuits = Math.max(
-    1, Math.round((Date.parse(sejour.depart) - Date.parse(sejour.arrivee)) / 86_400_000),
+  /* ⚠️ UN SEUL GROUPE TARIFAIRE PAR RÉSERVATION — revérifié ICI.
+   *
+   * L'écran éteint déjà les tarifs de l'autre groupe, mais cette route est
+   * appelable directement. Deux règles d'encaissement dans un même groupe de
+   * réservation, ce sont deux moteurs de paiement pour une carte : il n'y a
+   * aucun comportement correct à ce moment-là, seulement des façons de se
+   * tromper. On refuse. */
+  const tarif = dispo.tarifs.find((r) => r.Id === lignes[0].tarifId);
+  const groupeAttendu = tarif?.RateGroupId;
+  const melange = lignes.some(
+    (l) => dispo.tarifs.find((r) => r.Id === l.tarifId)?.RateGroupId !== groupeAttendu,
   );
-  const taxe = TAXE_PAR_ADULTE_NUIT * adultes * nuits;
-  const total = prixMews + taxe;
+  if (melange) {
+    console.error('Refus : melange de groupes tarifaires', lignes.map((l) => l.tarifId).join(', '));
+    return NextResponse.json({ erreur: 'tarifs incompatibles' }, { status: 400 });
+  }
 
-  const tarif = dispo.tarifs.find((r) => r.Id === sejour.tarifId);
   const reglement = reglementDe(tarif, dispo.groupes, total);
   if (!reglement) {
-    console.error('Mews : regle de reglement introuvable pour', sejour.tarifId);
+    console.error('Mews : regle de reglement introuvable pour', lignes[0].tarifId);
     return NextResponse.json({ erreur: 'reglement inconnu' }, { status: 502 });
   }
 
@@ -147,14 +189,19 @@ export async function POST(req: NextRequest) {
         prenom: client.prenom, nom: client.nom,
         email: client.email, telephone: client.telephone,
       },
-      lignes: [{
-        categorieId: sejour.categorieId,
-        tarifId: sejour.tarifId,
-        arrivee: sejour.arrivee,
-        depart: sejour.depart,
-        adultes,
-        notes: sejour.notes?.slice(0, 500) || undefined,
-      }],
+      /* ⚠️ L'ORDRE COMPTE. Mews rend ses réservations dans l'ordre où on les
+       * lui envoie, et c'est cet appariement par rang qui permettra de poser la
+       * bonne note de réception sur chaque chambre. Ne pas trier ici.
+       * Le mot du client va sur la PREMIÈRE seulement : le recopier sur les
+       * trois ferait lire trois fois la même chose au comptoir. */
+      lignes: lignes.map((l, rang) => ({
+        categorieId: l.categorieId,
+        tarifId: l.tarifId,
+        arrivee,
+        depart,
+        adultes: l.adultes,
+        notes: rang === 0 ? (sejour.notes?.slice(0, 500) || undefined) : undefined,
+      })),
       // Le prépayé n'en donne pas : sa carte est collectée par le checkout.
       ...(reglement.debite ? {} : {
         carte: {

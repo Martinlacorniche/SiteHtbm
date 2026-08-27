@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStripeForHotel } from "@/lib/stripe";
+import { GERABLES } from "@/lib/groupeStatuts";
 
 // POST /api/groupe/[code]/pay  { ref: booking_ref }
 // Paiement EN LIGNE À LA DEMANDE d'un booking (modes « Sur place » / « Programmé »).
@@ -36,7 +37,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
     .select("id, email, nom, prenom, date_arrivee, date_depart, nb_personnes, statut, stripe_checkout_id, pdj_nuits, pdj_prix_unitaire, groupe_chambres!inner(hotel_id, tarif_nuit, room_units(numero))")
-    .eq("booking_ref", ref).eq("groupe_id", g.id).in("statut", ["confirmee", "paiement_differe"]);
+    .eq("booking_ref", ref).eq("groupe_id", g.id).in("statut", [...GERABLES]);
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable." }, { status: 404 });
 
   // Exclut ce qui est déjà payé (session Stripe déjà réglée).

@@ -28,7 +28,7 @@ type Corps = {
   langue?: Langue;
   carteId?: string;
   reservationIds?: string[];
-  sejour?: { categorieId?: string; tarifId?: string; arrivee?: string; depart?: string; adultes?: number };
+  sejour?: { lignes?: { categorieId?: string; tarifId?: string; adultes?: number }[]; arrivee?: string; depart?: string };
 };
 
 export async function POST(req: NextRequest) {
@@ -42,13 +42,25 @@ export async function POST(req: NextRequest) {
 
   if (!estGuid(corps.carteId)) return NextResponse.json({ erreur: 'carte absente' }, { status: 400 });
   if (!ids.length) return NextResponse.json({ erreur: 'reservation absente' }, { status: 400 });
-  if (!estGuid(sejour?.categorieId) || !estGuid(sejour?.tarifId)
-      || !estDate(sejour?.arrivee) || !estDate(sejour?.depart)) {
+  const brutes = sejour?.lignes ?? [];
+  if (!brutes.length || brutes.length > 5) {
     return NextResponse.json({ erreur: 'sejour invalide' }, { status: 400 });
   }
-  const adultes = Number(sejour?.adultes);
-  if (!Number.isInteger(adultes) || adultes < 1 || adultes > 4) {
-    return NextResponse.json({ erreur: 'occupation invalide' }, { status: 400 });
+  /* On valide EN CONSTRUISANT : `estGuid` est un garde de type, donc chaque
+   * ligne sort d'ici avec des champs sûrs, sans une seule assertion. */
+  const lignes: { categorieId: string; tarifId: string; adultes: number }[] = [];
+  for (const l of brutes) {
+    const categorieId = l?.categorieId;
+    const tarifId = l?.tarifId;
+    const adultes = Number(l?.adultes);
+    if (!estGuid(categorieId) || !estGuid(tarifId)
+        || !Number.isInteger(adultes) || adultes < 1 || adultes > 4) {
+      return NextResponse.json({ erreur: 'sejour invalide' }, { status: 400 });
+    }
+    lignes.push({ categorieId, tarifId, adultes });
+  }
+  if (!estDate(sejour?.arrivee) || !estDate(sejour?.depart)) {
+    return NextResponse.json({ erreur: 'sejour invalide' }, { status: 400 });
   }
 
   /* La preuve de l'authentification, chez Mews.
@@ -74,10 +86,7 @@ export async function POST(req: NextRequest) {
   try {
     await finaliserVente({
       reservationIds: ids,
-      sejour: {
-        categorieId: sejour.categorieId, tarifId: sejour.tarifId,
-        arrivee: sejour.arrivee, depart: sejour.depart, adultes,
-      },
+      sejour: { lignes, arrivee: sejour.arrivee, depart: sejour.depart },
       langue,
     });
   } catch (e) {

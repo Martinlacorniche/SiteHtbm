@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseServer } from "@/lib/supabase-server";
 import { teamEmailForHotel } from "@/lib/hotel-email";
+import { estGerable } from "@/lib/groupeStatuts";
 
 function fmtD(d?: string) {
   if (!d) return "—";
@@ -94,7 +95,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       for (const p of pays || []) if (p.stripe_checkout_id) paidCkout.add(p.stripe_checkout_id);
     }
     canPayOnline = rows.some((r) =>
-      (r.statut === "confirmee" || r.statut === "paiement_differe") &&
+      estGerable(r.statut) &&
       !(r.stripe_checkout_id && paidCkout.has(r.stripe_checkout_id)));
   }
 
@@ -164,7 +165,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   }
 
   if (action === "update") {
-    if (target.statut !== "confirmee") return NextResponse.json({ ok: false, error: "Chambre non modifiable." }, { status: 400 });
+    // `paiement_differe` se modifie comme `confirmee` : la chambre est tenue, seul
+    // l'encaissement est repoussé à J-30. Le refuser laissait l'invité sans recours
+    // pendant des mois sur un mariage réservé un an à l'avance.
+    if (!estGerable(target.statut)) return NextResponse.json({ ok: false, error: "Chambre non modifiable." }, { status: 400 });
     const da = body.date_arrivee || target.date_arrivee;
     const dd = body.date_depart || target.date_depart;
     if (da < g.date_arrivee || dd > g.date_depart || dd <= da) return NextResponse.json({ ok: false, error: "Dates hors des bornes du séjour." }, { status: 400 });

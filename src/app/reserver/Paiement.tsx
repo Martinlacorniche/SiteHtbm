@@ -142,12 +142,17 @@ const TEXTES = {
   },
 } as const;
 
+/** Une chambre du panier. Plusieurs sont possibles, mais toutes du MÊME groupe
+ *  tarifaire : c'est la contrainte qui garde un seul moteur de paiement. */
+export type LigneChoisie = { categorieId: string; tarifId: string; adultes: number };
+
 export type SejourAPayer = {
-  categorieId: string;
-  tarifId: string;
+  /** ⚠️ Une ou PLUSIEURS chambres, dans l'ordre où le client les a composées.
+   *  Cet ordre est significatif : Mews rend ses réservations dans le même, et
+   *  c'est ce qui permet de poser la bonne note de réception sur chacune. */
+  lignes: LigneChoisie[];
   arrivee: string;
   depart: string;
-  adultes: number;
   /** Ce que le client va lire : nom de la chambre, tarif, nuits. */
   resume: string;
   /** Le total, formaté dans la langue de la page. */
@@ -240,8 +245,7 @@ export default function Paiement({
   const finaliserCarte = useCallback(async (jeton: string) => {
     if (!moisAn) return;
     const donneesSejour = {
-      categorieId: sejour.categorieId, tarifId: sejour.tarifId,
-      arrivee: sejour.arrivee, depart: sejour.depart, adultes: sejour.adultes,
+      lignes: sejour.lignes, arrivee: sejour.arrivee, depart: sejour.depart,
     };
     try {
       // ── Temps 1 : la réservation, avec la carte ────────────────────────────
@@ -318,7 +322,7 @@ export default function Paiement({
     { carteId, reservationIds, groupeId, numeros, sejour: s3 }:
     {
       carteId: string; reservationIds: string[]; groupeId: string; numeros: string[];
-      sejour: { categorieId: string; tarifId: string; arrivee: string; depart: string; adultes: number };
+      sejour: { lignes: LigneChoisie[]; arrivee: string; depart: string };
     },
   ) => {
     const r = await fetch("/api/reserver/carte", {
@@ -436,8 +440,7 @@ export default function Paiement({
           langue,
           client: client(),
           sejour: {
-            categorieId: sejour.categorieId, tarifId: sejour.tarifId,
-            arrivee: sejour.arrivee, depart: sejour.depart, adultes: sejour.adultes,
+            lignes: sejour.lignes, arrivee: sejour.arrivee, depart: sejour.depart,
             notes: motHotel.trim() || undefined,
           },
         }),
@@ -464,10 +467,7 @@ export default function Paiement({
           langue,
           reservationIds: ouverte.reservationIds,
           demandeId: ouverte.demandeId,
-          sejour: {
-            categorieId: sejour.categorieId, tarifId: sejour.tarifId,
-            arrivee: sejour.arrivee, depart: sejour.depart, adultes: sejour.adultes,
-          },
+          sejour: { lignes: sejour.lignes, arrivee: sejour.arrivee, depart: sejour.depart },
         }),
       });
       if (!r.ok) { setErreur(T.echec); return; }

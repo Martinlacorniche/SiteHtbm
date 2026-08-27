@@ -124,6 +124,13 @@ const TEXTES = {
     debitLongPartiel: (m: string, pc: string) =>
       `Votre carte est débitée de ${m} (${pc} du séjour) dès la confirmation. Le solde se règle à l'hôtel.`,
     paiementSecurise: "Paiement sécurisé",
+    pasDeMelange: "Une même réservation ne mélange pas les deux tarifs. Retirez vos chambres pour changer.",
+    chambreEnPlus: "Ajouter une chambre identique",
+    chambreEnMoins: "Retirer une chambre",
+    retirerLigne: "Retirer",
+    plusDeChambres: "Plus de chambre disponible dans cette catégorie",
+    xFois: (n: number) => `× ${n}`,
+    totalChambres: (n: number) => (n > 1 ? `${n} chambres` : "1 chambre"),
     repriseEnCours: "On finalise votre réservation…",
     repriseEchecTitre: "Un dernier pas nous manque",
     repriseEchec: "Votre banque a bien confirmé, mais nous n'avons pas pu terminer la réservation ici. Appelez-nous au 04 94 41 36 23 : nous la bouclons en deux minutes, rien n'a été débité.",
@@ -204,6 +211,13 @@ const TEXTES = {
     debitLongPartiel: (m: string, pc: string) =>
       `Your card is charged ${m} (${pc} of the stay) on confirmation. The balance is settled at the hotel.`,
     paiementSecurise: "Secure payment",
+    pasDeMelange: "A single booking can't mix the two rates. Remove your rooms to switch.",
+    chambreEnPlus: "Add another identical room",
+    chambreEnMoins: "Remove one room",
+    retirerLigne: "Remove",
+    plusDeChambres: "No more rooms available in this category",
+    xFois: (n: number) => `× ${n}`,
+    totalChambres: (n: number) => (n > 1 ? `${n} rooms` : "1 room"),
     repriseEnCours: "Finalising your booking…",
     repriseEchecTitre: "One last step is missing",
     repriseEchec: "Your bank confirmed, but we couldn't complete the booking here. Call us on +33 4 94 41 36 23 and we'll finish it in two minutes — nothing has been charged.",
@@ -1117,7 +1131,18 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState(false);
   // La chambre retenue, qui alimente la colonne de droite.
-  const [choix, setChoix] = useState<Choix | null>(null);
+  /* ⚠️ PLUSIEURS CHAMBRES, MAIS UN SEUL GROUPE TARIFAIRE.
+   *
+   * Contrainte posee par Martin le 27/08/2026, et c'est elle qui rend le
+   * multi-chambres SOBRE : on ne melange pas flexible et prepaye dans une meme
+   * reservation. Consequence directe — une seule regle d'encaissement, donc un
+   * seul moteur de paiement, une seule carte, un seul ecran, une seule
+   * confirmation. Tout ce qui a ete ecrit pour une chambre reste vrai.
+   *
+   * `chambres[0]` fait foi pour tout ce qui decrit LE sejour au singulier : le
+   * tarif, l'heure limite d'annulation, la comparaison avec Booking. Les
+   * totaux, eux, s'additionnent. */
+  const [chambres, setChambres] = useState<Choix[]>([]);
   const dejaLance = useRef(false);
   const zoneOffres = useRef<HTMLElement | null>(null);
   const zoneRecap = useRef<HTMLElement | null>(null);
@@ -1174,6 +1199,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
   const nuits = nuitsEntre(arrivee, depart);
   const adultes = voyage === "seul" ? 1 : 2;
+
+  /* La chambre qui parle pour les autres, et les totaux qui les additionnent.
+     Derives : jamais stockes, donc jamais desynchronises de `chambres`. */
+  const choix = chambres[0] ?? null;
+  const totalChambres = chambres.reduce((t, c) => t + c.total, 0);
+  const personnesRetenues = chambres.reduce((t, c) => t + c.pourPersonnes, 0);
+
   const aJour = !!cherche && cherche.a === arrivee && cherche.d === depart && cherche.pax === adultes;
 
   // Le cœur de la recherche prend ses dates en argument : au montage, l'état
@@ -1190,7 +1222,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       ]);
       setDispo(dispos);
       setCategories(cats);
-      setChoix(null); // les prix changent avec les dates : on ne garde pas l'ancien choix
+      setChambres([]); // les prix changent avec les dates : on ne garde pas l'ancien choix
       setCherche({ a, d, pax });
       setTour((t) => t + 1);
       const url = new URL(window.location.href);
@@ -1333,6 +1365,58 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   const tarifs = useMemo(() => dispo?.tarifs ?? [], [dispo]);
   const groupes = useMemo(() => dispo?.groupes ?? [], [dispo]);
 
+  /* Le groupe tarifaire retenu, s'il y en a un. Tant que le panier est vide,
+     tous les tarifs sont ouverts ; des la premiere chambre, il ferme l'autre. */
+  const groupeDe = useCallback(
+    (tarifId: string) => tarifs.find((r) => r.Id === tarifId)?.RateGroupId ?? null,
+    [tarifs],
+  );
+  const groupeRetenu = choix ? groupeDe(choix.tarifId) : null;
+
+  /* Deux chambres sont « la meme ligne » si elles ont la meme categorie, le
+     meme tarif et la meme occupation. C'est ce qui permet d'afficher « x2 »
+     plutot que deux lignes jumelles. */
+  const memeLigne = (a: Choix, b: Choix) =>
+    a.categorieId === b.categorieId && a.tarifId === b.tarifId
+    && a.pourPersonnes === b.pourPersonnes;
+
+  const combienDe = (c: Choix) => chambres.filter((x) => memeLigne(x, c)).length;
+
+  /* Ajoute une chambre, ou la retire si elle etait deja la.
+     Rend `false` si le tarif appartient a l'autre groupe : l'appelant s'en sert
+     pour le dire, au lieu de laisser un clic sans effet. */
+  const basculerChambre = (c: Choix): boolean => {
+    if (groupeRetenu && groupeDe(c.tarifId) !== groupeRetenu) return false;
+    setChambres((liste) => {
+      const i = liste.findIndex((x) => memeLigne(x, c));
+      return i === -1 ? [...liste, c] : liste.filter((_, k) => k !== i);
+    });
+    return true;
+  };
+
+  /* Le « + » du recapitulatif : une chambre de plus, identique.
+     Borne par la disponibilite reelle — sans ca, on laisse le client en
+     composer trois quand Mews n'en a que deux, et le refus tombe a la fin du
+     tunnel, carte en main. C'est le pire endroit pour dire non. */
+  /* Le panier, replie : une ligne par chambre distincte, avec sa quantite.
+     Deux chambres jumelles font « x2 », pas deux lignes identiques a lire. */
+  const lignesPanier = useMemo(() => {
+    const out: { c: Choix; n: number }[] = [];
+    for (const c of chambres) {
+      const l = out.find((x) => x.c.categorieId === c.categorieId
+        && x.c.tarifId === c.tarifId && x.c.pourPersonnes === c.pourPersonnes);
+      if (l) l.n += 1; else out.push({ c, n: 1 });
+    }
+    return out;
+  }, [chambres]);
+
+  const resteDe = (c: Choix) => {
+    const offre = (dispo?.offres ?? []).find(
+      (o) => o.categorieId === c.categorieId && o.pourPersonnes === c.pourPersonnes,
+    );
+    return Math.max(0, (offre?.chambresRestantes ?? 0) - combienDe(c));
+  };
+
   // Arrivee du jour : le prepaye n'a plus de contrepartie (voir `cartesDe`).
   const arriveeCeJour = arrivee === dansNJours(0);
 
@@ -1345,7 +1429,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * contre le client. La carte correspondante s'allume dans la liste : c'est un
    * defaut visible, pas un choix fait a sa place. */
   useEffect(() => {
-    if (choix) return;
+    if (chambres.length) return;
     // `principales` est triee par prix croissant : la moins chere est en tete.
     const offre = principales[0];
     if (!offre) return;
@@ -1354,15 +1438,15 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     const cartes = cartesDe(offre.prix, tarifs, groupes, arriveeCeJour);
     const p = (cartes.find((c) => !c.prepaye) ?? cartes[0])?.direct;
     if (!p) return;
-    setChoix({
+    setChambres([{
       categorieId: offre.categorieId, tarifId: p.tarifId,
       total: p.total, parNuit: p.parNuit, pourPersonnes: offre.pourPersonnes,
-    });
-  }, [choix, principales, tarifs, groupes, arriveeCeJour]);
+    }]);
+  }, [chambres.length, principales, tarifs, groupes, arriveeCeJour]);
   // Annulation gratuite du tarif retenu — nulle si c'est un prepaye.
   /* Les soirs où le rooftop peut recevoir, sur toute la durée du séjour.
    * Vide = le bloc ne s'affiche pas du tout. */
-  const soirsRooftop = useSoirsRooftop(arrivee, depart, choix?.pourPersonnes ?? adultes);
+  const soirsRooftop = useSoirsRooftop(arrivee, depart, personnesRetenues || adultes);
 
   const heureChoix = choix ? heureLimite(tarifs.find((r) => r.Id === choix.tarifId), langue) : null;
   /* Un seul nombre, et ce qu'il y a dedans.
@@ -1421,35 +1505,47 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * different de celui du recapitulatif au moment de payer est la meilleure
    * facon de perdre quelqu'un a la derniere seconde. */
   const sejourAPayer: SejourAPayer | null = useMemo(() => {
-    if (!choix) return null;
-    const taxe = TAXE_PAR_ADULTE_NUIT * choix.pourPersonnes * nuits;
-    const tarif = tarifs.find((r) => r.Id === choix.tarifId);
+    if (!chambres.length) return null;
+    const taxe = TAXE_PAR_ADULTE_NUIT * personnesRetenues * nuits;
+    const total = totalChambres + taxe;
+    // Toutes les chambres partagent le meme groupe tarifaire — c'est la
+    // contrainte — donc un seul tarif suffit a decrire le reglement.
+    const tarif = tarifs.find((r) => r.Id === chambres[0].tarifId);
+
+    /* Le resume, tel que le client va le relire carte en main. A plusieurs
+       chambres on nomme les chambres, pas la premiere : « Confort x2 » se
+       verifie d'un coup d'oeil, « Confort » tout court ferait douter. */
+    const nomsChambres = lignesPanier
+      .map(({ c, n }) => nomChambre(c.categorieId, categories.get(c.categorieId), langue)
+        + (n > 1 ? ` ${T.xFois(n)}` : ""))
+      .join(" + ");
+
     return {
-      categorieId: choix.categorieId,
-      tarifId: choix.tarifId,
+      lignes: chambres.map((c) => ({
+        categorieId: c.categorieId, tarifId: c.tarifId, adultes: c.pourPersonnes,
+      })),
       arrivee,
       depart,
-      adultes: choix.pourPersonnes,
       resume: [
-        nomChambre(choix.categorieId, categories.get(choix.categorieId), langue),
+        nomsChambres,
         libelleTarif(tarif, groupes, langue, T),
         T.nuits(nuits),
         T.dontTaxe(montantCourt(taxe, langue)),
       ].filter(Boolean).join(" · "),
-      totalFormate: montant(choix.total + taxe, langue),
+      totalFormate: montant(total, langue),
       /* ⚠️ C'EST CE BOOLEEN QUI CHOISIT LE MOTEUR DE PAIEMENT dans `Paiement`.
          Il vient de `SettlementAction` sur le groupe tarifaire Mews, jamais
          d'un identifiant de tarif ecrit en dur : le jour ou l'hotel ajoute un
          tarif, il prend le bon chemin sans qu'on touche a ce fichier.
          Un tarif dont Mews ne dit rien retombe sur le checkout, qui est celui
          des deux qui sait refuser proprement. */
-      debite: reglementDe(tarif, groupes, choix.total + taxe)?.debite ?? true,
+      debite: reglementDe(tarif, groupes, total)?.debite ?? true,
       reglementFormate: (() => {
-        const reg = reglementDe(tarif, groupes, choix.total + taxe);
-        return reg ? montant(reg.montant, langue) : montant(choix.total + taxe, langue);
+        const reg = reglementDe(tarif, groupes, total);
+        return reg ? montant(reg.montant, langue) : montant(total, langue);
       })(),
       reglement: (() => {
-        const reg = reglementDe(tarif, groupes, choix.total + taxe);
+        const reg = reglementDe(tarif, groupes, total);
         if (!reg) return "";
         const m = montant(reg.montant, langue);
         if (!reg.debite) return T.empreinteLong(m, reg.part === null ? "" : pourcent(reg.part, langue));
@@ -1460,7 +1556,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           : T.debitLong(m);
       })(),
     };
-  }, [choix, categories, tarifs, groupes, arrivee, depart, nuits, langue, T]);
+  }, [chambres, lignesPanier, totalChambres, personnesRetenues,
+      categories, tarifs, groupes, arrivee, depart, nuits, langue, T]);
 
   return (
     /* Sur PC, l'écran EST la page : hauteur fixe, aucune barre de défilement
@@ -1973,9 +2070,19 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                     >
                       {cartesDe(o.prix, tarifs, groupes, arriveeCeJour).map((carte) => {
                         const p = carte.direct;
-                        const retenu = choix?.categorieId === o.categorieId
-                          && choix?.tarifId === p.tarifId
-                          && choix?.pourPersonnes === o.pourPersonnes;
+                        const cetteChambre = {
+                          categorieId: o.categorieId, tarifId: p.tarifId,
+                          total: p.total, parNuit: p.parNuit, pourPersonnes: o.pourPersonnes,
+                        };
+                        const combien = combienDe(cetteChambre);
+                        const retenu = combien > 0;
+                        /* ⚠️ LA CONTRAINTE, RENDUE VISIBLE PLUTOT QU'OPPOSEE.
+                           On ne melange pas flexible et prepaye dans une meme
+                           reservation. Plutot que de laisser cliquer et refuser
+                           a la fin, le tarif de l'autre groupe s'eteint des la
+                           premiere chambre, et une ligne dit pourquoi. Un clic
+                           sans effet est pire qu'un bouton eteint. */
+                        const ferme = !!groupeRetenu && groupeDe(p.tarifId) !== groupeRetenu;
                         const tarif = tarifs.find((r) => r.Id === p.tarifId);
                         // Les deux lignes affichaient le meme mot a l'euro pres.
                         // Ce qui se decide ici, c'est : je garde la main, ou je
@@ -1994,21 +2101,19 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                             key={p.tarifId}
                             type="button"
                             aria-pressed={retenu}
+                            disabled={ferme}
+                            title={ferme ? T.pasDeMelange : undefined}
                             onClick={() => {
                               pulse();
-                              setChoix(retenu ? null : {
-                                categorieId: o.categorieId,
-                                tarifId: p.tarifId,
-                                total: p.total,
-                                parNuit: p.parNuit,
-                                pourPersonnes: o.pourPersonnes,
-                              });
+                              basculerChambre(cetteChambre);
                             }}
                             className={[
                               "flex w-full flex-col gap-1.5 rounded-xl border px-4 py-3.5 text-left transition-colors",
                               retenu
                                 ? "border-navy bg-navy text-white"
-                                : "border-[#e3e0d9] text-[#3c4a52] hover:border-gold hover:bg-[#faf7f1]",
+                                : ferme
+                                  ? "cursor-not-allowed border-[#ece9e2] text-[#b8bec2] opacity-60"
+                                  : "border-[#e3e0d9] text-[#3c4a52] hover:border-gold hover:bg-[#faf7f1]",
                             ].join(" ")}
                           >
                             <span className="min-w-0">
@@ -2132,16 +2237,49 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             </dl>
 
             {choix ? (
-              <>
-                <p className="mt-4 border-t border-[#f0ece4] pt-4 font-serif text-xl text-navy">
-                  {nomChambre(choix.categorieId, categories.get(choix.categorieId), langue)}
-                </p>
-                <p className="mt-1 text-[13px] text-[#8a9299]">
-                  {libelleTarif(tarifs.find((r) => r.Id === choix.tarifId), groupes, langue, T)}
-                  {" · "}{T.nuits(nuits)}
-                </p>
-
-              </>
+              <div className="mt-4 space-y-3 border-t border-[#f0ece4] pt-4">
+                {lignesPanier.map(({ c, n }) => (
+                  <div key={`${c.categorieId}|${c.tarifId}|${c.pourPersonnes}`} className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-serif text-[19px] leading-tight text-navy">
+                        {nomChambre(c.categorieId, categories.get(c.categorieId), langue)}
+                        {n > 1 && (
+                          <span className="ml-1.5 text-[15px] font-bold text-gold-ink">{T.xFois(n)}</span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-[13px] text-[#8a9299]">
+                        {libelleTarif(tarifs.find((r) => r.Id === c.tarifId), groupes, langue, T)}
+                        {" · "}{T.nuits(nuits)}
+                      </p>
+                    </div>
+                    {/* Moins, plus, et retirer. Trois gestes de la taille d'un
+                        doigt : la colonne se pilote au pouce sur telephone. */}
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button" aria-label={T.chambreEnMoins}
+                        onClick={() => { pulse(); basculerChambre(c); }}
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e3e0d9] text-[15px] font-bold text-[#6b7a82] transition-colors hover:border-gold hover:text-navy"
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button" aria-label={T.chambreEnPlus}
+                        disabled={resteDe(c) < 1}
+                        title={resteDe(c) < 1 ? T.plusDeChambres : undefined}
+                        onClick={() => { pulse(); setChambres((l) => [...l, c]); }}
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e3e0d9] text-[15px] font-bold text-[#6b7a82] transition-colors hover:border-gold hover:text-navy disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {chambres.length > 1 && (
+                  <p className="text-[12.5px] font-semibold uppercase tracking-[0.08em] text-[#8a9299]">
+                    {T.totalChambres(chambres.length)}
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="mt-4 border-t border-[#f0ece4] pt-4 text-[15px] leading-relaxed text-[#8a9299]">
                 {T.recapVide}
@@ -2164,11 +2302,11 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 <div className="flex items-baseline justify-between gap-3 border-t border-[#f0ece4] pt-4">
                   <span className="text-[15px] font-semibold text-[#3c4a52]">{T.totalSejour}</span>
                   <span className="text-[26px] font-bold tabular-nums text-navy">
-                    <TotalRoulant valeur={choix.total + taxeDe(choix.pourPersonnes)} langue={langue} />
+                    <TotalRoulant valeur={totalChambres + taxeDe(personnesRetenues)} langue={langue} />
                   </span>
                 </div>
                 <p className="mt-1 text-[13px] text-[#8a9299]">
-                  {T.dontTaxe(montantCourt(taxeDe(choix.pourPersonnes), langue))}
+                  {T.dontTaxe(montantCourt(taxeDe(personnesRetenues), langue))}
                 </p>
                 {/* Ce qu'il aurait payé ailleurs.
                  *
@@ -2182,6 +2320,12 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                  * aussi quand on réserve sur Booking, et comparer un total taxe
                  * comprise à un total qui ne l'est pas gonflerait l'écart. */}
                 {(() => {
+                  /* ⚠️ LA COMPARAISON SE TAIT DES QU'IL Y A PLUSIEURS CHAMBRES.
+                     `prixPublic()` chiffre UNE chambre a l'occupation cherchee ;
+                     multiplier ce chiffre supposerait que l'OTA vend la seconde
+                     au meme prix, ce que personne ne garantit. Un ecart invente
+                     est pire qu'un ecart taise. */
+                  if (chambres.length > 1) return null;
                   const pub = tarifPublic?.[choix.categorieId];
                   // L'écart n'est juste que si la comparaison porte sur la même
                   // occupation que la recherche : le petit-déjeuner du prix
@@ -2239,7 +2383,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 const reg = reglementDe(
                   tarifs.find((r) => r.Id === choix?.tarifId),
                   groupes,
-                  choix ? choix.total + taxeDe(choix.pourPersonnes) : 0,
+                  choix ? totalChambres + taxeDe(personnesRetenues) : 0,
                 );
                 if (!choix || !reg) return null;
                 return (
@@ -2427,7 +2571,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             // n'annule rien, il s'affiche et donne le téléphone.
             if (tableChoix && choix) {
               void prendreTable({
-                choix: tableChoix, pax: choix.pourPersonnes, client: r.client, langue,
+                choix: tableChoix, pax: personnesRetenues, client: r.client, langue,
               }).then(setTablePrise);
             }
           }}
@@ -2571,10 +2715,12 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           <div className="flex items-center justify-between gap-4">
             <span className="min-w-0">
               <span className="block truncate text-[13px] text-[#8a9299]">
-                {nomChambre(choix.categorieId, categories.get(choix.categorieId), langue)} · {T.nuits(nuits)}
+                {chambres.length > 1
+                  ? T.totalChambres(chambres.length)
+                  : nomChambre(choix.categorieId, categories.get(choix.categorieId), langue)} · {T.nuits(nuits)}
               </span>
               <span className="block text-[20px] font-bold tabular-nums text-navy">
-                <TotalRoulant valeur={choix.total + taxeDe(choix.pourPersonnes)} langue={langue} />
+                <TotalRoulant valeur={totalChambres + taxeDe(personnesRetenues)} langue={langue} />
               </span>
             </span>
             <button

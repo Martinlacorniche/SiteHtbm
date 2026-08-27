@@ -8,6 +8,7 @@ import {
   BedDouble, Users, Check, Loader2, X, Calendar, Lock, Pencil, Trash2, KeyRound, ArrowLeft,
 } from "lucide-react";
 import { LANGS, LOCALE, T, detectLang, rememberLang, type Dict, type Lang } from "./i18n";
+import { estGerable } from "@/lib/groupeStatuts";
 
 // La langue traverse toute la page (une dizaine de composants) : un contexte évite
 // de faire descendre `t` de props en props jusqu'au moindre bouton.
@@ -816,21 +817,28 @@ function RoomBubble({ room, index, selected, planVisible, disabled, free, onClic
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.03, 0.3), type: "spring", stiffness: 380, damping: 30 }}
       whileTap={muted && !room.taken ? {} : { scale: 0.96 }}
-      className="relative text-left rounded-2xl border bg-white p-3 transition shadow-sm"
+      // Une chambre prise doit se voir SANS lire l'étiquette : fond gris, numéro
+      // barré-grisé, pastille. Le simple `opacity: .7` d'avant se distinguait à
+      // peine d'une chambre libre — on cliquait au hasard (Martin, 27/08).
+      className="relative text-left rounded-2xl border p-3 transition shadow-sm"
       style={{
-        borderColor: selected ? NAVY : room.taken ? "#e2e8f0" : "rgba(0,78,124,.16)",
+        background: room.taken ? "#f1f5f9" : !free ? "#fafafa" : "#fff",
+        borderColor: selected ? NAVY : room.taken ? "#cbd5e1" : "rgba(0,78,124,.16)",
         boxShadow: selected ? `0 0 0 2px ${NAVY}` : undefined,
-        opacity: room.taken ? 0.7 : 1,
+        opacity: !room.taken && !free ? 0.6 : 1,
       }}>
       {selected && <span className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-white" style={{ background: NAVY }}><Check className="w-3 h-3" /></span>}
-      <p className="font-serif font-semibold text-lg text-slate-800 leading-none">{room.numero}</p>
+      {room.taken && !selected && (
+        <span className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center bg-slate-300 text-slate-600"><Lock className="w-3 h-3" /></span>
+      )}
+      <p className={`font-serif font-semibold text-lg leading-none ${room.taken ? "text-slate-400" : "text-slate-800"}`}>{room.numero}</p>
       <div className="flex items-center gap-1 mt-2 flex-wrap">
         <Pill><Users className="w-3 h-3" /> {room.pax_max}</Pill>
         {room.twinable && <Pill><BedDouble className="w-3 h-3" /> {t.twin}</Pill>}
       </div>
-      <div className="mt-2 pt-2 border-t border-slate-100">
+      <div className="mt-2 pt-2 border-t border-slate-200/70">
         {room.taken
-          ? <span className="text-[11px] text-slate-400">{planVisible && room.occupant ? room.occupant : t.booked}</span>
+          ? <span className="text-[11px] font-medium text-slate-500">{planVisible && room.occupant ? room.occupant : t.booked}</span>
           : !free
           // Ni réservée ni libre : le staff a retiré des nuits du bloc sur cette chambre.
           ? <span className="text-[11px] text-slate-400">{t.notOffered}</span>
@@ -1405,7 +1413,7 @@ function ManageView({ token }: { token: string }) {
                         {r.statut === "en_attente_paiement" && (
                           <p className="text-[11px] text-amber-600 pt-1">{t.payToConfirm}</p>
                         )}
-                        {!groupe.locked && r.statut === "confirmee" && (
+                        {!groupe.locked && estGerable(r.statut) && (
                           <div className="flex gap-2 pt-1">
                             <button onClick={() => startEdit(r)} className="flex-1 h-10 rounded-full text-white font-medium text-sm inline-flex items-center justify-center gap-1.5" style={{ background: NAVY }}><Pencil className="w-4 h-4" /> {t.edit}</button>
                             <button onClick={() => { if (ensureCode()) setCancelTarget({ id: r.id, numero: r.numero }); }} disabled={busy} className="h-10 px-4 rounded-full border border-rose-200 text-rose-600 font-medium text-sm inline-flex items-center justify-center gap-1.5"><Trash2 className="w-4 h-4" /> {t.cancel}</button>

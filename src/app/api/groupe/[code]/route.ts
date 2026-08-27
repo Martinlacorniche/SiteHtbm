@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { TENUES } from "@/lib/groupeStatuts";
 
 // GET /api/groupe/[code]
 // Données publiques d'un groupe pour la page invité : méta + chambres du bloc
@@ -27,7 +28,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
     .from("groupe_reservations")
     .select("groupe_chambre_id, nom, prenom, statut, date_arrivee, date_depart, nb_personnes, code_pin")
     .eq("groupe_id", g.id)
-    .in("statut", ["confirmee", "en_attente_paiement", "paiement_differe"]);
+    .in("statut", [...TENUES]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const byRoom = new Map<string, any[]>();

@@ -29,8 +29,11 @@ export type VenteEnAttente = {
   numeros: string[];
   reservationIds: string[];
   sejour: {
-    categorieId: string; tarifId: string;
-    arrivee: string; depart: string; adultes: number;
+    /** Les chambres du panier, DANS L'ORDRE OÙ ELLES ONT ÉTÉ ENVOYÉES À MEWS.
+     *  Cet ordre apparie les réservations rendues aux chambres choisies : c'est
+     *  lui qui fait poser la bonne note de réception sur chacune. */
+    lignes: { categorieId: string; tarifId: string; adultes: number }[];
+    arrivee: string; depart: string;
   };
   client: { prenom: string; nom: string; email: string; telephone: string };
   langue: 'fr' | 'en';
@@ -64,7 +67,7 @@ export function reprendreVente(): VenteEnAttente | null {
 
   try {
     const v = JSON.parse(brut) as VenteEnAttente;
-    if (!v?.carteId || !v?.reservationIds?.length || !v?.sejour?.tarifId) return null;
+    if (!v?.carteId || !v?.reservationIds?.length || !v?.sejour?.lignes?.length) return null;
     if (!Number.isFinite(v.poseeA) || Date.now() - v.poseeA > PEREMPTION) return null;
     return v;
   } catch {
