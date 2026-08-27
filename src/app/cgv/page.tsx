@@ -17,9 +17,17 @@
 // Si un tarif change dans Mews, CETTE PAGE DOIT CHANGER AVEC LUI. Deux textes
 // qui divergent, c'est le client qui a raison contre l'hôtel.
 //
-// ⚠️ TROIS TROUS À COMBLER PAR MARTIN, marqués À COMPLÉTER dans le texte :
-// l'exploitant des Voiles, le médiateur de la consommation (obligatoire en
-// France, art. L612-1 du code de la consommation), et l'assurance annulation.
+// ⚠️ LE VENDEUR N'EST PAS L'ÉDITEUR DU SITE, ET LA DISTINCTION EST JURIDIQUE.
+// Le site `hotels-toulon-mer.com` porte deux hôtels et est édité par la SARL
+// SUERE (voir `/mentions`). Mais celle qui vend la nuit aux Voiles, encaisse et
+// répond au client, c'est la **SAS LES VOILES** — entité distincte, confirmée
+// par Martin le 27/08/2026 sur les registres INSEE et INPI. Des CGV qui
+// désigneraient la SARL comme vendeur seraient opposables à la mauvaise
+// société. Ne pas « harmoniser » ces deux pages.
+//
+// ⚠️ DEUX TROUS RESTENT, marqués À COMPLÉTER dans le texte : le médiateur de la
+// consommation (adhésion obligatoire, art. L612-1 du code de la consommation)
+// et l'assurance annulation.
 
 import type { Metadata } from "next";
 import React from "react";
@@ -103,18 +111,21 @@ export default function CGV() {
               Courriel : <a href="mailto:contact@hotel-voiles.com" className="underline">contact@hotel-voiles.com</a>
             </p>
             <p>
-              Le site est édité par la <strong>SARL SUERE</strong>, société à responsabilité
-              limitée au capital de 100 000 €, RCS Toulon 341 797 199, siège social
-              17 Littoral Frédéric Mistral, 83000 Toulon, TVA intracommunautaire
-              FR50 341 797 199. Les autres informations relatives à l&apos;éditeur
-              figurent aux <Link href="/mentions" className="underline">mentions légales</Link>.
+              L&apos;hôtel est exploité, et les séjours sont vendus et encaissés, par
+              la <strong>SAS LES VOILES</strong>, société par actions simplifiée.<br />
+              Siège social : 124 rue Gubler, 83000 Toulon<br />
+              SIREN : 795 063 304 — SIRET du siège : 795 063 304 00021<br />
+              RCS Toulon 795 063 304<br />
+              TVA intracommunautaire : FR82 795 063 304<br />
+              Activité : hôtels et hébergement similaire (NAF 55.10Z)
             </p>
             <p>
-              <ACompleter>
-                confirmer la société qui exploite l&apos;Hôtel-Rooftop Les Voiles et
-                encaisse les séjours, si elle diffère de la SARL SUERE — avec son
-                SIREN, son siège et sa TVA
-              </ACompleter>
+              Le site <strong>hotels-toulon-mer.com</strong>, qui présente plusieurs
+              établissements, est quant à lui édité par la <strong>SARL SUERE</strong> :
+              voir les <Link href="/mentions" className="underline">mentions légales</Link>.
+              L&apos;éditeur du site et le vendeur du séjour sont deux sociétés
+              distinctes ; seule la SAS LES VOILES est partie au contrat
+              d&apos;hébergement régi par les présentes conditions.
             </p>
           </Section>
 
