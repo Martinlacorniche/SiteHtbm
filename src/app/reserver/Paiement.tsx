@@ -497,6 +497,24 @@ export default function Paiement({
         containerId: "mews-checkout",
         requestId: ouverte.demandeId,
         languageCode: langue === "fr" ? "fr-FR" : "en-GB",
+        /* ⚠️ ON NE REDEMANDE PAS CE QU'ON A DÉJÀ.
+         * Sans cet objet, le checkout affiche son propre formulaire de
+         * coordonnées de facturation — le client vient de saisir son nom, son
+         * email et son téléphone à l'écran précédent, et on les lui
+         * redemanderait à l'instant où il sort sa carte. `details` fourni, le
+         * formulaire disparaît entièrement (`prefillDetails` le montrerait
+         * pré-rempli, ce qui laisse encore un mur de champs à traverser). */
+        payer: {
+          details: {
+            firstName: prenom.trim(),
+            lastName: nom.trim(),
+            email: email.trim(),
+            ...(telephone.trim() ? { telephone: telephone.trim() } : {}),
+          },
+        },
+        /* Le résumé de surcharge n'a rien à dire ici : l'hôtel n'en applique
+         * pas, et un bandeau vide au-dessus du montant fait douter. */
+        layout: { hidden: { surchargeSummary: true } },
         onSuccess: () => { if (!annule) void finaliserPaiementRef.current(); },
         /* Mews donne la raison dans `event.error` — un texte lisible, pas un
          * code stable. On la journalise telle quelle : sans elle, un refus
@@ -541,7 +559,7 @@ export default function Paiement({
       annule = true;
       try { window.Mews?.PaymentCheckout?.destroy?.(); } catch { /* déjà parti */ }
     };
-  }, [ouverte, langue, T]);
+  }, [ouverte, langue, T, prenom, nom, email, telephone]);
 
   /* Fermer avant d'avoir payé : on renonce à la demande. L'option, elle,
    * s'éteint toute seule au bout de vingt minutes. */
