@@ -40,8 +40,8 @@ const DECOUVRIR: Record<"fr" | "en", { href: string; libelle: string }[]> = {
 };
 
 const MOTS = {
-  fr: { decouvrir: "Découvrir", reserver: "Réserver", hotel: "Découvrir l'hôtel", ecrire: "Écrire", mentions: "Mentions légales", site: "Le site" },
-  en: { decouvrir: "Discover", reserver: "Book", hotel: "About the hotel", ecrire: "Email us", mentions: "Legal notice", site: "The site" },
+  fr: { decouvrir: "Découvrir", reserver: "Réserver", hotel: "Découvrir l'hôtel", ecrire: "Écrire", mentions: "Mentions légales", cgv: "CGV", site: "Le site" },
+  en: { decouvrir: "Discover", reserver: "Book", hotel: "About the hotel", ecrire: "Email us", mentions: "Legal notice", cgv: "Terms", site: "The site" },
 };
 
 // La page « hotel » a une version anglaise ; ailleurs on retombe sur le francais.
@@ -120,6 +120,11 @@ export default function PiedDePage({ langue = "fr" }: { langue?: "fr" | "en" }) 
             <Facebook className="h-4 w-4" />
           </a>
           <Link href="/mentions" className="hover:text-slate-900">{mots.mentions}</Link>
+          {/* Les CGV ne sont pas un ornement de pied de page : vendre une nuit
+              a un consommateur francais sans conditions accessibles, c'est
+              vendre sans conditions opposables. Elles doivent etre atteignables
+              de partout, et Mews doit les pointer dans `TermsAndConditionsUrl`. */}
+          <Link href="/cgv" className="hover:text-slate-900">{mots.cgv}</Link>
         </div>
         <p className="font-serif italic opacity-60">Designed in Toulon.</p>
       </div>
