@@ -381,6 +381,15 @@ export type ResaCreee = {
   /** Le compte client créé par Mews. C'est lui que `paymentRequests/add`
    *  attend en `AccountId` — sans lui, pas de demande de paiement. */
   customerId: string;
+  /** ⚠️ SANS LUI, AUCUNE PRÉAUTORISATION NE PARTIRA JAMAIS.
+   *  Le `PaymentCardId` que Mews rend en attachant la carte. On le jetait, et
+   *  ça a coûté deux journées : une carte tokenisée par PciProxy arrive chez
+   *  Mews en `AuthorizationState: Authorizable`, pas `Authorized` — vérifié le
+   *  27/08/2026 sur la carte réelle de la résa 29841. Sous la DSP2, Mews ne
+   *  préautorise pas depuis une carte non authentifiée : la demande reste
+   *  `Pending` puis expire, en silence. C'est cet identifiant qui ouvre l'étape
+   *  de 3-D Secure. Voir `autoriserCarte()`. */
+  carteId: string;
   /** ⚠️ MEWS FABRIQUE DÉJÀ LA DEMANDE DE PAIEMENT, ET ON L'IGNORAIT.
    *
    *  `reservationGroups/create` la crée tout seul, à partir de la règle
@@ -398,6 +407,7 @@ type ReponseCreate = {
   Id?: string;
   CustomerId?: string;
   PaymentRequestId?: string;
+  PaymentCardId?: string;
   Reservations?: { Id?: string; Number?: string; ConfirmationNumber?: string }[];
 };
 
@@ -465,7 +475,99 @@ export async function creerReservation(
     reservationIds: (j.Reservations ?? []).map((r) => r.Id ?? '').filter(Boolean),
     customerId: j.CustomerId ?? '',
     demandeId: j.PaymentRequestId ?? '',
+    carteId: j.PaymentCardId ?? '',
   };
+}
+
+/* ───────────────── L'autorisation de la carte — le 3-D Secure ────────────────
+ *
+ * ⚠️ C'EST L'ÉTAPE QUI MANQUAIT, ET ELLE EXPLIQUE TOUT.
+ *
+ * PciProxy en mode tokenisation ne fait que tokeniser : la carte arrive chez
+ * Mews utilisable mais NON AUTHENTIFIÉE. Relevé le 27/08/2026 sur la carte de
+ * la résa 29841, une vraie Visa saisie par Martin :
+ *
+ *     { "AuthorizationState": "Authorizable" }      ← et pas "Authorized"
+ *
+ * Sous la DSP2, Mews ne déclenche pas sa préautorisation automatique depuis une
+ * carte dans cet état. La demande de 1,23 € est restée `Pending` jusqu'à
+ * expirer — exactement comme la 29816 la veille, qui avait pourtant sa carte.
+ * On a longtemps cru à un bouton mort, puis à un checkout capricieux : c'était
+ * une carte jamais authentifiée.
+ *
+ * Le remède est documenté (booking-engine-guide/use-cases/payment-card-
+ * authorization) et tient en trois temps :
+ *   1. `paymentCards/getAll` — l'état est-il `Authorizable` ?
+ *   2. `paymentCards/authorize` — on tente, avec l'empreinte du navigateur ;
+ *   3. si la réponse n'est pas finie (`Pending` / `Requested`), on envoie le
+ *      client sur la page 3-D Secure hébergée par Mews, puis on le récupère.
+ *
+ * ⚠️ ET LA CONFIRMATION VIENT APRÈS, PAS AVANT. Confirmer d'abord, c'est
+ * déclencher le règlement contre une carte non authentifiée — donc l'échec
+ * silencieux qu'on vient de passer deux jours à chercher.
+ *
+ * ⚠️ `BrowserInfo` EST REQUIS, ET C'EST POUR ÇA QUE CET APPEL PART DU
+ * NAVIGATEUR. Ce sont les données d'empreinte que réclame le 3-D Secure ; un
+ * serveur ne peut pas les inventer sans mentir à la banque.
+ */
+
+/** Fini = plus rien à faire. Non fini = il faut passer par la page de Mews. */
+export type EtatAutorisation = 'Authorized' | 'Authorizable' | 'Pending' | 'Requested' | 'Declined';
+
+type ReponseCartes = { PaymentCards?: { Id: string; AuthorizationState?: EtatAutorisation }[] };
+
+/** Relit l'état d'autorisation d'une carte. C'est la seule preuve qui vaille :
+ *  le navigateur peut dire n'importe quoi, Mews non. */
+export async function etatCarte(carteId: string, langue: Langue): Promise<EtatAutorisation | null> {
+  const j = await appel<ReponseCartes>('paymentCards/getAll', {
+    HotelId: HOTEL_ID,
+    PaymentCardIds: [carteId],
+  }, langue);
+  return j.PaymentCards?.find((c) => c.Id === carteId)?.AuthorizationState ?? null;
+}
+
+/** L'empreinte que le 3-D Secure réclame. Sept champs, tous requis — Mews rend
+ *  400 s'il en manque un. `JavaEnabled` vaut toujours `false` : leur doc le dit
+ *  elle-même, ce n'est pas une approximation de notre part. */
+export type InfosNavigateur = {
+  ScreenWidth: number; ScreenHeight: number; ColorDepth: number;
+  UserAgent: string; Language: string; JavaEnabled: boolean; TimeZoneOffset: number;
+};
+
+export function infosNavigateur(): InfosNavigateur {
+  return {
+    ScreenWidth: window.screen.width,
+    ScreenHeight: window.screen.height,
+    ColorDepth: window.screen.colorDepth,
+    UserAgent: window.navigator.userAgent,
+    Language: window.navigator.language,
+    JavaEnabled: false,
+    TimeZoneOffset: new Date().getTimezoneOffset(),
+  };
+}
+
+type ReponseAutorisation = { Id?: string; PaymentCardId?: string; State?: EtatAutorisation };
+
+/** Tente l'autorisation. Beaucoup de cartes passent « sans friction » et
+ *  reviennent directement `Authorized` : le client ne voit alors RIEN, pas de
+ *  redirection, pas d'écran de banque. C'est le cas qu'on espère. */
+export async function autoriserCarte(
+  { carteId, navigateur, langue }:
+  { carteId: string; navigateur: InfosNavigateur; langue: Langue },
+): Promise<EtatAutorisation | null> {
+  const j = await appel<ReponseAutorisation>('paymentCards/authorize', {
+    EnterpriseId: HOTEL_ID,
+    PaymentCardId: carteId,
+    BrowserInfo: navigateur,
+  }, langue);
+  return j.State ?? null;
+}
+
+/** La page 3-D Secure de Mews, quand l'autorisation demande la banque.
+ *  ⚠️ `returnUrl` se transmet en Base64 — Mews rejette une URL nue. */
+export function lien3DSecure(carteId: string, retour: string): string {
+  return `https://app.mews.com/navigator/card-authorization/detail/${carteId}`
+    + `?returnUrl=${encodeURIComponent(btoa(retour))}`;
 }
 
 /** Relit une réservation pour la page de gestion. La Booking Engine sait la

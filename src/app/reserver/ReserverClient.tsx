@@ -5,6 +5,7 @@ import Link from "next/link";
 import CalendrierSejour from "./CalendrierSejour";
 import Image from "next/image";
 import Paiement, { type SejourAPayer } from "./Paiement";
+import { reprendreVente } from "@/lib/reprise3ds";
 import {
   PanneauRooftop, TableConfirmee, useSoirsRooftop, prendreTable, heureLisible,
   type TablePrise, type ChoixTable,
@@ -123,6 +124,10 @@ const TEXTES = {
     debitLongPartiel: (m: string, pc: string) =>
       `Votre carte est débitée de ${m} (${pc} du séjour) dès la confirmation. Le solde se règle à l'hôtel.`,
     paiementSecurise: "Paiement sécurisé",
+    repriseEnCours: "On finalise votre réservation…",
+    repriseEchecTitre: "Un dernier pas nous manque",
+    repriseEchec: "Votre banque a bien confirmé, mais nous n'avons pas pu terminer la réservation ici. Appelez-nous au 04 94 41 36 23 : nous la bouclons en deux minutes, rien n'a été débité.",
+    repriseFermer: "Fermer",
     paiementSecuriseAide:
       "Votre carte est saisie chez notre prestataire de paiement : elle ne transite pas par ce site.",
     couchages: (n: number) => (n <= 1 ? "1 personne" : `${n} personnes`),
@@ -199,6 +204,10 @@ const TEXTES = {
     debitLongPartiel: (m: string, pc: string) =>
       `Your card is charged ${m} (${pc} of the stay) on confirmation. The balance is settled at the hotel.`,
     paiementSecurise: "Secure payment",
+    repriseEnCours: "Finalising your booking…",
+    repriseEchecTitre: "One last step is missing",
+    repriseEchec: "Your bank confirmed, but we couldn't complete the booking here. Call us on +33 4 94 41 36 23 and we'll finish it in two minutes — nothing has been charged.",
+    repriseFermer: "Close",
     paiementSecuriseAide:
       "Your card is entered directly with our payment provider — it never passes through this site.",
     couchages: (n: number) => (n <= 1 ? "1 guest" : `${n} guests`),
@@ -1158,6 +1167,10 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     groupeId: string; numeros: string[];
     client: { prenom: string; nom: string; email: string; telephone: string };
   } | null>(null);
+  /* La reprise au retour du 3-D Secure : « en-cours » pendant qu'on confirme,
+     « echec » si on n'a pas pu. Un retour de banque qui n'aboutit a rien
+     visible est la pire seconde du tunnel. */
+  const [reprise, setReprise] = useState<"en-cours" | "echec" | null>(null);
 
   const nuits = nuitsEntre(arrivee, depart);
   const adultes = voyage === "seul" ? 1 : 2;
@@ -1236,6 +1249,46 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     if (dejaLance.current) return;
     dejaLance.current = true;
     const p = new URLSearchParams(window.location.search);
+
+    /* ⚠️ LE RETOUR DE LA BANQUE. Le 3-D Secure fait quitter la page : le client
+       revient ici authentifie, et React est remonte de zero. Sans cette
+       reprise, sa reservation reste `Optional` et Mews la relache vingt minutes
+       plus tard — il croirait avoir reserve et n'aurait rien.
+       Le relais ne porte aucune donnee bancaire, et il ne prouve rien : c'est
+       `/api/reserver/carte` qui relit l'autorisation CHEZ MEWS avant de
+       confirmer. Voir `reprise3ds.ts`. */
+    if (p.get("apres3ds")) {
+      // On efface le parametre tout de suite : un rechargement ne doit pas
+      // rejouer la reprise, et l'URL partagee ne doit pas la porter.
+      window.history.replaceState({}, "", window.location.pathname);
+      const vente = reprendreVente();
+      if (vente) {
+        setReprise("en-cours");
+        void fetch("/api/reserver/carte", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            langue: vente.langue,
+            carteId: vente.carteId,
+            reservationIds: vente.reservationIds,
+            sejour: vente.sejour,
+          }),
+        })
+          .then((r) => {
+            if (!r.ok) { setReprise("echec"); return; }
+            setReprise(null);
+            setReserve({
+              groupeId: vente.groupeId, numeros: vente.numeros, client: vente.client,
+            });
+          })
+          .catch(() => setReprise("echec"));
+      } else {
+        // Onglet ferme, navigation privee, ou plus de trente minutes : on ne
+        // sait plus de quelle vente il s'agit. Le telephone rattrape.
+        setReprise("echec");
+      }
+    }
+
     const a = p.get("arrivee"), d = p.get("depart"), v = p.get("voyage") as Voyage | null;
     const datesValides =
       /^\d{4}-\d{2}-\d{2}$/.test(a ?? "") && /^\d{4}-\d{2}-\d{2}$/.test(d ?? "");
@@ -2314,6 +2367,44 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           T={T}
           onFermer={() => setGalerie(null)}
         />
+      )}
+
+      {/* Le retour du 3-D Secure. Il passe DEVANT tout le reste : le client
+          revient de sa banque, et la seule chose qui l'interesse est de savoir
+          si sa chambre est prise. */}
+      {reprise && (
+        <div
+          role="dialog" aria-modal="true"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-navy-deep/92 p-4"
+        >
+          <div className="w-full max-w-[460px] rounded-2xl bg-white p-6 text-center shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:p-8">
+            {reprise === "en-cours" ? (
+              <>
+                <svg aria-hidden viewBox="0 0 24 24" className="mx-auto h-8 w-8 animate-spin text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M12 3a9 9 0 1 0 9 9" />
+                </svg>
+                <p className="mt-4 text-[15px] font-semibold text-navy">{T.repriseEnCours}</p>
+              </>
+            ) : (
+              <>
+                <p className="font-serif text-2xl text-navy">{T.repriseEchecTitre}</p>
+                <p className="mt-3 text-[14.5px] leading-relaxed text-[#5b6a72]">{T.repriseEchec}</p>
+                <a
+                  href="tel:+33494413623"
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-gold px-6 py-3.5 text-[17px] font-bold text-navy-deep transition hover:brightness-105"
+                >
+                  04 94 41 36 23
+                </a>
+                <button
+                  type="button" onClick={() => setReprise(null)}
+                  className="mt-3 text-[13px] font-semibold text-[#6b7a82] underline underline-offset-4 hover:text-navy"
+                >
+                  {T.repriseFermer}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Le reglement, en surcouche.

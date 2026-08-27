@@ -3,7 +3,6 @@ import {
   creerReservation, chercherDisponibilite, reglementDe, type Langue,
 } from '@/lib/mewsBooking';
 import { creerDemandePaiement } from '@/lib/mewsConnector';
-import { finaliserVente } from '@/lib/finaliserVente';
 
 /* Pose l'option, et la règle — par l'un des deux chemins.
  *
@@ -18,9 +17,16 @@ import { finaliserVente } from '@/lib/finaliserVente';
  * documentation ne liste d'ailleurs que trois événements de succès, et pas un
  * pour la préautorisation.
  *
- *  · FLEXIBLE (`CreatePreauthorization` 1 %) — LA VENTE SE FERME ICI. La carte
- *    arrive tokenisée par PciProxy, on l'attache à la réservation, on confirme,
- *    et Mews préautorise lui-même. Aucune demande de paiement, aucun checkout.
+ *  · FLEXIBLE (`CreatePreauthorization` 1 %) — LA VENTE NE SE FERME PLUS ICI.
+ *    La carte arrive tokenisée par PciProxy et on l'attache, mais elle est
+ *    encore `Authorizable` : PciProxy tokenise sans authentifier. On rend donc
+ *    son `PaymentCardId` au navigateur, qui joue le 3-D Secure, et la vente se
+ *    ferme dans `/api/reserver/carte` une fois la carte `Authorized`.
+ *    ⚠️ CONFIRMER AVANT L'AUTORISATION NE MARCHE PAS. On l'a fait le 27/08 sur
+ *    la résa 29841 : elle est bien sortie `Confirmed` avec sa carte, et la
+ *    préautomatisation de Mews n'a rien déclenché — la demande de 1,23 € est
+ *    restée `Pending` jusqu'à expirer. Sous la DSP2, une carte non authentifiée
+ *    ne se préautorise pas.
  *  · PRÉPAYÉ (`ChargeCreditCard` 100 %) — CETTE ROUTE NE VEND RIEN. Elle pose
  *    l'option et rend l'identifiant de la demande de paiement ; c'est le
  *    checkout qui encaisse, puis `/api/reserver/confirmer` qui ferme la vente.
@@ -168,33 +174,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erreur: 'reponse inattendue' }, { status: 502 });
   }
 
-  /* ─── Chemin FLEXIBLE : la vente se ferme ici, la carte est déjà attachée ───
+  /* ─── Chemin FLEXIBLE : la carte est posée, il reste à l'authentifier ──────
    *
-   * On confirme dans la foulée, et c'est la confirmation qui déclenche la
-   * préautorisation chez Mews (`SettlementTrigger: Confirmation`). Le client
-   * n'a plus d'écran à traverser : il a donné sa carte, la chambre est à lui. */
+   * On ne confirme PAS ici. La réservation reste `Optional`, tenue vingt
+   * minutes, et c'est très bien : si le client abandonne devant le 3-D Secure,
+   * Mews relâche la chambre sans qu'on ait rien à défaire. */
   if (!reglement.debite) {
-    try {
-      await finaliserVente({
-        reservationIds: resa.reservationIds,
-        sejour: {
-          categorieId: sejour.categorieId, tarifId: sejour.tarifId,
-          arrivee: sejour.arrivee, depart: sejour.depart, adultes,
-        },
-        langue,
-      });
-    } catch (e) {
-      console.error(
-        'MEWS CONFIRMATION ECHOUEE — reservation relachee dans 20 min :',
-        resa.reservationIds.join(', '), e instanceof Error ? e.message : e,
-      );
-      return NextResponse.json({ erreur: 'confirmation impossible' }, { status: 502 });
+    if (!resa.carteId) {
+      // Mews a accepté la carte mais ne rend pas son identifiant : sans lui, on
+      // ne peut ni l'authentifier ni donc la préautoriser. Mieux vaut le dire.
+      console.error('Mews create : PaymentCardId absent malgre CreditCardData');
+      return NextResponse.json({ erreur: 'carte non enregistree' }, { status: 502 });
     }
     return NextResponse.json({
-      termine: true,
+      termine: false,
+      aAutoriser: true,
       groupeId: resa.groupeId,
       numeros: resa.numeros,
       reservationIds: resa.reservationIds,
+      carteId: resa.carteId,
       reglement: { debite: false, montant: reglement.montant },
     });
   }

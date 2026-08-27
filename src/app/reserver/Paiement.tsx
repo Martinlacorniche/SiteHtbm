@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { chargerConfigPaiement, type Langue } from "@/lib/mewsBooking";
+import {
+  chargerConfigPaiement, autoriserCarte, infosNavigateur, lien3DSecure, type Langue,
+} from "@/lib/mewsBooking";
+import { poserVente } from "@/lib/reprise3ds";
 
 /* L'écran de règlement — DEUX CHEMINS, un par tarif.
  *
@@ -41,10 +44,17 @@ type Checkout = {
   load: (c: Record<string, unknown>) => void;
   destroy?: () => void;
 };
+type ChampSecurise = string | {
+  placeholderElementId: string;
+  /** « tel » ouvre le pave numerique sur telephone. */
+  inputType?: "tel" | "number" | "text";
+  placeholder?: string;
+};
 type SecureFieldsApi = {
   initTokenize: (
     marchand: string,
-    champs: Record<string, string | { placeholderElementId: string }>,
+    champs: Record<string, ChampSecurise>,
+    options?: { styles?: Record<string, string>; focus?: string; paymentMethods?: string[] },
   ) => void;
   submit: (donnees: { expm: number; expy: number }) => void;
   on: (evenement: string, rappel: (donnees: Record<string, unknown>) => void) => void;
@@ -90,6 +100,9 @@ const TEXTES = {
     echec: "La réservation n'a pas abouti. Rien n'a été débité — appelez-nous au 04 94 41 36 23 et nous la prenons avec vous.",
     echecPaiement: "Le paiement n'est pas passé. Vous pouvez réessayer ci-dessus, ou nous appeler au 04 94 41 36 23.",
     tenue: "Votre chambre est tenue 20 minutes, le temps du règlement.",
+    auth3ds: "On vérifie votre carte auprès de votre banque…",
+    redirige: "Votre banque demande une confirmation. On vous y emmène…",
+    refusee3ds: "Votre banque a refusé l'authentification de cette carte. Essayez-en une autre, ou appelez-nous au 04 94 41 36 23.",
   },
   en: {
     titre: "Your details",
@@ -123,6 +136,9 @@ const TEXTES = {
     echec: "The booking didn't go through. Nothing was charged — call us on +33 4 94 41 36 23 and we'll take it with you.",
     echecPaiement: "The payment didn't go through. You can try again above, or call us on +33 4 94 41 36 23.",
     tenue: "Your room is held for 20 minutes while you pay.",
+    auth3ds: "Checking your card with your bank…",
+    redirige: "Your bank needs to confirm. Taking you there…",
+    refusee3ds: "Your bank declined the authentication for this card. Try another one, or call us on +33 4 94 41 36 23.",
   },
 } as const;
 
@@ -173,6 +189,10 @@ export default function Paiement({
   const [pret, setPret] = useState(false);
   const [ouverte, setOuverte] = useState<Ouverte | null>(null);
   const [envoi, setEnvoi] = useState(false);
+  /* Ce qui se passe en ce moment, en une phrase. Le 3-D Secure ajoute plusieurs
+     secondes d'attente muette entre le clic et la banque : sans ce mot, le
+     client croit que rien ne part et reclique. */
+  const [etape, setEtape] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
   const sf = useRef<SecureFieldsApi | null>(null);
@@ -189,7 +209,7 @@ export default function Paiement({
     prenom: prenom.trim(), nom: nom.trim(), email: email.trim(), telephone: telephone.trim(),
   });
 
-  const relacher = () => { setEnvoi(false); enCours.current = false; };
+  const relacher = () => { setEnvoi(false); setEtape(null); enCours.current = false; };
 
   /* ══════════════════ Chemin FLEXIBLE — champs sécurisés PciProxy ═══════════
    *
@@ -205,23 +225,33 @@ export default function Paiement({
     return () => { annule = true; };
   }, [sejour.debite, langue, T]);
 
-  /* L'envoi final, une fois la carte tokenisée par PciProxy. Cette route ferme
-   * la vente elle-même sur le flexible : elle attache la carte, confirme, et
-   * c'est la confirmation qui déclenche la préautorisation chez Mews. */
+  /* L'envoi final, une fois la carte tokenisée par PciProxy.
+   *
+   * ⚠️ TROIS TEMPS, ET L'ORDRE EST LA CORRECTION DU 27/08/2026 :
+   *   1. poser la réservation avec la carte — elle sort `Optional` ;
+   *   2. AUTHENTIFIER la carte (3-D Secure) ;
+   *   3. seulement ensuite, confirmer — c'est la confirmation qui déclenche la
+   *      préautorisation chez Mews, et elle échoue en silence sur une carte
+   *      non authentifiée. Constaté sur la résa 29841, `Confirmed` avec sa
+   *      carte et sans le moindre euro préautorisé.
+   *
+   * Beaucoup de cartes passent « sans friction » : `autoriserCarte` répond
+   * `Authorized` du premier coup et le client ne voit aucune redirection. */
   const finaliserCarte = useCallback(async (jeton: string) => {
     if (!moisAn) return;
+    const donneesSejour = {
+      categorieId: sejour.categorieId, tarifId: sejour.tarifId,
+      arrivee: sejour.arrivee, depart: sejour.depart, adultes: sejour.adultes,
+    };
     try {
+      // ── Temps 1 : la réservation, avec la carte ────────────────────────────
       const r = await fetch("/api/reserver", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           langue,
           client: client(),
-          sejour: {
-            categorieId: sejour.categorieId, tarifId: sejour.tarifId,
-            arrivee: sejour.arrivee, depart: sejour.depart, adultes: sejour.adultes,
-            notes: motHotel.trim() || undefined,
-          },
+          sejour: { ...donneesSejour, notes: motHotel.trim() || undefined },
           carte: {
             jeton,
             // Mews attend 'AAAA-MM' quand PciProxy raisonne en MM/AA.
@@ -232,14 +262,73 @@ export default function Paiement({
       });
       const j = await r.json().catch(() => null);
       if (r.status === 409) { setErreur(T.plusDispo); relacher(); return; }
-      if (!r.ok || !j?.groupeId) { setErreur(T.echec); relacher(); return; }
-      onReserve({ groupeId: j.groupeId, numeros: j.numeros ?? [], client: client() });
+      if (!r.ok || !j?.carteId || !j?.reservationIds?.length) {
+        setErreur(T.echec); relacher(); return;
+      }
+
+      // ── Temps 2 : l'authentification de la carte ───────────────────────────
+      setEtape(T.auth3ds);
+      let etat: string | null = null;
+      try {
+        etat = await autoriserCarte({
+          carteId: j.carteId, navigateur: infosNavigateur(), langue,
+        });
+      } catch {
+        // Mews n'a pas répondu. On ne confirme pas : la chambre se relâchera
+        // toute seule, et mieux vaut un client au téléphone qu'une réservation
+        // que personne ne garantit.
+        setErreur(T.echec); relacher(); return;
+      }
+
+      if (etat === "Declined") { setErreur(T.refusee3ds); relacher(); return; }
+
+      if (etat !== "Authorized") {
+        /* La banque veut voir le client. On dépose de quoi reprendre le fil au
+         * retour — sans rien de bancaire — et on l'emmène. */
+        setEtape(T.redirige);
+        poserVente({
+          carteId: j.carteId,
+          groupeId: j.groupeId,
+          numeros: j.numeros ?? [],
+          reservationIds: j.reservationIds,
+          sejour: donneesSejour,
+          client: client(),
+          langue,
+        });
+        const retour = `${window.location.origin}${window.location.pathname}?apres3ds=1`;
+        window.location.href = lien3DSecure(j.carteId, retour);
+        return;
+      }
+
+      // ── Temps 3 : la vente se ferme ────────────────────────────────────────
+      await conclureCarte({
+        carteId: j.carteId, reservationIds: j.reservationIds,
+        groupeId: j.groupeId, numeros: j.numeros ?? [], sejour: donneesSejour,
+      });
     } catch {
       setErreur(T.echec);
       relacher();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moisAn, langue, prenom, nom, email, telephone, motHotel, porteur, sejour, onReserve, T]);
+
+  /* La confirmation du flexible. Le serveur revérifie l'autorisation chez Mews
+   * avant de confirmer : ce que dit le navigateur ne fait pas foi. */
+  const conclureCarte = async (
+    { carteId, reservationIds, groupeId, numeros, sejour: s3 }:
+    {
+      carteId: string; reservationIds: string[]; groupeId: string; numeros: string[];
+      sejour: { categorieId: string; tarifId: string; arrivee: string; depart: string; adultes: number };
+    },
+  ) => {
+    const r = await fetch("/api/reserver/carte", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ langue, carteId, reservationIds, sejour: s3 }),
+    });
+    if (!r.ok) { setErreur(T.echec); relacher(); return; }
+    onReserve({ groupeId, numeros, client: client() });
+  };
 
   const finaliserCarteRef = useRef(finaliserCarte);
   useEffect(() => { finaliserCarteRef.current = finaliserCarte; }, [finaliserCarte]);
@@ -253,7 +342,44 @@ export default function Paiement({
       if (annule || !window.SecureFields) return;
       const api = new window.SecureFields();
       sf.current = api;
-      api.initTokenize(publicKey, { cardNumber: "pciproxy-numero", cvv: "pciproxy-crypto" });
+      /* ⚠️ LA FORME OBJET, PAS LA CHAÎNE NUE — et pour deux raisons.
+       *
+       * `inputType: "tel"` fait ouvrir le pavé numérique sur téléphone. Sans
+       * lui, PciProxy sert un champ texte et le client se retrouve devant un
+       * clavier alphabétique pour taper seize chiffres. C'est le genre de
+       * friction qui se paie à l'endroit exact où l'on demande une carte.
+       *
+       * Et c'est la forme documentée (`docs.datatrans.ch/docs/secure-fields-
+       * options`) : la chaîne nue marche, mais ne laisse rien régler. Le doute
+       * noté le 25/08 sur `placeholderElementId` se tranche ici, dans le bon
+       * sens.
+       *
+       * Les styles s'appliquent DEDANS l'iframe : notre CSS ne l'atteint pas,
+       * et sans eux la saisie du client n'a ni la taille ni la police du reste
+       * du formulaire. */
+      api.initTokenize(
+        publicKey,
+        {
+          cardNumber: {
+            placeholderElementId: "pciproxy-numero",
+            inputType: "tel",
+            placeholder: "1234 5678 9012 3456",
+          },
+          cvv: {
+            placeholderElementId: "pciproxy-crypto",
+            inputType: "tel",
+            placeholder: "123",
+          },
+        },
+        {
+          styles: {
+            "*": "font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;"
+              + "font-size: 15px; color: #20323d; border: 0; outline: 0;"
+              + "width: 100%; height: 100%; background: transparent;",
+            "*::placeholder": "color: #b0b6ba;",
+          },
+        },
+      );
       api.on("ready", () => { if (!annule) setPret(true); });
       api.on("success", (d) => {
         const jeton = typeof d.transactionId === "string" ? d.transactionId : null;
@@ -568,7 +694,7 @@ export default function Paiement({
               disabled={!coordonneesOk || !expOk || !porteur.trim() || !pret || envoi}
               className="mt-5 w-full rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-navy-deep transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
             >
-              {envoi ? T.envoi : pret ? T.garantir(sejour.reglementFormate) : T.chargement}
+              {envoi ? (etape ?? T.envoi) : pret ? T.garantir(sejour.reglementFormate) : T.chargement}
             </button>
           </>
         ) : !ouverte ? (
