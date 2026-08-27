@@ -126,6 +126,8 @@ const TEXTES = {
     paiementSecurise: "Paiement sécurisé",
     pasDeMelange: "Une même réservation ne mélange pas les deux tarifs. Retirez vos chambres pour changer.",
     chambreEnPlus: "Ajouter une chambre identique",
+    ajouterChambre: "Ajouter une autre chambre",
+    ajoutArme: "Choisissez la chambre à ajouter dans la liste",
     chambreEnMoins: "Retirer une chambre",
     retirerLigne: "Retirer",
     plusDeChambres: "Plus de chambre disponible dans cette catégorie",
@@ -213,6 +215,8 @@ const TEXTES = {
     paiementSecurise: "Secure payment",
     pasDeMelange: "A single booking can't mix the two rates. Remove your rooms to switch.",
     chambreEnPlus: "Add another identical room",
+    ajouterChambre: "Add another room",
+    ajoutArme: "Pick the room to add from the list",
     chambreEnMoins: "Remove one room",
     retirerLigne: "Remove",
     plusDeChambres: "No more rooms available in this category",
@@ -1382,15 +1386,50 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
   const combienDe = (c: Choix) => chambres.filter((x) => memeLigne(x, c)).length;
 
-  /* Ajoute une chambre, ou la retire si elle etait deja la.
-     Rend `false` si le tarif appartient a l'autre groupe : l'appelant s'en sert
-     pour le dire, au lieu de laisser un clic sans effet. */
+  /* ⚠️ UN CLIC CHOISIT. IL N'AJOUTE QUE SI ON LE LUI A DEMANDE.
+   *
+   * Premiere version : tout clic ajoutait au panier, et la contrainte « pas de
+   * melange » mordait des la premiere chambre. Deux degats immediats, tous deux
+   * signales par Martin sur son ecran :
+   *  · le prepaye s'eteignait TOUT SEUL, parce que la chambre par defaut est
+   *    posee au tarif flexible — le client se voyait interdire un tarif qu'il
+   *    n'avait jamais ecarte ;
+   *  · changer de chambre demandait deux clics, un pour prendre la Confort et
+   *    un pour deselectionner la premiere.
+   *
+   * La chambre par defaut n'est PAS un choix du client : c'est une proposition.
+   * Tant qu'il n'y en a qu'une, un clic la remplace, exactement comme avant le
+   * multi-chambres. Le panier ne se compose qu'a la demande explicite, par
+   * « Ajouter une chambre » — et c'est seulement la que la contrainte a un sens.
+   */
+  const [ajoutArme, setAjoutArme] = useState(false);
+
+  /** Le mode composition : soit on l'a arme, soit le panier en compte deja
+   *  plusieurs et le client est manifestement en train d'en composer un. */
+  const enComposition = ajoutArme || chambres.length > 1;
+
   const basculerChambre = (c: Choix): boolean => {
+    const deja = chambres.some((x) => memeLigne(x, c));
+
+    if (!enComposition) {
+      // Un seul choix a la fois : on remplace, ou on retire si c'etait celui-la.
+      setChambres(deja ? [] : [c]);
+      return true;
+    }
+
+    if (deja) {
+      setChambres((liste) => {
+        const i = liste.findIndex((x) => memeLigne(x, c));
+        return liste.filter((_, k) => k !== i);
+      });
+      return true;
+    }
+
+    // On ajoute : c'est ici, et seulement ici, que les deux tarifs ne se
+    // melangent pas.
     if (groupeRetenu && groupeDe(c.tarifId) !== groupeRetenu) return false;
-    setChambres((liste) => {
-      const i = liste.findIndex((x) => memeLigne(x, c));
-      return i === -1 ? [...liste, c] : liste.filter((_, k) => k !== i);
-    });
+    setChambres((liste) => [...liste, c]);
+    setAjoutArme(false);
     return true;
   };
 
@@ -2082,7 +2121,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                            a la fin, le tarif de l'autre groupe s'eteint des la
                            premiere chambre, et une ligne dit pourquoi. Un clic
                            sans effet est pire qu'un bouton eteint. */
-                        const ferme = !!groupeRetenu && groupeDe(p.tarifId) !== groupeRetenu;
+                        const ferme = enComposition && !retenu
+                          && !!groupeRetenu && groupeDe(p.tarifId) !== groupeRetenu;
                         const tarif = tarifs.find((r) => r.Id === p.tarifId);
                         // Les deux lignes affichaient le meme mot a l'euro pres.
                         // Ce qui se decide ici, c'est : je garde la main, ou je
@@ -2279,6 +2319,23 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                     {T.totalChambres(chambres.length)}
                   </p>
                 )}
+                {/* Le geste explicite. Sans lui, le multi-chambres serait
+                    inatteignable : un clic sur un tarif choisit, il n'ajoute
+                    pas. Une fois arme, le prochain clic dans la liste ajoute —
+                    et la ligne le dit, sinon le client arme sans le savoir. */}
+                <button
+                  type="button"
+                  onClick={() => { pulse(); setAjoutArme((v) => !v); }}
+                  className={[
+                    "flex w-full items-center gap-2 py-0.5 text-left text-[13px] font-semibold transition-colors",
+                    ajoutArme ? "text-gold-ink" : "text-navy hover:text-gold-ink",
+                  ].join(" ")}
+                >
+                  <span aria-hidden className="text-[15px] leading-none">{ajoutArme ? "↑" : "+"}</span>
+                  <span className="min-w-0 flex-1 underline decoration-gold/60 underline-offset-4">
+                    {ajoutArme ? T.ajoutArme : T.ajouterChambre}
+                  </span>
+                </button>
               </div>
             ) : (
               <p className="mt-4 border-t border-[#f0ece4] pt-4 text-[15px] leading-relaxed text-[#8a9299]">
