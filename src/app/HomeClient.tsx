@@ -642,7 +642,16 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("voiles")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-           <Link href="/wifiv" className="absolute inset-0 z-10" aria-label="Hôtel-Rooftop Les Voiles — espace client" />
+           {/* ⚠️ CETTE CARTE MENAIT A L'ESPACE CLIENT WIFI, ET C'ETAIT UN PIEGE.
+               Toute la tuile est un lien : cliquer la video, la photo, le nom de
+               l'hotel — tout envoyait sur `/wifiv`, une page faite pour un client
+               DEJA dans l'hotel, qui y arrive par le QR code de l'affiche borne.
+               Un visiteur qui clique la plus grande image du site attend de
+               decouvrir l'hotel, pas un portail wifi.
+               Elle mene desormais au tunnel, qui raconte l'hotel avant de le
+               vendre. `lienReservation` suit la langue : `/en/book` en anglais,
+               pas `/en/reserver`, qui n'existe pas. */}
+           <Link href={lienReservation("voiles", lang)} className="absolute inset-0 z-10" aria-label={CONFIG.voiles.title} />
            
            <div className="absolute inset-0 pointer-events-none">
              <Image src={CONFIG.voiles.image} alt="Voiles" fill sizes="(max-width: 768px) 100vw, (max-width: 1900px) 50vw, 950px" className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
