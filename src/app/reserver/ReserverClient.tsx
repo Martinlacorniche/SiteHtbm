@@ -1384,6 +1384,17 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
         T.dontTaxe(montantCourt(taxe, langue)),
       ].filter(Boolean).join(" · "),
       totalFormate: montant(choix.total + taxe, langue),
+      /* ⚠️ C'EST CE BOOLEEN QUI CHOISIT LE MOTEUR DE PAIEMENT dans `Paiement`.
+         Il vient de `SettlementAction` sur le groupe tarifaire Mews, jamais
+         d'un identifiant de tarif ecrit en dur : le jour ou l'hotel ajoute un
+         tarif, il prend le bon chemin sans qu'on touche a ce fichier.
+         Un tarif dont Mews ne dit rien retombe sur le checkout, qui est celui
+         des deux qui sait refuser proprement. */
+      debite: reglementDe(tarif, groupes, choix.total + taxe)?.debite ?? true,
+      reglementFormate: (() => {
+        const reg = reglementDe(tarif, groupes, choix.total + taxe);
+        return reg ? montant(reg.montant, langue) : montant(choix.total + taxe, langue);
+      })(),
       reglement: (() => {
         const reg = reglementDe(tarif, groupes, choix.total + taxe);
         if (!reg) return "";
@@ -2306,10 +2317,11 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       )}
 
       {/* Le reglement, en surcouche.
-          Il ne se monte QUE quand la cle marchande est la : `Paiement` appelle
-          `initTokenize(publicKey, …)` des son montage, et sans cle les deux
-          iframes PciProxy ne montent jamais — le client resterait devant un
-          champ carte vide, sans rien pour le lui expliquer.
+          `Paiement` choisit son moteur tout seul, sur `sejour.debite` : champs
+          securises PciProxy pour le flexible (Mews Payments Checkout ne sait
+          pas conclure une preautorisation), checkout de Mews pour le prepaye.
+          La cle marchande PciProxy n'est plus passee d'ici : l'ecran la lit
+          lui-meme chez Mews, et seulement s'il en a besoin.
           La barre collante du bas, elle, se retire pendant ce temps : elle
           traversait deja les galeries pour la meme raison. */}
       {paiementOuvert && sejourAPayer && !reserve && (

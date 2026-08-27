@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  chercherDisponibilite, chargerCategories, estPrepaye, t, type Langue,
-} from '@/lib/mewsBooking';
-import {
-  confirmerReservations, ajouterNote, noteDeControle, annulerDemandePaiement,
-} from '@/lib/mewsConnector';
+import type { Langue } from '@/lib/mewsBooking';
+import { annulerDemandePaiement, etatDemandePaiement } from '@/lib/mewsConnector';
+import { finaliserVente } from '@/lib/finaliserVente';
 
-/* Ferme la vente, une fois le paiement passé.
+/* Ferme la vente du tarif PRÉPAYÉ, une fois le paiement encaissé.
+ *
+ * ⚠️ CETTE ROUTE NE SERT QUE LE PRÉPAYÉ. Le flexible ne passe jamais par ici :
+ * sa carte est attachée à la réservation dès `/api/reserver`, qui confirme dans
+ * la foulée. Voir l'en-tête de cette route pour le pourquoi des deux chemins.
  *
  * ⚠️ C'EST ICI QUE LA CHAMBRE EST VENDUE, et nulle part avant.
  * `reservationGroups/create` n'a posé qu'une option, relâchée par Mews au bout
@@ -14,19 +15,16 @@ import {
  * et c'est voulu : celui qui ferme l'onglet devant le formulaire de carte ne
  * doit pas immobiliser une chambre.
  *
- * Elle est appelée par le `onSuccess` du checkout Mews, donc APRÈS que le
- * paiement (ou la préautorisation) a réellement abouti chez eux.
- *
- * ⚠️ On ne fait AUCUNE confiance à l'appelant sur ce point : le navigateur
- * pourrait appeler cette route sans avoir payé. On relit donc l'état de la
- * demande de paiement chez Mews avant de confirmer quoi que ce soit.
+ * ⚠️ ON NE FAIT AUCUNE CONFIANCE À L'APPELANT. Elle est déclenchée par le
+ * `onSuccess` du checkout, donc par le navigateur, qui peut l'appeler sans
+ * avoir rien réglé. On relit donc l'état de la demande chez Mews : sans un
+ * `Completed`, aucune vente ne se ferme. Ce contrôle était promis en
+ * commentaire depuis le 26/08/2026 et n'existait pas dans le code.
  */
 
 const estGuid = (s: unknown): s is string =>
   typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 const estDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
-
-const TAXE_PAR_ADULTE_NUIT = 1.86;
 
 type Corps = {
   langue?: Langue;
@@ -45,6 +43,9 @@ export async function POST(req: NextRequest) {
   const sejour = corps.sejour;
 
   if (!ids.length) return NextResponse.json({ erreur: 'reservation absente' }, { status: 400 });
+  if (!estGuid(corps.demandeId)) {
+    return NextResponse.json({ erreur: 'demande absente' }, { status: 400 });
+  }
   if (!estGuid(sejour?.categorieId) || !estGuid(sejour?.tarifId)
       || !estDate(sejour?.arrivee) || !estDate(sejour?.depart)) {
     return NextResponse.json({ erreur: 'sejour invalide' }, { status: 400 });
@@ -54,44 +55,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erreur: 'occupation invalide' }, { status: 400 });
   }
 
-  /* Confirmer d'abord : c'est ce qui décide qu'il y a une vente.
-   * Un échec ici est renvoyé au client, contrairement à la note : la chambre
+  /* La preuve du paiement, chez Mews et pas dans la requête.
+   * Une erreur de lecture bloque aussi : confirmer sans savoir reviendrait à
+   * donner la chambre à qui sait appeler une URL. Mews relâchera l'option, et
+   * le client voit un message qui lui donne le téléphone. */
+  let etat: string | null;
+  try {
+    etat = await etatDemandePaiement(corps.demandeId);
+  } catch (e) {
+    console.error('Mews paymentRequests/getAll', e instanceof Error ? e.message : e);
+    return NextResponse.json({ erreur: 'verification impossible' }, { status: 502 });
+  }
+  if (etat !== 'Completed') {
+    console.warn('Confirmation refusee — demande', corps.demandeId, 'en etat', etat);
+    return NextResponse.json({ erreur: 'paiement non abouti' }, { status: 402 });
+  }
+
+  /* Un échec ici est renvoyé au client, contrairement à la note : la chambre
    * n'est PAS acquise, et le laisser croire l'inverse est le pire scénario. */
   try {
-    await confirmerReservations(ids);
+    await finaliserVente({
+      reservationIds: ids,
+      sejour: {
+        categorieId: sejour.categorieId, tarifId: sejour.tarifId,
+        arrivee: sejour.arrivee, depart: sejour.depart, adultes,
+      },
+      langue,
+    });
   } catch (e) {
     console.error(
-      'MEWS CONFIRMATION ECHOUEE apres paiement — reservation relachee dans 20 min :',
+      'MEWS CONFIRMATION ECHOUEE APRES PAIEMENT — reservation relachee dans 20 min :',
       ids.join(', '), e instanceof Error ? e.message : e,
     );
     return NextResponse.json({ erreur: 'confirmation impossible' }, { status: 502 });
-  }
-
-  /* La note part après coup et sans bloquer : la chambre est vendue, c'est ce
-   * qui compte. Un échec se lit dans les journaux et se rattrape au comptoir. */
-  try {
-    const [dispo, cats] = await Promise.all([
-      chercherDisponibilite({ arrivee: sejour.arrivee, depart: sejour.depart, adultes, langue: 'fr' }),
-      chargerCategories('fr'),
-    ]);
-    const nuits = Math.max(
-      1, Math.round((Date.parse(sejour.depart) - Date.parse(sejour.arrivee)) / 86_400_000),
-    );
-    const taxe = TAXE_PAR_ADULTE_NUIT * adultes * nuits;
-    const prixMews = dispo.offres
-      .find((o) => o.categorieId === sejour.categorieId && o.pourPersonnes === adultes)
-      ?.prix.find((p) => p.tarifId === sejour.tarifId)?.total ?? 0;
-
-    const texte = noteDeControle({
-      chambre: cats.get(sejour.categorieId)?.nomFr || t(cats.get(sejour.categorieId)?.nom, 'fr'),
-      prepaye: estPrepaye(dispo.tarifs.find((r) => r.Id === sejour.tarifId), dispo.groupes),
-      total: prixMews + taxe,
-      taxe,
-      langueClient: langue,
-    });
-    await Promise.all(ids.map((id) => ajouterNote(id, texte)));
-  } catch (e) {
-    console.error('Mews note de reception', e instanceof Error ? e.message : e);
   }
 
   return NextResponse.json({ ok: true });

@@ -134,6 +134,25 @@ export async function creerDemandePaiement(
   return r.PaymentRequests?.[0]?.Id ?? null;
 }
 
+/* ⚠️ SANS CETTE LECTURE, N'IMPORTE QUI RÉSERVE SANS PAYER.
+ *
+ * `/api/reserver/confirmer` est appelée par le `onSuccess` du checkout, donc
+ * par le navigateur — qui peut l'appeler sans avoir rien réglé. Le commentaire
+ * de cette route promettait depuis le 26/08/2026 qu'on relisait l'état de la
+ * demande chez Mews avant de confirmer ; le code ne le faisait pas. Il le fait
+ * ici. Une demande qui n'est pas `Completed` ne ferme aucune vente.
+ *
+ * `paymentRequests/getAll` filtre par identifiants — vérifié sur la production
+ * le 27/08/2026 : il rend bien l'état de la demande visée. ⚠️ `Limitation` y est
+ * OBLIGATOIRE, sans quoi 400 « Invalid Limitation ». */
+export async function etatDemandePaiement(id: string): Promise<string | null> {
+  const r = await callMews<{ PaymentRequests?: { Id: string; State?: string }[] }>(
+    'paymentRequests/getAll',
+    { PaymentRequestIds: [id], Limitation: { Count: 1 } },
+  );
+  return r.PaymentRequests?.find((p) => p.Id === id)?.State ?? null;
+}
+
 /** Renonce à une demande restée en plan — le client a fermé l'onglet. */
 export async function annulerDemandePaiement(id: string): Promise<void> {
   try {

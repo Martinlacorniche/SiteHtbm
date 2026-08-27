@@ -304,11 +304,46 @@ export async function chargerCategories(langue: Langue): Promise<Map<string, Cat
  * Les règles d'encaissement (préautorisation ou débit) sont portées par les rate
  * groups et s'exécutent côté Mews : rien à décider ici.
  */
-/* La configuration de paiement PciProxy (`hotels/getPaymentConfiguration`) a
- * été retirée le 26/08/2026 : elle ne servait qu'à donner sa `PublicKey` aux
- * champs sécurisés, et c'est Mews Payments Checkout qui collecte désormais la
- * carte, dans son propre iframe et avec sa propre configuration. L'appel reste
- * lisible dans l'historique si le besoin revient. */
+/* ─────────────────── La configuration de paiement PciProxy ───────────────────
+ *
+ * Remise en service le 27/08/2026, après avoir été retirée la veille au profit
+ * de Mews Payments Checkout. Le checkout reste, mais pour le tarif PRÉPAYÉ
+ * seulement : il ne sait pas conclure une préautorisation (voir `reglementDe`).
+ * Le tarif FLEXIBLE reprend donc les champs sécurisés, et cette `PublicKey` est
+ * l'identifiant marchand qu'ils attendent.
+ */
+
+export type ConfigPaiement = {
+  publicKey: string;
+  cartes: string[];
+  surcharges: Record<string, number>;
+};
+
+type ReponseConfigPaiement = {
+  PaymentGateway?: {
+    PublicKey?: string | null;
+    SupportedCreditCardTypes?: string[] | null;
+  } | null;
+  SurchargeConfiguration?: { SurchargeFees?: Record<string, number> | null } | null;
+};
+
+export async function chargerConfigPaiement(langue: Langue): Promise<ConfigPaiement> {
+  const j = await appel<ReponseConfigPaiement>('hotels/getPaymentConfiguration', {
+    HotelId: HOTEL_ID,
+    ConfigurationId: CONFIGURATION_ID,
+  }, langue);
+
+  const publicKey = j.PaymentGateway?.PublicKey?.trim() ?? '';
+  // Sans elle, les iframes ne montent pas : mieux vaut échouer ici, en amont du
+  // tunnel, que d'ouvrir un écran de paiement où le champ carte reste vide.
+  if (!publicKey) throw new Error('Mews getPaymentConfiguration → PublicKey absente');
+
+  return {
+    publicKey,
+    cartes: j.PaymentGateway?.SupportedCreditCardTypes ?? [],
+    surcharges: j.SurchargeConfiguration?.SurchargeFees ?? {},
+  };
+}
 
 export type ClientResa = {
   prenom: string;
@@ -346,19 +381,43 @@ export type ResaCreee = {
   /** Le compte client créé par Mews. C'est lui que `paymentRequests/add`
    *  attend en `AccountId` — sans lui, pas de demande de paiement. */
   customerId: string;
+  /** ⚠️ MEWS FABRIQUE DÉJÀ LA DEMANDE DE PAIEMENT, ET ON L'IGNORAIT.
+   *
+   *  `reservationGroups/create` la crée tout seul, à partir de la règle
+   *  d'encaissement du groupe tarifaire — donc du bon type et du bon montant,
+   *  sans qu'on ait à les recalculer. On en fabriquait une SECONDE par le
+   *  Connector : relevé le 27/08/2026 dans `paymentRequests/getAll`, chaque
+   *  réservation du 26/08 en portait deux, créées à la même seconde
+   *  (« Paiement de la réservation », la sienne, et « Garantie de votre
+   *  réservation », la nôtre). On prend la sienne. */
+  demandeId: string;
 };
 
 type ReponseCreate = {
   ReservationGroupId?: string;
   Id?: string;
   CustomerId?: string;
+  PaymentRequestId?: string;
   Reservations?: { Id?: string; Number?: string; ConfirmationNumber?: string }[];
 };
 
-/* ⚠️ `carte` n'est plus utilisée depuis le passage à Mews Payments Checkout.
- * On crée la réservation SANS moyen de paiement, puis Mews collecte la carte
- * lui-même dans son iframe — le numéro ne passe plus jamais près de ce site.
- * Le paramètre reste pour ne pas casser d'appelant, mais rien ne le remplit. */
+/* ⚠️ `carte` EST DE NOUVEAU REMPLIE, mais pour le seul tarif FLEXIBLE.
+ *
+ * Les deux tarifs ne prennent plus le même chemin, et la raison est mesurée :
+ *  · PRÉPAYÉ (`ChargeCreditCard` 100 %) — pas de carte ici. Mews Payments
+ *    Checkout encaisse dans son iframe, avec 3-D Secure. Prouvé le 26/08/2026 :
+ *    la seule demande de type `Payment` de la journée est passée `Completed`,
+ *    débitée à 15:19:52 et remboursée à 15:21:03.
+ *  · FLEXIBLE (`CreatePreauthorization` 1 %) — la carte revient ici, tokenisée
+ *    par PciProxy. Le checkout ne sait PAS conclure une préautorisation : sur
+ *    les 28 demandes de ce type créées le 26/08, zéro `Completed`. Sa
+ *    documentation ne connaît d'ailleurs que trois événements de succès
+ *    (`payment-charged`, `payment-submitted`, `payment-method-collected`) —
+ *    aucun pour une préautorisation.
+ *
+ * Sur le flexible, c'est donc Mews qui préautorise lui-même à la confirmation
+ * (`SettlementType: Automatic`, `SettlementTrigger: Confirmation`), depuis la
+ * carte attachée ici. Il n'y a aucune demande de paiement dans ce chemin. */
 export async function creerReservation(
   { client, lignes, carte, langue }:
   { client: ClientResa; lignes: LigneResa[]; carte?: Carte; langue: Langue },
@@ -405,6 +464,7 @@ export async function creerReservation(
       .filter(Boolean),
     reservationIds: (j.Reservations ?? []).map((r) => r.Id ?? '').filter(Boolean),
     customerId: j.CustomerId ?? '',
+    demandeId: j.PaymentRequestId ?? '',
   };
 }
 

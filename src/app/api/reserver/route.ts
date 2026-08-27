@@ -3,37 +3,46 @@ import {
   creerReservation, chercherDisponibilite, reglementDe, type Langue,
 } from '@/lib/mewsBooking';
 import { creerDemandePaiement } from '@/lib/mewsConnector';
+import { finaliserVente } from '@/lib/finaliserVente';
 
-/* Pose l'option, et prépare son règlement.
+/* Pose l'option, et la règle — par l'un des deux chemins.
  *
- * ⚠️ CETTE ROUTE NE VEND RIEN. Elle crée la réservation SANS moyen de paiement
- * — `reservationGroups/create` la sort en `State: Optional`, tenue vingt
- * minutes — puis ouvre une demande de paiement chez Mews. C'est le checkout
- * embarqué qui encaisse ensuite, dans la page, et `/api/reserver/confirmer`
- * qui ferme la vente une fois le paiement passé.
+ * ⚠️ LES DEUX TARIFS NE SE RÈGLENT PLUS PAREIL, ET CE N'EST PAS UN CAPRICE.
+ * Mews Payments Checkout ne sait pas conclure une préautorisation. Mesuré le
+ * 27/08/2026 sur `paymentRequests/getAll` : des 28 demandes de type
+ * `Preauthorization` créées par le tunnel le 26/08, AUCUNE n'est passée
+ * `Completed` — toutes `Canceled` ou `Expired`. La seule demande de type
+ * `Payment` de la journée (le mode `?diag=payment`, 1 €) est `Completed`, avec
+ * son débit à 15:19:52 et son remboursement à 15:21:03. Le bouton du checkout
+ * n'était pas mort : il ne savait pas quoi faire d'une préautorisation. Sa
+ * documentation ne liste d'ailleurs que trois événements de succès, et pas un
+ * pour la préautorisation.
  *
- * Le client qui abandonne au paiement ne laisse donc rien derrière lui : on ne
- * confirme pas, et Mews relâche la chambre tout seul. Ce `ReleasedUtc` de vingt
- * minutes, qui nous a coûté une réservation le 26/08 faute de la confirmer,
- * fait ici exactement le travail d'une garde de panier.
+ *  · FLEXIBLE (`CreatePreauthorization` 1 %) — LA VENTE SE FERME ICI. La carte
+ *    arrive tokenisée par PciProxy, on l'attache à la réservation, on confirme,
+ *    et Mews préautorise lui-même. Aucune demande de paiement, aucun checkout.
+ *  · PRÉPAYÉ (`ChargeCreditCard` 100 %) — CETTE ROUTE NE VEND RIEN. Elle pose
+ *    l'option et rend l'identifiant de la demande de paiement ; c'est le
+ *    checkout qui encaisse, puis `/api/reserver/confirmer` qui ferme la vente.
  *
- * ⚠️ AUCUNE DONNÉE DE CARTE NE PASSE PAR ICI, ni même un jeton. Mews collecte
- * la carte dans son propre iframe et porte la certification PCI-DSS. Le
- * navigateur ne reçoit de nous qu'un identifiant de demande de paiement, et le
- * montant est fixé de ce côté-ci — il n'est pas modifiable à la console, ce qui
- * serait le cas si on laissait le checkout le lire dans sa configuration.
+ * Le client qui abandonne au paiement ne laisse rien derrière lui dans les deux
+ * cas : sans confirmation, Mews relâche la chambre au bout de vingt minutes.
+ * Ce `ReleasedUtc`, qui nous a coûté une réservation le 26/08 faute de
+ * l'appeler, fait exactement le travail d'une garde de panier.
+ *
+ * ⚠️ AUCUN NUMÉRO DE CARTE NE PASSE PAR ICI. Sur le chemin flexible on ne
+ * reçoit qu'un `transactionId` PciProxy — un jeton inutilisable ailleurs,
+ * valable trente minutes, produit dans deux iframes que ni cette page ni ce
+ * serveur ne peuvent lire. Sur le chemin prépayé, même pas ça.
  */
 
 const TAXE_PAR_ADULTE_NUIT = 1.86;
 
 type Corps = {
   langue?: Langue;
-  /* Diagnostic uniquement (`?diag=payment`). Force une demande de type
-   * `Payment` a 1 € au lieu de la preautorisation calculee : c'est la derniere
-   * hypothese non testee sur le checkout qui refuse de soumettre. Un euro
-   * reellement debite, remboursable par `payments/refund`. */
-  diagPayment?: boolean;
   client?: { prenom?: string; nom?: string; email?: string; telephone?: string };
+  /* Le jeton PciProxy, sur le seul chemin flexible. */
+  carte?: { jeton?: string; expiration?: string; porteur?: string };
   sejour?: {
     categorieId?: string;
     tarifId?: string;
@@ -113,6 +122,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erreur: 'reglement inconnu' }, { status: 502 });
   }
 
+  /* Le flexible attend sa carte ICI, et la refuse si elle manque : sans elle,
+   * Mews n'a rien à préautoriser à la confirmation et relâche la réservation
+   * vingt minutes plus tard, en silence. Autant le dire tout de suite. */
+  const carte = corps.carte;
+  if (!reglement.debite) {
+    if (!carte?.jeton?.trim() || !carte?.porteur?.trim()
+        || !/^\d{4}-\d{2}$/.test(carte?.expiration ?? '')) {
+      return NextResponse.json({ erreur: 'carte incomplete' }, { status: 400 });
+    }
+  }
+
   let resa;
   try {
     resa = await creerReservation({
@@ -129,6 +149,14 @@ export async function POST(req: NextRequest) {
         adultes,
         notes: sejour.notes?.slice(0, 500) || undefined,
       }],
+      // Le prépayé n'en donne pas : sa carte est collectée par le checkout.
+      ...(reglement.debite ? {} : {
+        carte: {
+          jeton: carte!.jeton!.trim(),
+          expiration: carte!.expiration!,
+          porteur: carte!.porteur!.trim(),
+        },
+      }),
     });
   } catch (e) {
     console.error('Mews reservationGroups/create', e instanceof Error ? e.message : e);
@@ -140,25 +168,60 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erreur: 'reponse inattendue' }, { status: 502 });
   }
 
-  /* La demande de paiement, que le checkout va consommer.
-   * Elle expire en même temps que l'option — inutile de laisser vivre une
-   * demande pour une chambre que Mews a déjà relâchée. */
-  const expireUtc = new Date(Date.now() + 20 * 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
-  let demandeId: string | null = null;
-  try {
-    demandeId = await creerDemandePaiement({
-      customerId: resa.customerId,
-      reservationId: resa.reservationIds[0],
-      montant: corps.diagPayment ? 1 : reglement.montant,
-      type: corps.diagPayment || reglement.debite ? 'Payment' : 'Preauthorization',
-      // Lue par le client dans le checkout : elle doit lui parler, à lui.
-      description: reglement.debite
-        ? (langue === 'fr' ? 'Règlement de votre séjour' : 'Payment for your stay')
-        : (langue === 'fr' ? 'Garantie de votre réservation' : 'Guarantee for your booking'),
-      expireUtc,
+  /* ─── Chemin FLEXIBLE : la vente se ferme ici, la carte est déjà attachée ───
+   *
+   * On confirme dans la foulée, et c'est la confirmation qui déclenche la
+   * préautorisation chez Mews (`SettlementTrigger: Confirmation`). Le client
+   * n'a plus d'écran à traverser : il a donné sa carte, la chambre est à lui. */
+  if (!reglement.debite) {
+    try {
+      await finaliserVente({
+        reservationIds: resa.reservationIds,
+        sejour: {
+          categorieId: sejour.categorieId, tarifId: sejour.tarifId,
+          arrivee: sejour.arrivee, depart: sejour.depart, adultes,
+        },
+        langue,
+      });
+    } catch (e) {
+      console.error(
+        'MEWS CONFIRMATION ECHOUEE — reservation relachee dans 20 min :',
+        resa.reservationIds.join(', '), e instanceof Error ? e.message : e,
+      );
+      return NextResponse.json({ erreur: 'confirmation impossible' }, { status: 502 });
+    }
+    return NextResponse.json({
+      termine: true,
+      groupeId: resa.groupeId,
+      numeros: resa.numeros,
+      reservationIds: resa.reservationIds,
+      reglement: { debite: false, montant: reglement.montant },
     });
-  } catch (e) {
-    console.error('Mews paymentRequests/add', e instanceof Error ? e.message : e);
+  }
+
+  /* ─── Chemin PRÉPAYÉ : la demande de paiement que le checkout va consommer ──
+   *
+   * ⚠️ ON PREND CELLE DE MEWS, ON N'EN FABRIQUE PLUS UNE SECONDE.
+   * `reservationGroups/create` la crée déjà, du type et du montant que dicte
+   * la règle du groupe tarifaire. On en créait une deuxième par le Connector :
+   * relevé le 27/08/2026, chaque réservation du 26/08 en portait deux, nées à
+   * la même seconde. Le repli ci-dessous ne sert que si Mews n'en rend pas. */
+  let demandeId: string | null = resa.demandeId || null;
+  if (!demandeId) {
+    const expireUtc = new Date(Date.now() + 20 * 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    try {
+      demandeId = await creerDemandePaiement({
+        customerId: resa.customerId,
+        reservationId: resa.reservationIds[0],
+        montant: reglement.montant,
+        type: 'Payment',
+        // Lue par le client dans le checkout : elle doit lui parler, à lui.
+        description: langue === 'fr' ? 'Règlement de votre séjour' : 'Payment for your stay',
+        expireUtc,
+      });
+    } catch (e) {
+      console.error('Mews paymentRequests/add', e instanceof Error ? e.message : e);
+    }
   }
   if (!demandeId) {
     // Sans demande, le checkout n'a rien à afficher. On ne confirme pas : Mews
@@ -167,11 +230,12 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
+    termine: false,
     groupeId: resa.groupeId,
     numeros: resa.numeros,
     reservationIds: resa.reservationIds,
     demandeId,
     // Ce que le client va régler, pour que l'écran l'annonce sans le recalculer.
-    reglement: { debite: reglement.debite, montant: reglement.montant },
+    reglement: { debite: true, montant: reglement.montant },
   });
 }
