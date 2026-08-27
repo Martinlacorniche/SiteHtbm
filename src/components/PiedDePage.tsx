@@ -124,7 +124,14 @@ export default function PiedDePage({ langue = "fr" }: { langue?: "fr" | "en" }) 
               a un consommateur francais sans conditions accessibles, c'est
               vendre sans conditions opposables. Elles doivent etre atteignables
               de partout, et Mews doit les pointer dans `TermsAndConditionsUrl`. */}
-          <Link href="/cgv" className="hover:text-slate-900">{mots.cgv}</Link>
+          {/* ⚠️ CHAQUE LANGUE A SES CONDITIONS, ET CE N'EST PAS DU CONFORT.
+              Le tunnel anglais `/en/book` vend, avec debit immediat sur le
+              prepaye. Renvoyer un client anglophone vers des CGV francaises,
+              c'est lui vendre sous des conditions qu'il ne peut pas lire —
+              donc sous des conditions difficilement opposables. */}
+          <Link href={langue === "en" ? "/en/terms" : "/cgv"} className="hover:text-slate-900">
+            {mots.cgv}
+          </Link>
         </div>
         <p className="font-serif italic opacity-60">Designed in Toulon.</p>
       </div>
