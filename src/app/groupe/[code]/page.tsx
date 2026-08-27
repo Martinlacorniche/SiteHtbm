@@ -817,22 +817,36 @@ function RoomBubble({ room, index, selected, planVisible, disabled, free, onClic
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.03, 0.3), type: "spring", stiffness: 380, damping: 30 }}
       whileTap={muted && !room.taken ? {} : { scale: 0.96 }}
-      // Une chambre prise doit se voir SANS lire l'étiquette : fond gris, numéro
-      // barré-grisé, pastille. Le simple `opacity: .7` d'avant se distinguait à
-      // peine d'une chambre libre — on cliquait au hasard (Martin, 27/08).
-      className="relative text-left rounded-2xl border p-3 transition shadow-sm"
+      // Une chambre prise doit se voir SANS lire l'étiquette : fond gris, contenu
+      // estompé et un TAMPON en travers. Le `opacity: .7` d'origine se distinguait
+      // à peine d'une chambre libre, et le gris seul ne suffisait toujours pas —
+      // on cliquait au hasard (Martin, 27/08).
+      className="relative text-left rounded-2xl border p-3 transition shadow-sm overflow-hidden"
       style={{
         background: room.taken ? "#f1f5f9" : !free ? "#fafafa" : "#fff",
         borderColor: selected ? NAVY : room.taken ? "#cbd5e1" : "rgba(0,78,124,.16)",
         boxShadow: selected ? `0 0 0 2px ${NAVY}` : undefined,
         opacity: !room.taken && !free ? 0.6 : 1,
       }}>
-      {selected && <span className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-white" style={{ background: NAVY }}><Check className="w-3 h-3" /></span>}
+      {selected && <span className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-white z-20" style={{ background: NAVY }}><Check className="w-3 h-3" /></span>}
       {room.taken && !selected && (
-        <span className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center bg-slate-300 text-slate-600"><Lock className="w-3 h-3" /></span>
+        // Le tampon du cachet : incliné, encadré, par-dessus tout le reste. Il
+        // reste lisible en trois langues (t.booked), d'où le `whitespace-nowrap`.
+        <span className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <span
+            className="px-2 py-[3px] rounded-[3px] border-2 text-[10px] font-extrabold uppercase tracking-[0.12em] whitespace-nowrap"
+            style={{
+              transform: "rotate(-11deg)",
+              borderColor: "rgba(100,116,139,.55)",
+              color: "rgba(71,85,105,.85)",
+              background: "rgba(255,255,255,.72)",
+            }}>
+            {t.booked}
+          </span>
+        </span>
       )}
       <p className={`font-serif font-semibold text-lg leading-none ${room.taken ? "text-slate-400" : "text-slate-800"}`}>{room.numero}</p>
-      <div className="flex items-center gap-1 mt-2 flex-wrap">
+      <div className={`flex items-center gap-1 mt-2 flex-wrap ${room.taken ? "opacity-40" : ""}`}>
         <Pill><Users className="w-3 h-3" /> {room.pax_max}</Pill>
         {room.twinable && <Pill><BedDouble className="w-3 h-3" /> {t.twin}</Pill>}
       </div>
