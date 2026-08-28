@@ -31,6 +31,23 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
   },
+  /* La preuve de propriété de Google Search Console.
+   *
+   * Fournie par Nina le 28/08/2026 depuis la propriété « Préfixe d'URL »
+   * https://hotels-toulon-mer.com. Ce jeton n'est pas un secret et n'ouvre
+   * aucun accès : Google vient simplement lire cette balise pour vérifier que
+   * celui qui réclame la console a bien la main sur le site.
+   *
+   * ⚠️ NE PAS LA RETIRER, MÊME APRÈS VALIDATION. Google la relit
+   * périodiquement ; si elle disparaît, il révoque l'accès à la console et
+   * l'historique redevient inaccessible.
+   *
+   * ⚠️ Elle vit dans le LAYOUT, donc sur toutes les pages — Google n'inspecte
+   * que la racine, mais une balise posée page par page finirait par manquer
+   * exactement là où il regarde. */
+  verification: {
+    google: "NjV9-rQqq3XJlCiWW-9I5hTyb4jvg574G4hzcWAearU",
+  },
   openGraph: {
     type: "website",
     locale: "fr_FR",
