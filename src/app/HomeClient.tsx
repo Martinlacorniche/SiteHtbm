@@ -74,7 +74,13 @@ const CONFIG = {
 
   corniche: {
     title: "Best Western Plus La Corniche", 
-    shortTitle: "L'Horizon", 
+    /* `brand` est la ligne du haut, `shortTitle` le grand titre de la carte.
+       Les cartes annoncaient « L'Horizon » et « Le Refuge » : de jolis noms,
+       mais personne ne cherche un hotel sous ce nom-la et rien ne disait
+       lequel des deux etablissements on regardait. La marque passe au-dessus,
+       le nom reel devient le titre. */
+    brand: "Best Western Plus",
+    shortTitle: "La Corniche", 
     tagline: { fr: "Vivre face à la mer", en: "Living by the sea" },
     stars: 4,
     features: {
@@ -95,7 +101,8 @@ const CONFIG = {
 
   voiles: {
     title: "Hôtel-Rooftop Les Voiles", 
-    shortTitle: "Le Refuge", 
+    brand: "Hôtel-Rooftop",
+    shortTitle: "Les Voiles", 
     tagline: { fr: "L'intimité sur la colline", en: "Intimacy on the hill" },
     stars: 3,
     features: {
@@ -116,6 +123,13 @@ const CONFIG = {
 
   villa: {
     title: "Villa Les Voiles",
+    /* « Collection Privée » ne disait pas ce qu'on vend : on louait le mot
+       d'une marque de luxe pour annoncer une maison entiere a louer. La
+       Villa n'est pas une gamme, c'est une location — et exclusive au sens
+       propre : on la prend seul, personne d'autre n'est dans les murs.
+       Contrairement aux deux autres surtitres, ce n'est pas un nom de
+       marque mais une promesse : elle se traduit. */
+    brand: { fr: "Location Exclusive", en: "Exclusive Rental" },
     shortTitle: "La Villa",
     tagline: { fr: "Votre hôtel privatisé en bord de mer ", en: "A seaside hotel, exclusively yours" },
     features: {
@@ -127,10 +141,18 @@ const CONFIG = {
       fr: "L'expérience unique d'un hôtel rien que pour vous (de mi-octobre à mi-mai). Une adresse secrète du Mourillon à 300m des plages.",
       en: "The unique experience of a hotel just for you (from mid-October to mid-May). A secret address in Mourillon, 300m from the beaches."
     },
-    phone: "07 59 91 63 54",
+    // ⚠️ Corrigé le 28/08/2026 : le site affichait « 07 59 », un chiffre de
+    // travers. Le bon numéro commercial est celui de la plaquette, « 07 56 ».
+    phone: "07 56 91 63 54",
     email: "commercial2@htbm.fr", 
     
-    bookingUrl: "https://www.leboncoin.fr/ad/locations_saisonnieres/3076521661",
+    /* ⚠️ LA CARTE MENAIT SUR LEBONCOIN, ET LA PAGE VILLA SUR AIRBNB.
+       Deux places de marché différentes pour le même bien, aucune réservation
+       en direct, et un prix de plateforme au lieu du nôtre. Elle mène
+       désormais à notre page, qui lit la disponibilité dans Mews et annonce le
+       tarif de la plaquette — moins cher que l'annonce.
+       Le retour arrière tient en une ligne : remettre l'URL leboncoin ici. */
+    bookingUrl: "/villa-les-voiles-toulon",
     infoUrl: "/docs/villa-les-voiles.pdf",
     image: "/images/villa.jpg", 
   },
@@ -565,14 +587,14 @@ export default function PageUltimeV15() {
                 {videoMontee.corniche && (
                   <video ref={vidRefLeft} src={CONFIG.corniche.video} poster={CONFIG.corniche.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: videoActive.corniche ? 1 : 0 }} />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/60 z-20" />
+                <div className="absolute inset-0 voile-carte z-20" />
             </div>
 
             <div className="relative z-30 h-full flex flex-col justify-between p-6 md:p-10 text-white pointer-events-none">
                 <div className="transform transition-all duration-500 translate-y-0 group-hover:-translate-y-2 pt-4 md:pt-0">
                     <div className="flex items-center justify-between mb-3 opacity-90 gap-4"> 
                         <div className="flex items-center gap-3">
-                            <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md">{CONFIG.corniche.title}</span>
+                            <span className="uppercase tracking-[0.25em] text-[11px] md:text-xs font-bold text-white/90 sur-photo">{CONFIG.corniche.brand}</span>
                             <div className="flex text-[#FFD84D] drop-shadow-md">
                                 <Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/>
                             </div>
@@ -592,8 +614,8 @@ export default function PageUltimeV15() {
                         </button>
                     </div>
 
-                    <h2 className="font-serif text-5xl md:text-7xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.corniche.shortTitle}</h2>
-                    <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium drop-shadow-lg">{CONFIG.corniche.tagline[lang]}</p>
+                    <h2 className="font-serif text-5xl md:text-7xl leading-none sur-photo text-white mb-2">{CONFIG.corniche.shortTitle}</h2>
+                    <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium sur-photo">{CONFIG.corniche.tagline[lang]}</p>
                 </div>
 
                 <div className={cn(
@@ -658,14 +680,14 @@ export default function PageUltimeV15() {
              {videoMontee.voiles && (
                <video ref={vidRefRight} src={CONFIG.voiles.video} poster={CONFIG.voiles.image} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out z-10" style={{ opacity: videoActive.voiles ? 1 : 0 }} />
              )}
-             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/60 z-20" />
+             <div className="absolute inset-0 voile-carte z-20" />
           </div>
 
           <div className="relative z-30 h-full flex flex-col justify-between p-6 md:p-10 text-white pointer-events-none">
             <div className="transform transition-all duration-500 translate-y-0 group-hover:-translate-y-2 pt-4 md:pt-0">
               <div className="flex items-center justify-between mb-3 opacity-90">
                 <div className="flex items-center gap-3">
-                    <span className="uppercase tracking-[0.2em] text-xs font-bold text-white drop-shadow-md">{CONFIG.voiles.title}</span>
+                    <span className="uppercase tracking-[0.25em] text-[11px] md:text-xs font-bold text-white/90 sur-photo">{CONFIG.voiles.brand}</span>
                     <div className="flex text-[#FFD84D] drop-shadow-md"><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/></div>
                 </div>
                 {/* BOUTON + (MOBILE ONLY) */}
@@ -683,8 +705,8 @@ export default function PageUltimeV15() {
               </div>
               
               {/* J'ai déplacé le badge APRES le titre et la tagline pour ne pas casser l'alignement */}
-              <h2 className="font-serif text-5xl md:text-7xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.voiles.shortTitle}</h2>
-              <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium drop-shadow-lg mb-4">{CONFIG.voiles.tagline[lang]}</p>
+              <h2 className="font-serif text-5xl md:text-7xl leading-none sur-photo text-white mb-2">{CONFIG.voiles.shortTitle}</h2>
+              <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium sur-photo mb-4">{CONFIG.voiles.tagline[lang]}</p>
 
               {new Date() < new Date("2026-05-01") && (
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white text-[10px] font-medium uppercase tracking-widest shadow-sm">
@@ -751,18 +773,21 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("villa")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-           <Link href={CONFIG.villa.bookingUrl} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-10" aria-label="Villa Les Voiles — l'annonce de location (nouvel onglet)" />
+           {/* Plus de `target="_blank"` : on ne sort plus du site, on va sur
+               notre propre page de privatisation. Ouvrir un onglet pour rester
+               chez soi n'a aucun sens et coûte le fil de la navigation. */}
+           <Link href={CONFIG.villa.bookingUrl} className="absolute inset-0 z-10" aria-label="Villa Les Voiles — privatiser l'hôtel" />
            
            <div className="absolute inset-0 pointer-events-none">
              <Image src={CONFIG.villa.image} alt="Villa" fill sizes="(max-width: 768px) 100vw, (max-width: 1900px) 50vw, 950px" className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
-             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/60 z-20" />
+             <div className="absolute inset-0 voile-carte z-20" />
           </div>
 
           <div className="relative z-30 h-full flex flex-col justify-between p-6 md:p-10 text-white pointer-events-none">
             <div className="transform transition-all duration-500 translate-y-0 group-hover:-translate-y-2 pt-4 md:pt-0">
               <div className="flex items-center justify-between mb-3 opacity-90">
                 <div className="flex items-center gap-3">
-                    <span className="uppercase tracking-[0.2em] text-xs font-bold text-amber-200 drop-shadow-md">Collection Privée</span>
+                    <span className="uppercase tracking-[0.25em] text-[11px] md:text-xs font-bold text-amber-200 sur-photo">{CONFIG.villa.brand[lang]}</span>
                 </div>
                 {/* BOUTON + (MOBILE ONLY) */}
                 <button 
@@ -778,8 +803,8 @@ export default function PageUltimeV15() {
                 </button>
               </div>
 
-              <h2 className="font-serif text-5xl md:text-7xl leading-none drop-shadow-lg text-white mb-2">{CONFIG.villa.shortTitle}</h2>
-              <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium drop-shadow-lg">{CONFIG.villa.tagline[lang]}</p>
+              <h2 className="font-serif text-5xl md:text-7xl leading-none sur-photo text-white mb-2">{CONFIG.villa.shortTitle}</h2>
+              <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium sur-photo">{CONFIG.villa.tagline[lang]}</p>
             </div>
 
             <div className={cn(
@@ -809,14 +834,12 @@ export default function PageUltimeV15() {
                  </a>
               </div>
               <div className="flex gap-2">
-                <a
+                <Link
                   href={CONFIG.villa.bookingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-clair pointer-events-auto w-fit px-6 py-4 font-bold tracking-wide shadow-lg hover:scale-105"
+                  className="btn btn-clair pointer-events-auto relative z-20 w-fit px-6 py-4 font-bold tracking-wide shadow-lg hover:scale-105"
                 >
                     Privatiser <ArrowRight className="w-4 h-4" />
-                </a>
+                </Link>
                  <a href={CONFIG.villa.infoUrl} target="_blank" className="pointer-events-auto inline-flex items-center gap-2 border border-white/30 text-white px-6 py-4 rounded-full text-sm font-bold hover:bg-white/10 transition-colors backdrop-blur-sm" style={{color:'white'}}>
                     <FileText className="w-4 h-4"/> {t.info}
                 </a>

@@ -159,3 +159,71 @@
   .balayage::after { animation: none; opacity: 0; }
   .prix-entre { animation: none; }
 }
+
+/* ---------- TEXTE SUR PHOTO ----------
+ * Les titres des trois cartes d'accueil se posent EN HAUT de l'image, la ou
+ * l'ancien degrade etait justement transparent : sur le ciel bleu de la
+ * Corniche ou le mur clair des Voiles, le nom de l'hotel se dissolvait dans
+ * la photo, et la video le rendait pire encore puisque le fond bouge.
+ *
+ * `.voile-carte` remplace ce degrade : il assombrit le haut (le titre) ET le
+ * bas (les coordonnees au survol) en laissant respirer le milieu, la ou la
+ * photo a quelque chose a montrer.
+ * `.sur-photo` pose deux ombres sur la lettre elle-meme — une courte et dure
+ * qui la detache, une longue et diffuse qui assombrit le fond derriere. */
+.voile-carte {
+  /* ⚠️ ALLÉGÉ LE 28/08/2026, À LA DEMANDE DE MARTIN, ET C'EST UN ÉQUILIBRE
+   * FRAGILE. Le matin même, la plainte était l'inverse : « on voit pas bien le
+   * texte sur le fond de photo ». Le voile est donc descendu juste assez pour
+   * rendre la photo, pas plus — la lisibilité du nom de l'hôtel tient
+   * maintenant surtout à la double ombre de `.sur-photo`, qui creuse le fond
+   * lettre par lettre là où le dégradé le fait sur toute la bande.
+   * Si un titre redevenait dur à lire sur une photo claire, c'est le premier
+   * chiffre (0,48) qu'il faut remonter, pas le dernier. */
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.48) 0%,
+    rgba(0, 0, 0, 0.26) 22%,
+    rgba(0, 0, 0, 0.06) 48%,
+    rgba(0, 0, 0, 0.62) 100%
+  );
+}
+.sur-photo {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 6px 28px rgba(0, 0, 0, 0.7);
+}
+
+/* ---------- LE VOILE DE LA PAGE VILLA ----------
+ * `voile-carte` assombrit le HAUT et le BAS d'une image, ce qui convient aux
+ * tuiles de l'accueil où le titre se pose en haut. Sur la page de la
+ * privatisation le texte est au MILIEU À GAUCHE, à côté du calendrier —
+ * c'est-à-dire précisément là où ce dégradé laisse la photo la plus claire.
+ * Le titre blanc y devenait illisible (constaté à l'écran le 28/08/2026).
+ *
+ * Celui-ci assombrit le CÔTÉ : fort à gauche sous le texte, léger à droite
+ * sous la carte blanche, qui n'a besoin d'aucune aide.
+ *
+ * Sous 1024 px la grille s'effondre, le texte repasse au-dessus de toute la
+ * largeur : un dégradé latéral n'aurait plus de sens, on revient à un voile
+ * uniforme. */
+.voile-villa {
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.34) 0%,
+    rgba(0, 0, 0, 0.46) 100%
+  );
+}
+@media (min-width: 1024px) {
+  .voile-villa {
+    background: linear-gradient(
+      to right,
+      /* ⚠️ ALLÉGÉ LE 28/08/2026. Première mesure : 0,78 à gauche — la photo
+         n'existait plus, on lisait un titre blanc sur un mur noir. On garde
+         de quoi tenir le contraste du titre (l'ombre de `.sur-photo` fait le
+         reste) et la rade redevient visible. */
+      rgba(0, 0, 0, 0.42) 0%,
+      rgba(0, 0, 0, 0.28) 30%,
+      rgba(0, 0, 0, 0.08) 55%,
+      rgba(0, 0, 0, 0.12) 100%
+    );
+  }
+}
