@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { alternatesFor, SITE_URL } from "@/lib/site";
 import SiteBrand from "@/components/SiteBrand";
 import PiedDePage from "@/components/PiedDePage";
@@ -72,7 +71,12 @@ export default async function Page() {
 
   return (
     <>
-      <Script id="villa-schema" type="application/ld+json"
+      {/* ⚠️ UNE BALISE `<script>` ORDINAIRE, PAS `next/script` — même piège que
+          sur l'accueil : `<Script>` la pose après l'hydratation, donc le robot
+          reçoit une page sans balisage. C'est précisément ce qu'un moteur ou
+          une IA vient chercher pour comprendre qu'on vend un lieu entier, à
+          quel prix, et où il se trouve. */}
+      <script id="villa-schema" type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <SiteBrand />
       <main><VillaClient langue="fr" contenu={contenu} tarifs={tarifs} /></main>

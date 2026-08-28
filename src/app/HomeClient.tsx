@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import Script from "next/script"; 
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, MapPin, Star, Wind, Thermometer, Menu, X, Phone, Building2, Mail, FileText, Plus, Minus } from "lucide-react";
 import { Playfair_Display, Inter } from 'next/font/google';
@@ -354,8 +353,19 @@ export default function PageUltimeV15() {
   return (
     <div className={`${serif.variable} ${sans.variable} font-sans min-h-screen bg-cream text-slate-900 selection:bg-blue-100`}>
       
-      {/* --- SCHEMA.ORG (JSON-LD) --- */}
-      <Script id="hotel-schema" type="application/ld+json"
+      {/* --- SCHEMA.ORG (JSON-LD) ---
+          ⚠️ UNE BALISE `<script>` ORDINAIRE, PAS `next/script`.
+          Ce bloc a passé des mois à ne servir à personne : `<Script>` pose sa
+          balise APRÈS l'hydratation, donc le HTML livré au robot ne contenait
+          rien — ni les coordonnées géographiques, ni les étoiles, ni les
+          équipements. Vérifié le 28/08/2026 : zéro occurrence de « 43.1071245 »
+          ou de « starRating » dans la page servie. Google finit parfois par
+          exécuter le JavaScript, les robots des IA presque jamais, et le
+          balisage est justement ce qu'ils viennent chercher.
+          Une balise ordinaire dans un composant client est rendue côté serveur
+          comme le reste : elle part avec la page. C'est ce que fait déjà
+          `/rooftop-les-voiles`, dont le balisage, lui, arrive bien. */}
+      <script id="hotel-schema" type="application/ld+json"
         dangerouslySetInnerHTML={{
             __html: JSON.stringify([
             {
