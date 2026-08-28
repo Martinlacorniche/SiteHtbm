@@ -4,7 +4,7 @@ import { alternatesFor, SITE_URL } from "@/lib/site";
 import SiteBrand from "@/components/SiteBrand";
 import PiedDePage from "@/components/PiedDePage";
 import VillaClient from "./VillaClient";
-import { FORMULES } from "@/lib/villa";
+import { chargerContenuVilla, chargerTarifsVilla } from "@/lib/villaDb";
 
 /* La page de la privatisation.
  *
@@ -33,7 +33,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Page() {
+/* ⚠️ LA PAGE EST DYNAMIQUE, ET C'EST LE PRIX DE L'ÉDITION EN LIGNE.
+ * Elle lisait deux constantes du dépôt et se pré-rendait à la construction.
+ * Depuis que le commercial peut changer un tarif ou une photo depuis le
+ * back-office, une page figée annoncerait l'ancien prix jusqu'au prochain
+ * déploiement. `villaDb` garde trente secondes en cache, ce qui suffit à
+ * absorber une rafale sans faire mentir la page. */
+export const dynamic = "force-dynamic";
+
+export default async function Page() {
+  const [contenu, tarifs] = await Promise.all([chargerContenuVilla(), chargerTarifsVilla()]);
+
   /* Le JSON-LD rattache la page à l'hôtel déjà déclaré en accueil (`#voiles`)
      au lieu d'inventer un second établissement au même endroit : c'est le même
      bâtiment, vendu autrement. `offers` porte le prix par personne — celui que
@@ -44,14 +54,16 @@ export default function Page() {
     name: "Villa Les Voiles — privatisation de l'Hôtel-Rooftop Les Voiles",
     description:
       "Location exclusive d'un boutique-hôtel 3 étoiles au Mourillon (Toulon) : 16 chambres, rooftop vue mer, patio et salon communs, accès autonome.",
-    image: `${SITE_URL}/images/villa.jpg`,
+    image: contenu.photo.startsWith("http") ? contenu.photo : `${SITE_URL}${contenu.photo}`,
     url: `${SITE_URL}/villa-les-voiles-toulon`,
     brand: { "@type": "Hotel", "@id": `${SITE_URL}/#voiles` },
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: "EUR",
-      lowPrice: FORMULES.complete.parPersonne,
-      highPrice: FORMULES.complete.parNuit,
+      // Le plancher est le prix par personne à pleine occupation, le plafond
+      // la nuit entière : entre les deux se trouve tout ce qu'on peut payer.
+      lowPrice: Math.round(tarifs.formules.complete.parNuit / tarifs.formules.complete.personnes),
+      highPrice: tarifs.formules.complete.parNuit,
       // Pas d'`availabilityStarts/Ends` : la privatisation n'a plus de saison,
       // c'est la disponibilité réelle qui tranche.
       offerCount: 2,
@@ -63,7 +75,7 @@ export default function Page() {
       <Script id="villa-schema" type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <SiteBrand />
-      <main><VillaClient langue="fr" /></main>
+      <main><VillaClient langue="fr" contenu={contenu} tarifs={tarifs} /></main>
       <PiedDePage />
     </>
   );

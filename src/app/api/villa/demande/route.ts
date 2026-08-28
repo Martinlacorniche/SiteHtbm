@@ -3,7 +3,8 @@ import { Resend } from 'resend';
 import { supabaseServer } from '@/lib/supabase-server';
 import { ALERTES } from '@/lib/villaContenu';
 import { chambresLibres } from '@/lib/mewsBooking';
-import { CAPACITE, devis, nuitsEntre, type Formule } from '@/lib/villa';
+import { nuitsEntre, type Formule } from '@/lib/villa';
+import { chargerTarifsVilla } from '@/lib/villaDb';
 
 /* La demande de privatisation.
  *
@@ -63,6 +64,11 @@ export async function POST(req: NextRequest) {
      Une demande sur des dates prises reste une demande : le commercial peut
      proposer la semaine d'à côté, ou déplacer la réservation qui gêne. La
      refuser ici, c'est jeter un client qui vient d'écrire son numéro. */
+  // Le devis enregistré doit être CELUI QUI A ÉTÉ AFFICHÉ : le lire dans la
+  // même source que la page évite qu'un changement de tarif fasse diverger la
+  // ligne en base de ce que le client a lu.
+  const tarifs = await chargerTarifsVilla();
+
   let libres: number | null = null;
   try { libres = await chambresLibres({ arrivee: c.arrivee, depart: c.depart }); } catch { libres = null; }
 
@@ -86,9 +92,9 @@ export async function POST(req: NextRequest) {
       societe: texte(c.societe, 120),
       message: texte(c.message, 2000),
       chambres_libres: libres,
-      etait_libre: libres === null ? null : libres >= CAPACITE,
+      etait_libre: libres === null ? null : libres >= tarifs.formules.complete.chambres,
       formule,
-      devis_affiche: devis(formule, nuits).total,
+      devis_affiche: tarifs.formules[formule].parNuit * nuits,
       langue: c.langue === 'en' ? 'en' : 'fr',
       source: texte(c.source, 60),
     })
@@ -107,7 +113,8 @@ export async function POST(req: NextRequest) {
     nom, email: c.email, telephone: texte(c.telephone, 30),
     societe: texte(c.societe, 120), message: texte(c.message, 2000),
     personnes: Number.isInteger(c.personnes) ? c.personnes! : null,
-    libres, total: devis(formule, nuits).total,
+    libres, total: tarifs.formules[formule].parNuit * nuits,
+    capacite: tarifs.formules.complete.chambres,
   });
 
   return NextResponse.json({ ok: true, id: data.id });
@@ -137,7 +144,7 @@ type Alerte = {
   id: string; arrivee: string; depart: string; nuits: number; formule: Formule;
   nom: string; email: string; telephone: string | null; societe: string | null;
   message: string | null; personnes: number | null;
-  libres: number | null; total: number;
+  libres: number | null; total: number; capacite: number;
 };
 
 async function alerter(a: Alerte): Promise<void> {
@@ -150,9 +157,9 @@ async function alerter(a: Alerte): Promise<void> {
 
   const dispo = a.libres === null
     ? 'non lue (Mews injoignable)'
-    : a.libres >= CAPACITE
-      ? `✅ hôtel entier libre (${a.libres}/${CAPACITE})`
-      : `⚠️ ${a.libres}/${CAPACITE} chambres libres — pas privatisable en l'état`;
+    : a.libres >= a.capacite
+      ? `✅ maison entière libre (${a.libres}/${a.capacite})`
+      : `⚠️ ${a.libres}/${a.capacite} chambres libres — pas privatisable en l'état`;
 
   const ligne = (t: string, v: string) =>
     `<tr><td style="padding:8px 0;color:#64748b;font-size:12px;width:130px;vertical-align:top">${t}</td>` +
@@ -179,7 +186,7 @@ async function alerter(a: Alerte): Promise<void> {
           <table style="width:100%;border-collapse:collapse">
             ${ligne('Séjour', `${jour(a.arrivee)} → ${jour(a.depart)} (${a.nuits} nuit${a.nuits > 1 ? 's' : ''})`)}
             ${ligne('Disponibilité', dispo)}
-            ${ligne('Formule', a.formule === 'complete' ? 'Villa complète (16 chambres)' : 'Demi-villa (8 chambres)')}
+            ${ligne('Formule', a.formule === 'complete' ? 'Villa complète' : 'Demi-villa')}
             ${a.personnes ? ligne('Personnes', String(a.personnes)) : ''}
             ${ligne('Devis affiché', `${a.total.toLocaleString('fr-FR')} €`)}
             ${ligne('Email', `<a href="mailto:${echappe(a.email)}" style="color:#0284c7">${echappe(a.email)}</a>`)}

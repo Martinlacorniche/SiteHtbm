@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Loader2, Phone, Mail, Users, Moon, X } from "lucide-react";
-import { CONTENU, CONTACT, type LangueVilla } from "@/lib/villaContenu";
-import { FORMULES, NUITS_MIN, formulePourPax, nuitsEntre, parPersonneReel, type Formule, type Verdict } from "@/lib/villa";
+import { CONTACT, type LangueVilla } from "@/lib/villaContenu";
+import { nuitsEntre, type Formule, type Verdict } from "@/lib/villa";
+import type { ContenuVilla, TarifsVilla } from "@/lib/villaDb";
 import Calendrier, { type Selection } from "./Calendrier";
 
 /* La page de la privatisation.
@@ -148,9 +149,35 @@ const TEXTES = {
 
 type Etat = "vierge" | "cherche" | "rendu" | "panne";
 
-export default function VillaClient({ langue }: { langue: LangueVilla }) {
+/* ⚠️ LE CONTENU ARRIVE DU SERVEUR, IL N'EST PLUS IMPORTÉ ICI.
+ * Textes, photos et tarifs sont éditables depuis le back-office : les lire
+ * dans une constante du dépôt les figerait au dernier déploiement. La page
+ * serveur les charge (base par-dessus dépôt) et les passe en props. */
+export default function VillaClient({ langue, contenu, tarifs }: {
+  langue: LangueVilla;
+  contenu: ContenuVilla;
+  tarifs: TarifsVilla;
+}) {
   const T = TEXTES[langue];
-  const C = CONTENU[langue];
+  const C = contenu[langue];
+  const CONTENU = contenu;
+  const FORMULES = tarifs.formules;
+  const NUITS_MIN = tarifs.nuitsMin;
+
+  /* Les deux règles qui dépendaient d'un import figé. Elles suivent maintenant
+     ce que le back-office a posé : changer la capacité y change ici la formule
+     proposée et le prix par personne, sans redéploiement. */
+  /* Mémorisée : l'effet qui pré-remplit la formule en dépend, et une fonction
+     recréée à chaque rendu le relancerait sans fin. Ses seules variables sont
+     les deux capacités — quand le back-office les change, la règle suit. */
+  const formulePourPax = useCallback((n: number): Formule | null =>
+    !Number.isFinite(n) || n < 1 ? null
+    : n <= FORMULES.demi.personnes ? "demi"
+    : n <= FORMULES.complete.personnes ? "complete"
+    : null,
+  [FORMULES.demi.personnes, FORMULES.complete.personnes]);
+  const parPersonneReel = (f: Formule, n: number) =>
+    Math.round(FORMULES[f].parNuit / Math.max(n, 1));
 
   const [arrivee, setArrivee] = useState(() => dansNJours(30));
   const [depart, setDepart] = useState(() => dansNJours(33));
@@ -169,7 +196,7 @@ export default function VillaClient({ langue }: { langue: LangueVilla }) {
      de ceux qui logent le groupe. Elle se recalcule quand l'effectif change :
      passer de douze à vingt doit basculer sur la complète sans y penser. */
   const [formule, setFormule] = useState<Formule | null>(null);
-  useEffect(() => { setFormule(pax === null ? null : formulePourPax(pax)); }, [pax]);
+  useEffect(() => { setFormule(pax === null ? null : formulePourPax(pax)); }, [pax, formulePourPax]);
 
   /* Les formules qui logent VRAIMENT ce monde-là. À vingt, la demi-villa
      n'est pas un choix moins cher : elle ne rentre pas. */
@@ -208,7 +235,7 @@ export default function VillaClient({ langue }: { langue: LangueVilla }) {
       d.setUTCDate(d.getUTCDate() + NUITS_MIN);
       setDepart(d.toISOString().slice(0, 10));
     }
-  }, [arrivee, depart]);
+  }, [arrivee, depart, NUITS_MIN]);
 
   /* Feuilleter, dans les deux sens, en boucle.
      La boucle est volontaire : arrivé à la dernière photo, le geste suivant
@@ -216,7 +243,7 @@ export default function VillaClient({ langue }: { langue: LangueVilla }) {
      balayage sans effet se lit comme un écran figé. */
   const feuilleter = useCallback((pas: number) => {
     setZoom((z) => (z === null ? z : (z + pas + CONTENU.galerie.length) % CONTENU.galerie.length));
-  }, []);
+  }, [CONTENU.galerie.length]);
 
   useEffect(() => {
     if (zoom === null) return;

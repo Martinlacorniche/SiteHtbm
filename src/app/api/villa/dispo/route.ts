@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chambresLibres } from '@/lib/mewsBooking';
-import {
-  CAPACITE, NUITS_MIN, devis, nuitsEntre, type Verdict,
-} from '@/lib/villa';
+import { nuitsEntre, type Verdict } from '@/lib/villa';
+import { chargerTarifsVilla } from '@/lib/villaDb';
 
 /* Le verdict de disponibilité de la privatisation.
  *
@@ -29,9 +28,9 @@ const estDate = (s: string | null): s is string =>
 // bail, ça ne se traite pas depuis une page web.
 const NUITS_MAX = 60;
 
-function ferme(motif: Verdict['motif'], nuits = 0): NextResponse {
+function ferme(motif: Verdict['motif'], nuits: number, capacite: number): NextResponse {
   return NextResponse.json({
-    libre: false, libres: 0, capacite: CAPACITE, nuits, motif, devis: null,
+    libre: false, libres: 0, capacite, nuits, motif, devis: null,
   } satisfies Verdict);
 }
 
@@ -39,13 +38,18 @@ export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
   const arrivee = p.get('arrivee'), depart = p.get('depart');
 
-  if (!estDate(arrivee) || !estDate(depart) || depart <= arrivee) return ferme('dates-invalides');
+  // Les tarifs et la capacité viennent du back-office : une capacité codée en
+  // dur ici rendrait le verdict faux le jour où l'hôtel perd une chambre.
+  const tarifs = await chargerTarifsVilla();
+  const capacite = tarifs.formules.complete.chambres;
+
+  if (!estDate(arrivee) || !estDate(depart) || depart <= arrivee) return ferme('dates-invalides', 0, capacite);
   const nuits = nuitsEntre(arrivee, depart);
-  if (nuits < 1 || nuits > NUITS_MAX) return ferme('dates-invalides', nuits);
+  if (nuits < 1 || nuits > NUITS_MAX) return ferme('dates-invalides', nuits, capacite);
   // Deux nuits minimum : une seule ne paie ni la mise en place ni le ménage de
   // fin de séjour. On le dit à part de « c'est pris » — le client n'a qu'une
   // nuit à ajouter, pas une semaine à décaler.
-  if (nuits < NUITS_MIN) return ferme('trop-court', nuits);
+  if (nuits < tarifs.nuitsMin) return ferme('trop-court', nuits, capacite);
 
   /* ⚠️ PLUS DE FILTRE DE SAISON ICI (Martin, 28/08/2026). Cette route refusait
      tout l'été. Puisque la disponibilité est lue dans Mews, un été plein se
@@ -57,14 +61,21 @@ export async function GET(req: NextRequest) {
     /* ⚠️ LE SEUIL EST LE MÊME POUR LES DEUX FORMULES. Privatiser, c'est être
        seul dans les murs : que le groupe ouvre huit chambres ou seize, on ne
        vend rien à côté de lui. Une seule chambre prise ferme la date. */
-    const libre = libres >= CAPACITE;
+    const libre = libres >= capacite;
 
     return NextResponse.json({
-      libre, libres, capacite: CAPACITE, nuits,
+      libre, libres, capacite, nuits,
       motif: libre ? 'libre' : 'chambres-prises',
       // Le devis part sur la villa entière ; l'écran laisse basculer sur la
       // demi, qui est un choix de prix et non de disponibilité.
-      devis: libre ? devis('complete', nuits) : null,
+      devis: libre
+        ? {
+            formule: 'complete' as const, nuits,
+            parNuit: tarifs.formules.complete.parNuit,
+            parPersonne: Math.round(tarifs.formules.complete.parNuit / tarifs.formules.complete.personnes),
+            total: tarifs.formules.complete.parNuit * nuits,
+          }
+        : null,
     } satisfies Verdict);
   } catch {
     /* Mews injoignable. On ne dit surtout pas « c'est libre » : une

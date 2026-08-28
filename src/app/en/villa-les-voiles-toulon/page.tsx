@@ -3,6 +3,7 @@ import { alternatesFor, SITE_URL } from "@/lib/site";
 import SiteBrand from "@/components/SiteBrand";
 import PiedDePage from "@/components/PiedDePage";
 import VillaClient from "../../villa-les-voiles-toulon/VillaClient";
+import { chargerContenuVilla, chargerTarifsVilla } from "@/lib/villaDb";
 
 // La version anglaise partage l'ÉCRAN, pas une copie : `VillaClient` porte ses
 // deux dictionnaires. Deux pages jumelles divergent toujours — celle qu'on
@@ -22,11 +23,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Page() {
+// Même raison qu'en français : le contenu vient de la base, la page ne peut
+// plus être figée à la construction.
+export const dynamic = "force-dynamic";
+
+export default async function Page() {
+  const [contenu, tarifs] = await Promise.all([chargerContenuVilla(), chargerTarifsVilla()]);
+
   return (
     <>
       <SiteBrand />
-      <main><VillaClient langue="en" /></main>
+      <main><VillaClient langue="en" contenu={contenu} tarifs={tarifs} /></main>
       <PiedDePage />
     </>
   );
