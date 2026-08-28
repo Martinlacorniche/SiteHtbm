@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { chambresLibres } from '@/lib/mewsBooking';
+import { chambresLibres } from '@/lib/mewsConnector';
 import { nuitsEntre, type Verdict } from '@/lib/villa';
 import { chargerTarifsVilla } from '@/lib/villaDb';
 

@@ -207,38 +207,13 @@ export async function chercherDisponibilite(
   return { tarifs: j.Rates ?? [], groupes: j.RateGroups ?? [], offres };
 }
 
-/** Combien de chambres sont libres sur TOUTE la période, toutes catégories
- *  confondues. Sert à la privatisation, qui les veut toutes.
- *
- *  ⚠️ POURQUOI PAS `chercherDisponibilite` : celle-ci jette les catégories sans
- *  prix (`if (!prix.length) continue`) — parfaitement légitime pour un tunnel
- *  qui vend des chambres, faux ici. Une catégorie sans tarif publié reste une
- *  catégorie occupable : l'ignorer ferait dire « les seize sont libres » alors
- *  qu'il y a du monde dedans.
- *
- *  ⚠️ MEWS NE REND QUE CE QUI RESTE. Une catégorie tombée à zéro DISPARAÎT de
- *  la réponse au lieu d'y figurer à 0 — d'où la capacité totale en constante
- *  (`CAPACITE`, dans `villa.ts`) et non déduite d'ici.
- *
- *  Les réservations optionnelles sont déjà décomptées par Mews : une chambre
- *  simplement tenue en option ferme la privatisation, sans rien à ajouter. */
-export async function chambresLibres(
-  { arrivee, depart }: { arrivee: string; depart: string },
-): Promise<number> {
-  const j = await appel<ReponseDisponibilite>('hotels/getAvailability', {
-    HotelId: HOTEL_ID,
-    ConfigurationId: CONFIGURATION_ID,
-    StartUtc: `${arrivee}T00:00:00Z`,
-    EndUtc: `${depart}T00:00:00Z`,
-    // Une privatisation se demande pour la maison, pas pour un couple. On
-    // interroge à une personne : c'est l'occupation la plus permissive, donc
-    // celle qui ne masque aucune chambre.
-    AdultCount: 1,
-  }, 'fr');
-
-  return (j.RoomCategoryAvailabilities ?? [])
-    .reduce((n, cat) => n + (cat.AvailableRoomCount ?? 0), 0);
-}
+/* ⚠️ `chambresLibres` A DÉMÉNAGÉ DANS `mewsConnector.ts` LE 28/08/2026.
+ * Elle vivait ici et interrogeait `hotels/getAvailability`, qui OBÉIT AUX
+ * RESTRICTIONS : une fermeture de saison posée dans Mews aurait fait
+ * disparaître la villa de notre propre site pendant les cinq mois d'hiver où
+ * elle est le seul produit. Le connecteur, lui, dit ce qui est physiquement
+ * libre. Ne pas la recréer ici.
+ */
 
 /* ------------------------------------------------------------- configuration */
 

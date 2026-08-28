@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { supabaseServer } from '@/lib/supabase-server';
 import { ALERTES } from '@/lib/villaContenu';
-import { chambresLibres } from '@/lib/mewsBooking';
+import { chambresLibres } from '@/lib/mewsConnector';
 import { nuitsEntre, type Formule } from '@/lib/villa';
 import { chargerTarifsVilla } from '@/lib/villaDb';
 

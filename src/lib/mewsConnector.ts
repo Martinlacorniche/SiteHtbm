@@ -366,6 +366,41 @@ export async function libresParNuit(
   return out;
 }
 
+/**
+ * Combien de chambres sont libres sur TOUTE la période — le verdict de la
+ * privatisation. La villa veut les seize, donc c'est la nuit la plus chargée
+ * qui décide.
+ *
+ * ⚠️ CETTE FONCTION A CHANGÉ DE SOURCE LE 28/08/2026, ET C'EST LA RAISON QUI
+ * COMPTE. Elle interrogeait `hotels/getAvailability` (la Booking Engine), qui
+ * rend la même chose à un détail près : ELLE OBÉIT AUX RESTRICTIONS. Mesuré ce
+ * jour-là sur une fermeture d'essai — le moteur passe de 16 chambres à 0, le
+ * connecteur en rend toujours 16.
+ *
+ * Or Les Voiles ferme l'hôtel de novembre à mars et ne vend QUE la villa sur
+ * ces mois. Le jour où la fermeture de saison est posée dans Mews, la villa
+ * disparaîtrait de notre propre site pendant les cinq mois où elle est le seul
+ * produit — 35 000 € de budget qui tombent pile là. Le moteur répond « pas
+ * vendable » ; la question de la villa est « la maison est-elle vide », et
+ * c'est le connecteur qui y répond.
+ *
+ * Les deux sources concordent par ailleurs, options comprises (cf. le pavé
+ * ci-dessus) : la bascule ne change aucun chiffre, seulement ce à quoi ils
+ * obéissent.
+ *
+ * `arrivee` / `depart` sont des dates civiles ; les nuits vont de l'arrivée à
+ * la veille du départ.
+ */
+export async function chambresLibres(
+  { arrivee, depart }: { arrivee: string; depart: string },
+): Promise<number> {
+  const veille = new Date(Date.parse(`${depart}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  if (veille < arrivee) return 0;      // un séjour sans nuit ne libère rien
+  const parNuit = await libresParNuit(arrivee, veille);
+  if (!parNuit.size) return 0;
+  return Math.min(...parNuit.values());
+}
+
 /* Cinq minutes, contre quinze pour les prix. Une disponibilité bouge plus vite
  * qu'un tarif — une chambre se vend à toute heure — et un calendrier qui
  * annonce libre une nuit qui vient d'être prise fait promettre à un commercial
