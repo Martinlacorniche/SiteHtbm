@@ -158,29 +158,26 @@ export async function chargerContenuVilla(): Promise<ContenuVilla> {
   const l = await lire();
   const t = l?.textes ?? {};
 
-  /* Les photos. La première est le fond du grand écran, la deuxième celui du
-     téléphone, les suivantes la galerie — l'ordre du back-office fait foi.
-     ⚠️ Il en faut au moins deux pour prendre la main : avec une seule, on ne
-     saurait pas quoi mettre en fond de téléphone, et une bande panoramique
-     étirée sur un écran vertical est précisément le défaut qu'on a corrigé. */
+  /* ⚠️ LE BACK-OFFICE NE RÈGLE QUE LA GALERIE (Martin, 28/08/2026).
+     Les deux grandes images d'en-tête restent au dépôt : elles ont des
+     contraintes de forme qu'un téléversement ne dit pas — l'une doit être
+     large, l'autre verticale — et les intervertir casse l'écran d'accueil de
+     l'offre. On a déjà payé ce défaut une fois, avec une bande panoramique
+     étirée sur un écran de téléphone.
+     La galerie, elle, accepte n'importe quel cadrage : une seule photo posée
+     là-bas suffit à prendre la main sur celles du dépôt. */
   const posees = (l?.photos ?? []).filter((p) => p?.url);
-  const photos = posees.length >= 2
-    ? {
-        photo: posees[0].url,
-        photoMobile: posees[1].url,
-        galerie: posees.map((p) => ({
-          src: p.url,
-          alt: { fr: p.alt_fr || '', en: p.alt_en || p.alt_fr || '' },
-        })),
-      }
-    : {
-        photo: CONTENU.photo,
-        photoMobile: CONTENU.photoMobile,
-        galerie: CONTENU.galerie.map((g) => ({ src: g.src, alt: { fr: g.alt.fr, en: g.alt.en } })),
-      };
+  const galerie = posees.length
+    ? posees.map((p) => ({
+        src: p.url,
+        alt: { fr: p.alt_fr || '', en: p.alt_en || p.alt_fr || '' },
+      }))
+    : CONTENU.galerie.map((g) => ({ src: g.src, alt: { fr: g.alt.fr, en: g.alt.en } }));
 
   return {
-    ...photos,
+    photo: CONTENU.photo,
+    photoMobile: CONTENU.photoMobile,
+    galerie,
     fr: fusionner('fr', (t.fr ?? {}) as Record<string, unknown>),
     en: fusionner('en', (t.en ?? {}) as Record<string, unknown>),
   };
