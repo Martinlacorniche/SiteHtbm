@@ -308,3 +308,68 @@ export async function prixPublic(
   CACHE.set(cle, { a: Date.now(), v: out });
   return out;
 }
+
+/* ───────────────────── La disponibilité, JOUR PAR JOUR ─────────────────────
+ *
+ * ⚠️ C'EST L'AUTRE API, ET C'EST TOUT LE POINT.
+ * `hotels/getAvailability` (Booking Engine) ne répond que sur une période
+ * entière : il rend ce qui est réservable de bout en bout, c'est-à-dire le
+ * MINIMUM des nuits. Parfait pour un verdict, inutilisable pour peindre un
+ * calendrier — il aurait fallu un appel par jour, et sa documentation dit
+ * elle-même qu'elle est « unsuitable for continuous polling by a single
+ * server ».
+ *
+ * `services/getAvailability` (Connector) rend un TABLEAU, une case par jour,
+ * pour toute la fenêtre demandée. Un mois entier coûte UN appel. C'est ce que
+ * fait déjà le back-office pour poser ses allotements.
+ *
+ * ⚠️ LES DEUX SOURCES CONCORDENT — vérifié le 28/08/2026 sur les vraies
+ * données : 20, 21 et 22 octobre donnent 15 chambres des deux côtés, 10 et 11
+ * novembre en donnent 16. On peut donc peindre le calendrier avec l'une et
+ * rendre le verdict avec l'autre sans se contredire. (La première lecture
+ * semblait diverger : je comptais le jour du DÉPART comme une nuit.)
+ *
+ * ⚠️ Ces chiffres sont NETS : Mews y a déjà retiré les chambres vendues, celles
+ * tenues en option, et celles prises par un allotement. Une chambre en option
+ * ferme donc la privatisation sans qu'on ait rien à coder — c'est la règle
+ * voulue par Martin le 28/08/2026.
+ */
+
+/** Les chambres libres pour chaque nuit de la fenêtre, dans l'ordre.
+ *  Clé = date de la nuit (`AAAA-MM-JJ`), valeur = chambres libres cette nuit-là. */
+export async function libresParNuit(
+  premiere: string, derniere: string,
+): Promise<Map<string, number>> {
+  const cle = `${premiere}|${derniere}`;
+  const garde = CACHE_JOURS.get(cle);
+  if (garde && Date.now() - garde.a < TTL_JOURS) return garde.v;
+
+  const av = await callMews<{ CategoryAvailabilities?: { Availabilities?: number[] }[] }>(
+    'services/getAvailability',
+    {
+      ServiceId: SERVICE_HEBERGEMENT,
+      FirstTimeUnitStartUtc: minuitLocalUtc(premiere),
+      LastTimeUnitStartUtc: minuitLocalUtc(derniere),
+    },
+  );
+
+  const cats = av.CategoryAvailabilities ?? [];
+  const nbJours = cats[0]?.Availabilities?.length ?? 0;
+  const out = new Map<string, number>();
+  const depart = Date.parse(`${premiere}T12:00:00Z`);
+  for (let i = 0; i < nbJours; i++) {
+    const jour = new Date(depart + i * 86_400_000).toISOString().slice(0, 10);
+    out.set(jour, cats.reduce((s, c) => s + (c.Availabilities?.[i] ?? 0), 0));
+  }
+
+  CACHE_JOURS.set(cle, { a: Date.now(), v: out });
+  return out;
+}
+
+/* Cinq minutes, contre quinze pour les prix. Une disponibilité bouge plus vite
+ * qu'un tarif — une chambre se vend à toute heure — et un calendrier qui
+ * annonce libre une nuit qui vient d'être prise fait promettre à un commercial
+ * ce qu'il ne pourra pas tenir. En mémoire du processus : rien à purger, et un
+ * redémarrage repart propre. */
+const CACHE_JOURS = new Map<string, { a: number; v: Map<string, number> }>();
+const TTL_JOURS = 5 * 60 * 1000;

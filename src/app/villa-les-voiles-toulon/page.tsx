@@ -1,87 +1,70 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { alternatesFor } from "@/lib/site";
+import Script from "next/script";
+import { alternatesFor, SITE_URL } from "@/lib/site";
 import SiteBrand from "@/components/SiteBrand";
 import PiedDePage from "@/components/PiedDePage";
+import VillaClient from "./VillaClient";
+import { FORMULES } from "@/lib/villa";
+
+/* La page de la privatisation.
+ *
+ * ⚠️ ELLE A REMPLACÉ UNE PAGE QUI ENVOYAIT AILLEURS. Jusqu'au 28/08/2026, elle
+ * décrivait « une villa avec une cuisine entièrement équipée » — ce n'est pas
+ * le produit, c'est un hôtel — et son seul bouton menait sur Airbnb, pendant
+ * que la carte de l'accueil menait sur leboncoin. Deux places de marché
+ * différentes pour le même bien, et pas une réservation en direct.
+ *
+ * On garde SON URL : elle est indexée, dans le sitemap, et son hreflang la lie
+ * à `/en/villa-les-voiles-toulon`. En ouvrir une nouvelle aurait jeté ce
+ * capital et créé un doublon à départager pour Google.
+ */
 
 export const metadata: Metadata = {
   alternates: alternatesFor("/villa-les-voiles-toulon"),
-  title: "Villa Les Voiles à Toulon – Location privatisable",
+  title: "Privatiser un hôtel entier à Toulon — Villa Les Voiles, Mourillon",
   description:
-    "Villa privatisable à Toulon, idéal pour familles, groupes et séjours longue durée, à proximité des plages du Mourillon.",
+    "Louez un boutique-hôtel 3★ en entier au Mourillon : 16 chambres, rooftop vue mer, à 300 m des plages. À partir de 40 € par personne et par nuit. Calendrier des disponibilités en direct.",
+  openGraph: {
+    title: "Privatiser un hôtel entier à Toulon — Villa Les Voiles",
+    description:
+      "Seize chambres, un rooftop vue mer, un patio — et personne d'autre dans les murs. Vérifiez vos dates en direct.",
+    url: `${SITE_URL}/villa-les-voiles-toulon`,
+    images: [{ url: "/images/villa.jpg", width: 1200, height: 630, alt: "Villa Les Voiles, Toulon Mourillon" }],
+  },
 };
 
 export default function Page() {
+  /* Le JSON-LD rattache la page à l'hôtel déjà déclaré en accueil (`#voiles`)
+     au lieu d'inventer un second établissement au même endroit : c'est le même
+     bâtiment, vendu autrement. `offers` porte le prix par personne — celui que
+     le visiteur lit en premier, et le seul qui ait un sens pour un moteur. */
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: "Villa Les Voiles — privatisation de l'Hôtel-Rooftop Les Voiles",
+    description:
+      "Location exclusive d'un boutique-hôtel 3 étoiles au Mourillon (Toulon) : 16 chambres, rooftop vue mer, patio et salon communs, accès autonome.",
+    image: `${SITE_URL}/images/villa.jpg`,
+    url: `${SITE_URL}/villa-les-voiles-toulon`,
+    brand: { "@type": "Hotel", "@id": `${SITE_URL}/#voiles` },
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: "EUR",
+      lowPrice: FORMULES.complete.parPersonne,
+      highPrice: FORMULES.complete.parNuit,
+      // Pas d'`availabilityStarts/Ends` : la privatisation n'a plus de saison,
+      // c'est la disponibilité réelle qui tranche.
+      offerCount: 2,
+    },
+  };
+
   return (
     <>
-    <main className="mx-auto max-w-4xl px-4 py-12 text-slate-800">
+      <Script id="villa-schema" type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <SiteBrand />
-      <article className="space-y-8">
-        <header className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-            Toulon • Mourillon • Villa privatisable
-          </p>
-          <h1 className="font-serif text-3xl md:text-4xl text-slate-900">
-            Villa Les Voiles à Toulon – Location privatisable
-          </h1>
-        </header>
-
-        <p>
-          La Villa Les Voiles est une villa privatisable située à Toulon, dans
-          le quartier du Mourillon. Elle est idéale pour les familles, les
-          groupes d’amis ou les séjours longue durée à proximité des plages.
-        </p>
-
-        <p>
-          La villa comprend plusieurs chambres, une cuisine entièrement équipée
-          et de grands espaces de vie pour se retrouver. Sa localisation permet
-          de rejoindre facilement les plages du Mourillon, le bord de mer et le
-          centre-ville de Toulon.
-        </p>
-
-        <section className="space-y-3">
-          <h2 className="font-serif text-2xl text-slate-900">
-            Pour quel type de séjour ?
-          </h2>
-          <ul className="list-disc list-inside space-y-1">
-            <li>Réunions de famille ou retrouvailles entre amis</li>
-            <li>Séjours longue durée avec confort d’une maison</li>
-            <li>Base pour découvrir la rade de Toulon et la Côte d’Azur</li>
-          </ul>
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="font-serif text-2xl text-slate-900">
-            Réservation de la Villa Les Voiles
-          </h2>
-          <p>
-            La Villa Les Voiles est proposée en location via Airbnb, avec
-            calendrier et tarifs mis à jour :
-          </p>
-          <p>
-            <a
-              href="https://www.airbnb.com/l/hjiNz0ra"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-700 underline underline-offset-2"
-            >
-              Voir la Villa Les Voiles sur Airbnb
-            </a>
-          </p>
-          <p>
-  Pour découvrir nos autres établissements (hôtels bord de mer et
-  Hôtel-Rooftop Les Voiles) :
-  <span> </span>
-  <Link href="/" className="text-sky-700 underline underline-offset-2">
-    Hôtels Toulon Bord de Mer
-  </Link>
-  .
-</p>
-
-        </section>
-      </article>
-    </main>
-    <PiedDePage />
+      <main><VillaClient langue="fr" /></main>
+      <PiedDePage />
     </>
   );
 }
