@@ -6,6 +6,7 @@ import CalendrierSejour from "./CalendrierSejour";
 import Image from "next/image";
 import Paiement, { type SejourAPayer } from "./Paiement";
 import { reprendreVente } from "@/lib/reprise3ds";
+import { lireRecherche } from "@/lib/lienReserver";
 import {
   PanneauRooftop, TableConfirmee, useSoirsRooftop, prendreTable, heureLisible,
   type TablePrise, type ChoixTable,
@@ -1325,14 +1326,21 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       }
     }
 
-    const a = p.get("arrivee"), d = p.get("depart"), v = p.get("voyage") as Voyage | null;
-    const datesValides =
-      /^\d{4}-\d{2}-\d{2}$/.test(a ?? "") && /^\d{4}-\d{2}-\d{2}$/.test(d ?? "");
-    const voyageValide = v === "seul" || v === "deux";
-
-    if (datesValides && voyageValide) {
-      setArrivee(a!); setDepart(d!); setVoyage(v);
-      void lancer({ arrivee: a!, depart: d!, adultes: v === "seul" ? 1 : 2 });
+    /* ⚠️ ON NE LIT PLUS L'URL A LA MAIN ICI.
+       Ce bloc n'acceptait qu'une seule forme — la notre, et seulement complete
+       (les deux dates ET le voyage). Un lien de reservation gratuit de Google
+       Hotels n'a aucune de ces trois choses : Google envoie l'arrivee en trois
+       morceaux et la duree en nombre de nuits. Il tombait donc dans le cas
+       « rien dans l'URL », et le client qui venait de cliquer un prix et des
+       dates dans Google atterrissait sur la nuit du jour — un autre prix que
+       celui qu'on lui avait promis, ce qui suffit a faire suspendre la fiche.
+       `lireRecherche` connait les deux formes et garde la notre prioritaire. */
+    const demande = lireRecherche(p, dansNJours(0));
+    if (demande) {
+      setArrivee(demande.arrivee); setDepart(demande.depart); setVoyage(demande.voyage);
+      void lancer({
+        arrivee: demande.arrivee, depart: demande.depart, adultes: demande.adultes,
+      });
       return;
     }
 

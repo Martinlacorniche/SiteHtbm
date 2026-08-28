@@ -13,6 +13,16 @@ const STATIC_PATHS: { path: string; priority: number; changeFreq: MetadataRoute.
   { path: "/hotel-seminaire-toulon", priority: 0.8, changeFreq: "monthly" },
   { path: "/villa-les-voiles-toulon", priority: 0.8, changeFreq: "monthly" },
   { path: "/rooftop-les-voiles", priority: 0.8, changeFreq: "monthly" },
+  /* Le tunnel des Voiles. Il etait absent, heritage du temps ou il etait en
+     `noindex` : le bouton le plus clique du site menait a une page que Google
+     ne savait pas exister. C'est desormais LA page de vente de l'hotel — celle
+     que doivent trouver « reserver hotel Mourillon » et le lien de
+     reservation de la fiche Google Business Profile. Priorite 0.9 : juste
+     derriere l'accueil.
+     ⚠️ `/en/book` n'est pas `/en/reserver` — il n'y a pas de traduction
+     mecanique du chemin, et `hreflangFor` le sait. */
+  { path: "/reserver", priority: 0.9, changeFreq: "daily" },
+  { path: "/en/book", priority: 0.8, changeFreq: "daily" },
   { path: "/group-packages", priority: 0.6, changeFreq: "monthly" },
   { path: "/journal", priority: 0.6, changeFreq: "weekly" },
   // Versions multilingues
