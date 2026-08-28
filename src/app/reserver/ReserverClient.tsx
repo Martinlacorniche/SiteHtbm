@@ -60,12 +60,22 @@ const TEXTES = {
     nuits: (n: number) => `${n} nuit${n > 1 ? "s" : ""}`,
     pour1: "Pour une personne",
     aucune: "Aucune chambre disponible sur ces dates.",
-    aucuneAide: "Essayez des dates voisines, ou appelez-nous au 04 94 41 36 23 — il reste parfois de la place.",
+    /* ⚠️ UN SÉJOUR REFUSÉ POUR SA LONGUEUR N'EST PAS UNE MAISON PLEINE.
+       Depuis qu'un séjour maximum est posé dans Mews (9 nuits), une recherche
+       plus longue ne rend rien — et l'écran répondait « aucune chambre
+       disponible sur ces dates, essayez des dates voisines ». C'est faux deux
+       fois : il reste des chambres, et les dates voisines échoueront
+       exactement pareil. On envoyait le client faire le tour du calendrier
+       pour rien. */
+    tropLong: "Séjour trop long pour une réservation en ligne.",
+    tropLongAide: (n: number) =>
+      `Il reste de la place sur ces dates, mais pas pour ${n} nuits d'affilée. Raccourcissez le séjour, ou appelez-nous au 04 94 41 36 23 : au-delà, on s'en occupe à la main.`,
+    aucuneAide: "Essayez des dates voisines, ou appelez-nous au 04 94 41 36 23 — il reste parfois de la place.",
     parNuit: "la nuit",
     seulAussi: "Vous voyagez seul ?",
     seulAussiAction: "Voir le prix pour une personne",
     erreur: "La recherche n'a pas abouti.",
-    erreurAide: "Réessayez dans un instant, ou appelez-nous au 04 94 41 36 23.",
+    erreurAide: "Réessayez dans un instant, ou appelez-nous au 04 94 41 36 23.",
     checkin: "Arrivée autonome à partir de 15 h · départ jusqu'à 12 h en direct",
     colDates: "Vos dates", colOffres: "Nos chambres", colRecap: "Votre séjour",
     attenteOffres: "Choisissez vos dates et dites-nous qui voyage : les chambres disponibles s'afficheront ici.",
@@ -167,12 +177,15 @@ const TEXTES = {
     nuits: (n: number) => `${n} night${n > 1 ? "s" : ""}`,
     pour1: "For one person",
     aucune: "No rooms available on these dates.",
-    aucuneAide: "Try nearby dates, or call us on +33 4 94 41 36 23 — we sometimes have space left.",
+    tropLong: "Stay too long to book online.",
+    tropLongAide: (n: number) =>
+      `We still have rooms on those dates, but not for ${n} nights in a row. Shorten your stay, or call us on +33 4 94 41 36 23 — we handle longer stays by hand.`,
+    aucuneAide: "Try nearby dates, or call us on +33 4 94 41 36 23 — we sometimes have space left.",
     parNuit: "per night",
     seulAussi: "Travelling alone?",
     seulAussiAction: "See the price for one person",
     erreur: "The search did not go through.",
-    erreurAide: "Try again in a moment, or call us on +33 4 94 41 36 23.",
+    erreurAide: "Try again in a moment, or call us on +33 4 94 41 36 23.",
     checkin: "Self check-in from 3 pm · check-out until noon when booking direct",
     colDates: "Your dates", colOffres: "Our rooms", colRecap: "Your stay",
     attenteOffres: "Choose your dates and tell us who is travelling: available rooms will appear here.",
@@ -411,6 +424,11 @@ const joli = (iso: string, langue: Langue) => {
  * memorisait ce NaN, donc le total restait mort meme une fois les dates
  * redevenues bonnes.
  * Un sejour incomplet, c'est zero nuit. Pas « pas un nombre ». */
+/** Une date civile décalée de N jours. Passe par midi UTC pour n'être jamais
+ *  mordu par un changement d'heure. */
+const ajouterJours = (d: string, n: number) =>
+  new Date(Date.parse(`${d}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
 const nuitsEntre = (a: string, b: string) => {
   const jours = (Date.parse(b) - Date.parse(a)) / 86_400_000;
   return Number.isFinite(jours) ? Math.max(0, Math.round(jours)) : 0;
@@ -1135,6 +1153,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   const [categories, setCategories] = useState<Map<string, CategorieChambre>>(new Map());
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState(false);
+  /** `true` quand le vide vient de la LONGUEUR du séjour, pas des dates. */
+  const [tropLong, setTropLong] = useState(false);
   // La chambre retenue, qui alimente la colonne de droite.
   /* ⚠️ PLUSIEURS CHAMBRES, MAIS UN SEUL GROUPE TARIFAIRE.
    *
@@ -1227,6 +1247,24 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       ]);
       setDispo(dispos);
       setCategories(cats);
+      /* ⚠️ POURQUOI IL N'Y A RIEN : la maison est pleine, ou le séjour est trop
+         long ? La Booking Engine ne le dit pas — elle rend une liste vide dans
+         les deux cas. On le DÉDUIT d'un second appel : les mêmes dates, deux
+         nuits seulement. S'il rend des chambres, ce ne sont pas les dates qui
+         coincent, c'est la longueur. Une requête de plus, et seulement quand il
+         n'y a rien à montrer.
+         ⚠️ ON NE RECOPIE PAS « 9 » ICI : la borne vit dans Mews et peut bouger
+         demain. Une constante en dur ferait mentir la page ce jour-là. */
+      let trop = false;
+      if (!dispos.offres.length && nuitsEntre(a, d) > 2) {
+        try {
+          const court = await chercherDisponibilite({
+            arrivee: a, depart: ajouterJours(a, 2), adultes: pax, langue,
+          });
+          trop = court.offres.length > 0;
+        } catch { /* on ne conclut rien d'un appel raté */ }
+      }
+      setTropLong(trop);
       setChambres([]); // les prix changent avec les dates : on ne garde pas l'ancien choix
       setCherche({ a, d, pax });
       setTour((t) => t + 1);
@@ -1238,6 +1276,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     } catch {
       setErreur(true);
       setDispo(null);
+      setTropLong(false);
     } finally {
       setChargement(false);
     }
@@ -1890,8 +1929,10 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
             {dispo && !erreur && !chargement && aJour && offresAffichees.length === 0 && (
               <div>
-                <p className="font-serif text-2xl text-navy">{T.aucune}</p>
-                <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[#6b7a82]">{T.aucuneAide}</p>
+                <p className="font-serif text-2xl text-navy">{tropLong ? T.tropLong : T.aucune}</p>
+                <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[#6b7a82]">
+                  {tropLong ? T.tropLongAide(nuits) : T.aucuneAide}
+                </p>
               </div>
             )}
 
