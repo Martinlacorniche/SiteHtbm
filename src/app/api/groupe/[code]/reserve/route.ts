@@ -256,7 +256,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   // (repli ALERT_EMAIL) : un booking bi-hôtel prévient chaque équipe concernée,
   // avec uniquement ses chambres.
   try {
-    if (process.env.RESEND_API_KEY) {
+    // ⚠️ Mode 'plan' : PAS de mail par réservation. L'organisatrice remplit ses seize
+    // chambres d'affilée — l'équipe recevrait seize notifications en dix minutes, qui
+    // noieraient les vrais mails clients de la boîte (Martin, 31/08). Elle n'a de
+    // toute façon rien à saisir : le balayage pousse chaque chambre dans le PMS tout
+    // seul, et le back-office montre l'avancement du bloc en un écran.
+    // Le client, lui, n'a jamais de mail ici : il n'a pas donné d'adresse.
+    if (process.env.RESEND_API_KEY && g.mode_vue !== "plan") {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const roomRowsOf = (rs: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number }[]) =>
         rs.map((r) => {
