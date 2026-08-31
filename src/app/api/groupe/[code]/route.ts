@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
 
   const { data: rooms } = await supabaseServer
     .from("groupe_chambres")
-    .select("id, tarif_nuit, hotel_id, nuits_exclues, room_units(numero, pax_max, twinable, room_types(nom, nom_en, nom_es)), hotels:hotel_id(nom)")
+    .select("id, tarif_nuit, hotel_id, nuits_exclues, room_units(numero, pax_max, twinable, etage, etage_ordre, room_types(nom, nom_en, nom_es)), hotels:hotel_id(nom)")
     .eq("groupe_id", g.id);
 
   // Les DATES de chaque résa sont nécessaires au mode 'pro' (calendrier) : une chambre
@@ -72,6 +72,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
       type_es: rt?.nom_es ?? null,
       pax_max: ru?.pax_max ?? 2,
       twinable: !!ru?.twinable,
+      // Palier de la chambre (migration 133). Les Voiles est un bâtiment en escalier :
+      // 11 et 12 sont au 1er INTER, pas au 1er étage avec 14/15/16 — le numéro ne
+      // suffit donc pas à situer une chambre. `null` = non renseigné (La Corniche) :
+      // la page retombe sur son regroupement par catégorie.
+      etage: ru?.etage ?? null,
+      etageOrdre: ru?.etage_ordre ?? null,
       tarif: Number(rc.tarif_nuit),
       hotel: hotel?.nom ?? null,
       hotel_id: rc.hotel_id,
@@ -112,9 +118,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
       date_limite: g.date_limite,
       conditions_annulation: g.conditions_annulation,
       plan_visible: g.plan_visible,
-      // 'simple' (cartes, dates du groupe) | 'pro' (calendrier, dates par invité).
-      // Repli sur 'simple' tant que la migration 82 n'est pas passée.
-      mode_vue: g.mode_vue === "pro" ? "pro" : "simple",
+      // 'simple' (cartes, dates du groupe) | 'pro' (calendrier, dates par invité)
+      // | 'plan' (coupe de l'hôtel palier par palier, l'organisatrice remplit tout).
+      // Repli sur 'simple' pour toute valeur inconnue (migration 82, puis 134).
+      mode_vue: ["pro", "plan"].includes(g.mode_vue) ? g.mode_vue : "simple",
       // Pilote deux choses côté page : l'email redevient obligatoire si un règlement en ligne
       // est attendu (Stripe l'envoie au client), et 'aucun' masque les tarifs.
       mode_paiement: g.mode_paiement || (g.paiement_obligatoire ? "immediat" : "aucun"),

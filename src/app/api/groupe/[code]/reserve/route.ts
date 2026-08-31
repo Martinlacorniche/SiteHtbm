@@ -24,21 +24,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
 
   if (!Array.isArray(rooms) || rooms.length === 0) return NextResponse.json({ ok: false, error: "Sélectionnez au moins une chambre." }, { status: 400 });
   if (!nom) return NextResponse.json({ ok: false, error: "Le nom est requis." }, { status: 400 });
-  if (!cgv) return NextResponse.json({ ok: false, error: "Vous devez accepter les conditions." }, { status: 400 });
 
   const { data: g } = await supabaseServer.from("groupes").select("*").eq("code_acces", code).maybeSingle();
   if (!g) return NextResponse.json({ ok: false, error: "Groupe introuvable" }, { status: 404 });
+  // Les conditions sont acceptées par l'invité qui réserve pour lui-même. En mode
+  // 'plan', l'organisatrice a déjà signé le contrat de privatisation : les lui faire
+  // recocher seize fois n'ajoute rien.
+  if (!cgv && g.mode_vue !== "plan") return NextResponse.json({ ok: false, error: "Vous devez accepter les conditions." }, { status: 400 });
 
   // Mode 'pro' (tournage, séminaire…) : le nom SUFFIT. Email, téléphone et code PIN deviennent
   // facultatifs — on ne fait pas remplir un formulaire de client individuel à 18 comédiens dont
   // la production gère déjà tout (Martin 2026-07-16).
   // ⚠️ Conséquence assumée : sans email ET sans PIN, l'invité n'a aucun moyen de revenir sur sa
   // résa (ni lien magique, ni code) → c'est la réception/production qui la gère.
+  // Mode 'plan' (privatisation) : c'est l'ORGANISATRICE qui remplit les chambres une
+  // à une depuis la coupe de l'hôtel. Elle n'a ni 16 adresses mail ni 16 codes à
+  // inventer — mêmes règles allégées que 'pro'. Le contrat, lui, est déjà signé
+  // avec elle : les conditions ne sont pas redemandées à chaque chambre.
   const isPro = g.mode_vue === "pro";
-  if (!isPro && !email) return NextResponse.json({ ok: false, error: "Nom et email sont requis." }, { status: 400 });
+  const isPlan = g.mode_vue === "plan";
+  const libre = isPro || isPlan;   // formulaire allégé : email et code facultatifs
+  if (!libre && !email) return NextResponse.json({ ok: false, error: "Nom et email sont requis." }, { status: 400 });
   const pinStr = String(pin || "");
   if (pinStr && !/^\d{4}$/.test(pinStr)) return NextResponse.json({ ok: false, error: "Le code doit faire 4 chiffres." }, { status: 400 });
-  if (!isPro && !pinStr) return NextResponse.json({ ok: false, error: "Choisissez un code à 4 chiffres." }, { status: 400 });
+  if (!libre && !pinStr) return NextResponse.json({ ok: false, error: "Choisissez un code à 4 chiffres." }, { status: 400 });
   // Le paiement en ligne exige un email (Stripe l'envoie au client) → on l'impose là seulement.
   const modeP: string = g.mode_paiement || (g.paiement_obligatoire ? "immediat" : "aucun");
   if ((modeP === "immediat" || modeP === "differe") && !email)

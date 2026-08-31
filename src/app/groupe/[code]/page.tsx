@@ -44,6 +44,11 @@ interface Room {
   taxeMontant?: number | null;
   // La résa de cette chambre exige-t-elle un code ? (facultatif en mode 'pro')
   claimNeedsPin?: boolean;
+  // Palier de la chambre (migration 133) : « 1er inter », « 2e étage »… Les Voiles est
+  // un bâtiment en escalier, le numéro NE DIT PAS le niveau (11 et 12 sont au 1er
+  // inter, pas au 1er étage avec 14/15/16). null → mode 'plan' indisponible.
+  etage?: string | null;
+  etageOrdre?: number | null;
 }
 interface GroupeMeta {
   nom: string; date_arrivee: string; date_depart: string; date_limite: string;
@@ -57,7 +62,7 @@ interface GroupeMeta {
   // 'simple' : cartes de chambres sur les dates du groupe (mariages — la page reste
   // telle quelle). 'pro' : calendrier chambres × nuits, chaque invité pose ses dates
   // (tournages, séminaires, groupes longs). Choisi par groupe au back-office.
-  mode_vue?: "simple" | "pro";
+  mode_vue?: "simple" | "pro" | "plan";
 }
 type Filter = "all" | "free" | "taken";
 
@@ -276,10 +281,16 @@ function BookingView({ code }: { code: string }) {
   // plage (une chambre peut être libre la 1re semaine et prise la 2e). En mode 'simple'
   // tout le monde réserve la plage du groupe → `taken` suffit, rien ne change.
   const isPro = groupe?.mode_vue === "pro";
+  // Mode 'plan' : l'hôtel vu en coupe, un clic par chambre. Pensé pour l'organisatrice
+  // d'une privatisation qui place ses invités elle-même.
+  const isPlan = groupe?.mode_vue === "plan";
   const voitPrixPage = (groupe?.affichage_tarifs || "complet") === "complet";
   useEffect(() => {
     if (groupe && !range) setRange({ from: groupe.date_arrivee, to: groupe.date_depart });
   }, [groupe, range]);
+
+  // Mode 'plan' : la chambre dont on est en train de renseigner l'occupant.
+  const [planRoom, setPlanRoom] = useState<Room | null>(null);
 
   const isFree = useCallback(
     (r: Room) => {
@@ -324,6 +335,21 @@ function BookingView({ code }: { code: string }) {
     }
     return out;
   }, [rooms, filter, isFree, lang]);
+
+  // La coupe du bâtiment : les paliers empilés, LE PLUS HAUT EN PREMIER — on lit un
+  // plan comme on regarde une façade. Null si une seule chambre n'a pas son palier :
+  // mieux vaut retomber sur la liste par catégorie qu'afficher un plan troué.
+  const paliers = useMemo(() => {
+    if (!rooms.length || rooms.some(r => r.etageOrdre == null)) return null;
+    const par = new Map<number, { nom: string; ordre: number; rooms: Room[] }>();
+    for (const r of rooms) {
+      const o = r.etageOrdre as number;
+      if (!par.has(o)) par.set(o, { nom: r.etage || "", ordre: o, rooms: [] });
+      par.get(o)!.rooms.push(r);
+    }
+    for (const p of par.values()) p.rooms.sort((a, b) => a.numero.localeCompare(b.numero, "fr", { numeric: true }));
+    return [...par.values()].sort((a, b) => b.ordre - a.ordre);
+  }, [rooms]);
 
   if (loading) return <FullLoader />;
   if (error || !groupe) return <Centered title="Oups" text={error || t.noGroup} />;
@@ -387,10 +413,17 @@ function BookingView({ code }: { code: string }) {
           />
         )}
 
+        {/* Mode 'plan' : l'hôtel en coupe. Un clic sur une chambre libre demande QUI y
+            dort — rien d'autre. C'est l'organisatrice qui remplit, pas seize invités. */}
+        {isPlan && paliers && (
+          <PlanCoupe paliers={paliers} planVisible={groupe.plan_visible} closed={groupe.closed}
+            isFree={isFree} onPick={setPlanRoom} counts={counts} />
+        )}
+
         {/* Filtre — mode 'simple' seulement : en mode 'pro' le calendrier montre déjà
             qui est libre et quand, les pastilles Toutes/Disponibles/Réservées n'ont plus
             de sens (une chambre est libre CERTAINES nuits). */}
-        {!isPro && (<>
+        {!isPro && !(isPlan && paliers) && (<>
         <div className="flex items-center justify-center gap-2 mb-5">
           <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>{t.filterAll} <b>{counts.all}</b></FilterChip>
           <FilterChip active={filter === "free"} onClick={() => setFilter("free")}>{t.filterFree} <b>{counts.free}</b></FilterChip>
@@ -423,6 +456,15 @@ function BookingView({ code }: { code: string }) {
         {sections.length === 0 && <p className="text-center text-slate-400 text-sm py-8">{t.noRoomInFilter}</p>}
         </>)}
       </div>
+
+      {/* Mode 'plan' : « qui dort ici ? » sur la chambre cliquée. */}
+      <AnimatePresence>
+        {planRoom && (
+          <PlanSheet code={code} groupe={groupe} room={planRoom}
+            onClose={() => setPlanRoom(null)}
+            onDone={() => { setPlanRoom(null); load(); }} />
+        )}
+      </AnimatePresence>
 
       {/* Barre de sélection */}
       <AnimatePresence>
@@ -859,6 +901,162 @@ function RoomBubble({ room, index, selected, planVisible, disabled, free, onClic
           : <span className="text-[11px] font-medium" style={{ color: NAVY }}>{selected ? t.selected : t.available}</span>}
       </div>
     </motion.button>
+  );
+}
+
+
+
+// La carte du mode 'plan'. Volontairement BASSE : un palier doit tenir sur une seule
+// ligne, y compris à trois chambres sur un téléphone — sinon la 25 se retrouve sous
+// la 24, loin de son libellé, et la coupe ne se lit plus. La grande carte du mode
+// 'simple' (RoomBubble) fait deux fois cette hauteur : la page entière passait à
+// 2 800 px, on ne voyait plus le bâtiment.
+function PlanRoomCard({ room, free, planVisible, disabled, onClick }: {
+  room: Room; free: boolean; planVisible: boolean; disabled: boolean; onClick: () => void;
+}) {
+  const t = useT();
+  const pris = room.taken;
+  return (
+    <button type="button" onClick={onClick} disabled={pris || !free || disabled}
+      className="text-left rounded-xl border px-2.5 py-2 transition shadow-sm disabled:cursor-default"
+      style={{
+        background: pris ? "#f1f5f9" : !free ? "#fafafa" : "#fff",
+        borderColor: pris ? "#cbd5e1" : "rgba(0,78,124,.16)",
+        opacity: !pris && !free ? 0.6 : 1,
+      }}>
+      <div className="flex items-baseline justify-between gap-1.5">
+        <span className={`font-serif font-semibold text-lg leading-none ${pris ? "text-slate-400" : "text-slate-800"}`}>{room.numero}</span>
+        <span className={`inline-flex items-center gap-0.5 text-[10px] ${pris ? "text-slate-400" : "text-slate-500"}`}>
+          <Users className="w-3 h-3" />{room.pax_max}
+        </span>
+      </div>
+      <p className="mt-1 text-[11px] font-medium truncate"
+        style={{ color: pris ? "#475569" : free ? NAVY : "#94a3b8" }}>
+        {pris ? (planVisible && room.occupant ? room.occupant : t.booked) : free ? t.available : t.notOffered}
+      </p>
+    </button>
+  );
+}
+
+// ---------- Mode 'plan' : l'hôtel en coupe ----------
+// Les paliers empilés, le plus haut en premier. Les Voiles monte en escalier — entre
+// deux étages il y a un demi-palier (« inter ») — et c'est CE relief qui permet à une
+// organisatrice de placer ses invités : les mariés et leurs témoins au même niveau,
+// les familles groupées. Une liste par catégorie ne dit rien de tout ça.
+function PlanCoupe({ paliers, planVisible, closed, isFree, onPick, counts }: {
+  paliers: { nom: string; ordre: number; rooms: Room[] }[];
+  planVisible: boolean; closed: boolean;
+  isFree: (r: Room) => boolean;
+  onPick: (r: Room) => void;
+  counts: { all: number; free: number; taken: number };
+}) {
+  const t = useT();
+  return (
+    <div className="mb-8">
+      <div className="flex items-baseline justify-center gap-4 mb-5 text-sm">
+        <span className="font-semibold" style={{ color: NAVY }}>{counts.taken} <span className="font-normal text-slate-400">{t.planFilled}</span></span>
+        <span aria-hidden className="w-px h-4 bg-slate-200" />
+        <span className="font-semibold" style={{ color: GOLD_INK }}>{counts.free} <span className="font-normal text-slate-400">{t.planToFill}</span></span>
+      </div>
+
+      <div className="relative">
+        {/* La cage d'escalier : un trait continu qui relie les paliers et donne à
+            l'empilement sa lecture d'élévation. */}
+        <span aria-hidden className="absolute left-[62px] sm:left-[86px] top-2 bottom-2 w-px bg-slate-200" />
+        <div className="space-y-2.5">
+          {paliers.map((p) => (
+            <div key={p.ordre} className="flex items-stretch gap-3 sm:gap-5">
+              <div className="w-[54px] sm:w-[78px] shrink-0 pt-2 text-right">
+                <span className="block text-[11px] sm:text-xs font-semibold leading-tight" style={{ color: NAVY }}>{p.nom}</span>
+              </div>
+              {/* La pastille sur le trait, à hauteur du libellé. */}
+              <span aria-hidden className="relative shrink-0 w-0">
+                <span className="absolute -left-[5px] top-[9px] w-2.5 h-2.5 rounded-full border-2 border-white" style={{ background: GOLD }} />
+              </span>
+              <div className="flex-1 grid grid-cols-3 gap-2">
+                {p.rooms.map((r) => (
+                  <PlanRoomCard key={r.id} room={r} free={isFree(r)} planVisible={planVisible}
+                    disabled={closed} onClick={() => onPick(r)} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// La saisie du mode 'plan' : un nom, un nombre de personnes, c'est tout. Pas d'email
+// (elle n'a pas seize adresses), pas de code à quatre chiffres (elle n'a pas seize
+// codes à retenir), pas de conditions à recocher (son contrat est déjà signé). Le
+// serveur applique les mêmes allègements — cf. reserve/route.ts.
+function PlanSheet({ code, groupe, room, onClose, onDone }: {
+  code: string; groupe: GroupeMeta; room: Room;
+  onClose: () => void; onDone: () => void;
+}) {
+  const t = useT();
+  const [prenom, setPrenom] = useState("");
+  const [nom, setNom] = useState("");
+  const [pax, setPax] = useState(Math.min(2, room.pax_max));
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    setErr(null);
+    if (!nom.trim()) return setErr(t.errName);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/groupe/${code}/reserve`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rooms: [{ groupe_chambre_id: room.id, config_lit: "double", nb_personnes: pax, pdj_nuits: [] }],
+          nom: nom.trim(), prenom: prenom.trim(), email: "", tel: "",
+          date_arrivee: groupe.date_arrivee, date_depart: groupe.date_depart,
+          pin: "", cgv: true,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) { setErr(data.error || "Erreur."); return; }
+      onDone();
+    } catch { setErr(t.errConnection); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <Sheet onClose={onClose} title={`${t.room} ${room.numero}`} subtitle={room.etage || t.planWho}>
+      <div className="px-5 py-5 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <FInput label={t.firstName} value={prenom} onChange={setPrenom} placeholder="Léa" />
+          <FInput label={t.lastName} value={nom} onChange={setNom} placeholder="Dupont" />
+        </div>
+
+        <div>
+          <Label>{t.planPeople}</Label>
+          <div className="flex gap-2">
+            {Array.from({ length: room.pax_max }, (_, i) => i + 1).map((n) => (
+              <button key={n} type="button" onClick={() => setPax(n)}
+                className="h-11 flex-1 rounded-xl border text-sm font-semibold transition"
+                style={{
+                  borderColor: pax === n ? NAVY : "rgba(0,78,124,.16)",
+                  background: pax === n ? NAVY : "#fff",
+                  color: pax === n ? "#fff" : "#334155",
+                }}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {err && <p className="text-sm text-red-600">{err}</p>}
+
+        <button type="button" onClick={submit} disabled={busy}
+          className="w-full h-12 rounded-full text-white font-semibold disabled:opacity-60"
+          style={{ background: NAVY }}>
+          {busy ? "…" : t.save}
+        </button>
+      </div>
+    </Sheet>
   );
 }
 
