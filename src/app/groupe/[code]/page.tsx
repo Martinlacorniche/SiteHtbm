@@ -28,7 +28,13 @@ const OCCUPE_INK = "#2f6b4f";
 // libellés : stable d'un affichage à l'autre, et valable pour n'importe quel hôtel
 // (aucun mot-clé « mer » ou « single » en dur, qui tomberait en anglais ou à La
 // Corniche). Quatre suffisent — au-delà, on recommence.
-const TEINTES_CATEGORIE = ["#004e7c", "#8C6F39", "#3d7f8c", "#6b5f8c"];
+//
+// ⚠️ Ces teintes doivent être distinctes AU PREMIER COUP D'ŒIL, sur un filet de
+// cinq pixels : un bleu marine et un bleu-vert, pourtant très différents en code
+// hexadécimal, se confondaient (« confort et vue mer sont trop similaires »,
+// Martin 31/08). D'où quatre familles franchement séparées — bleu, ocre, prune,
+// terre — et surtout aucun VERT : il est pris par les chambres déjà remplies.
+const TEINTES_CATEGORIE = ["#004e7c", "#8C6F39", "#7d4a78", "#b0563f"];
 const SEA_BG = "/images/pagewifi.jpg";
 
 // ---------- Types ----------
