@@ -432,7 +432,7 @@ function BookingView({ code }: { code: string }) {
             dort — rien d'autre. C'est l'organisatrice qui remplit, pas seize invités. */}
         {isPlan && paliers && (
           <PlanCoupe paliers={paliers} planVisible={groupe.plan_visible} closed={groupe.closed}
-            isFree={isFree} onPick={setPlanRoom} counts={counts} />
+            isFree={isFree} onPick={setPlanRoom} onManage={openResa} counts={counts} />
         )}
 
         {/* Filtre — mode 'simple' seulement : en mode 'pro' le calendrier montre déjà
@@ -936,7 +936,7 @@ function PlanRoomCard({ room, free, planVisible, disabled, couleur, onClick }: {
   // place pas ses témoins dans une Single par mégarde (Martin, 31/08).
   const cat = typeDe(room, lang);
   return (
-    <button type="button" onClick={onClick} disabled={pris || !free || disabled}
+    <button type="button" onClick={onClick} disabled={disabled || (!pris && !free)}
       className="relative w-full text-left rounded-xl border pl-4 pr-3 py-2.5 transition shadow-sm hover:shadow-md disabled:cursor-default disabled:hover:shadow-sm overflow-hidden"
       style={{
         // La catégorie TEINTE toute la carte, elle ne se contente pas d'un filet :
@@ -964,6 +964,11 @@ function PlanRoomCard({ room, free, planVisible, disabled, couleur, onClick }: {
         style={{ color: pris ? OCCUPE_INK : free ? "#94a3b8" : "#cbd5e1" }}>
         {pris ? (planVisible && room.occupant ? room.occupant : t.booked) : free ? t.available : t.notOffered}
       </p>
+      {/* Une chambre remplie reste cliquable : c'est par là qu'on corrige un nom,
+          change les nuits ou libère la chambre. Sans ça, une chambre saisie était
+          définitivement figée (Martin, 31/08 : « j'ai pris une chambre test, ba je
+          peux rien en faire »). */}
+      {pris && <p className="mt-0.5 text-[10px] font-medium underline decoration-dotted" style={{ color: OCCUPE_INK, opacity: .75 }}>{t.edit}</p>}
     </button>
   );
 }
@@ -973,11 +978,12 @@ function PlanRoomCard({ room, free, planVisible, disabled, couleur, onClick }: {
 // deux étages il y a un demi-palier (« inter ») — et c'est CE relief qui permet à une
 // organisatrice de placer ses invités : les mariés et leurs témoins au même niveau,
 // les familles groupées. Une liste par catégorie ne dit rien de tout ça.
-function PlanCoupe({ paliers, planVisible, closed, isFree, onPick, counts }: {
+function PlanCoupe({ paliers, planVisible, closed, isFree, onPick, onManage, counts }: {
   paliers: { nom: string; ordre: number; rooms: Room[] }[];
   planVisible: boolean; closed: boolean;
   isFree: (r: Room) => boolean;
   onPick: (r: Room) => void;
+  onManage: (r: Room) => void;
   counts: { all: number; free: number; taken: number };
 }) {
   const t = useT();
@@ -1045,7 +1051,8 @@ function PlanCoupe({ paliers, planVisible, closed, isFree, onPick, counts }: {
                   {p.rooms.map((r) => (
                     <div key={r.id} className="flex-1 basis-0 min-w-[100px] max-w-[300px] flex">
                       <PlanRoomCard room={r} free={isFree(r)} planVisible={planVisible}
-                        disabled={closed} couleur={couleurDe(r)} onClick={() => onPick(r)} />
+                        disabled={closed && !r.taken} couleur={couleurDe(r)}
+                      onClick={() => (r.taken ? onManage(r) : onPick(r))} />
                     </div>
                   ))}
                 </div>
@@ -1071,12 +1078,18 @@ function PlanSheet({ code, groupe, room, onClose, onDone }: {
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
   const [pax, setPax] = useState(Math.min(2, room.pax_max));
+  // Les nuits de CETTE chambre. Par défaut tout le séjour du groupe — mais une
+  // chambre peut n'en faire qu'une (chez Legay, la 24 ne dort qu'une nuit), et
+  // sans ces deux dates il fallait ressortir par la page de gestion pour corriger.
+  const [da, setDa] = useState(groupe.date_arrivee);
+  const [dd, setDd] = useState(groupe.date_depart);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     setErr(null);
     if (!nom.trim()) return setErr(t.errName);
+    if (dd <= da) return setErr(t.errDates);
     setBusy(true);
     try {
       const res = await fetch(`/api/groupe/${code}/reserve`, {
@@ -1084,7 +1097,7 @@ function PlanSheet({ code, groupe, room, onClose, onDone }: {
         body: JSON.stringify({
           rooms: [{ groupe_chambre_id: room.id, config_lit: "double", nb_personnes: pax, pdj_nuits: [] }],
           nom: nom.trim(), prenom: prenom.trim(), email: "", tel: "",
-          date_arrivee: groupe.date_arrivee, date_depart: groupe.date_depart,
+          date_arrivee: da, date_depart: dd,
           pin: "", cgv: true,
         }),
       });
@@ -1117,6 +1130,21 @@ function PlanSheet({ code, groupe, room, onClose, onDone }: {
                 {n}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>{t.arrival}</Label>
+            <input type="date" value={da} min={groupe.date_arrivee} max={groupe.date_depart}
+              onChange={(e) => setDa(e.target.value)}
+              className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400" />
+          </div>
+          <div>
+            <Label>{t.departure}</Label>
+            <input type="date" value={dd} min={groupe.date_arrivee} max={groupe.date_depart}
+              onChange={(e) => setDd(e.target.value)}
+              className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400" />
           </div>
         </div>
 

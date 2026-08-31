@@ -64,7 +64,7 @@ export type Dict = {
   available: string; selected: string; booked: string; availableShort: string;
   roomSelected: string; roomsSelected: string; clickIfYours: string;
   // — mode 'plan' : l'hôtel en coupe, l'organisatrice remplit chambre par chambre
-  planWho: string; planPeople: string; planToFill: string; planFilled: string; planClear: string;
+  planWho: string; planPeople: string; planToFill: string; planFilled: string; planClear: string; errDates: string;
 };
 
 export const T: Record<Lang, Dict> = {
@@ -124,7 +124,7 @@ export const T: Record<Lang, Dict> = {
     yourPinLabel: "Votre code à 4 chiffres",
     available: "Disponible", selected: "Sélectionnée", booked: "Réservée", availableShort: "dispo.",
     roomSelected: "chambre sélectionnée", roomsSelected: "chambres sélectionnées",
-    planWho: "Qui dort ici ?", planPeople: "Personnes", planToFill: "à remplir", planFilled: "remplies", planClear: "Libérer cette chambre",
+    planWho: "Qui dort ici ?", planPeople: "Personnes", planToFill: "à remplir", planFilled: "remplies", planClear: "Libérer cette chambre", errDates: "Le départ doit suivre l'arrivée.",
     clickIfYours: "cliquez si c’est votre réservation",
   },
   en: {
@@ -183,7 +183,7 @@ export const T: Record<Lang, Dict> = {
     yourPinLabel: "Your 4-digit code",
     available: "Available", selected: "Selected", booked: "Booked", availableShort: "left",
     roomSelected: "room selected", roomsSelected: "rooms selected",
-    planWho: "Who sleeps here?", planPeople: "Guests", planToFill: "to fill", planFilled: "filled", planClear: "Free this room",
+    planWho: "Who sleeps here?", planPeople: "Guests", planToFill: "to fill", planFilled: "filled", planClear: "Free this room", errDates: "Departure must be after arrival.",
     clickIfYours: "click if this is your booking",
   },
   es: {
@@ -242,7 +242,7 @@ export const T: Record<Lang, Dict> = {
     yourPinLabel: "Su código de 4 cifras",
     available: "Disponible", selected: "Seleccionada", booked: "Reservada", availableShort: "disp.",
     roomSelected: "habitación seleccionada", roomsSelected: "habitaciones seleccionadas",
-    planWho: "¿Quién duerme aquí?", planPeople: "Personas", planToFill: "por rellenar", planFilled: "rellenadas", planClear: "Liberar la habitación",
+    planWho: "¿Quién duerme aquí?", planPeople: "Personas", planToFill: "por rellenar", planFilled: "rellenadas", planClear: "Liberar la habitación", errDates: "La salida debe seguir a la llegada.",
     clickIfYours: "haga clic si es su reserva",
   },
 };
