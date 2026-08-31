@@ -5,6 +5,7 @@ import Link from "next/link";
 import CalendrierSejour from "./CalendrierSejour";
 import Image from "next/image";
 import Paiement, { type SejourAPayer } from "./Paiement";
+import { jalon } from "@/lib/mesure";
 import { reprendreVente } from "@/lib/reprise3ds";
 import { lireRecherche } from "@/lib/lienReserver";
 import {
@@ -1213,6 +1214,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * Checkout, la carte est collectee par un iframe de Mews et le paiement se
    * joue entierement chez eux. L'ecran n'a plus qu'a s'ouvrir. */
   const [paiementOuvert, setPaiementOuvert] = useState(false);
+
+  /* ── LES DEUX JALONS QUI NE TIENNENT PAS DANS UN GESTE ────────────────────
+   * Les quatre autres se posent au moment où le visiteur fait quelque chose ;
+   * ceux-ci décrivent un ÉTAT de l'écran, d'où les effets. Voir
+   * `src/lib/mesure.ts` pour ce qui est mesuré — et ce qui ne l'est pas. */
+  useEffect(() => { jalon("ouverture"); }, []);
+  useEffect(() => { if (paiementOuvert) jalon("paiement"); }, [paiementOuvert]);
   const [reserve, setReserve] = useState<{
     groupeId: string; numeros: string[];
     client: { prenom: string; nom: string; email: string; telephone: string };
@@ -1240,6 +1248,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   ) => {
     setChargement(true);
     setErreur(false);
+    // Jalon 2 : le visiteur a validé des dates. Voir `src/lib/mesure.ts`.
+    jalon("recherche");
     try {
       const [dispos, cats] = await Promise.all([
         chercherDisponibilite({ arrivee: a, depart: d, adultes: pax, langue }),
@@ -1247,6 +1257,10 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       ]);
       setDispo(dispos);
       setCategories(cats);
+      /* Jalon 3 : on lui a montré quelque chose. ⚠️ SEULEMENT S'IL Y A DES
+         OFFRES — une liste vide est précisément la marche où l'on perd les
+         gens, et la compter comme franchie effacerait l'information. */
+      if (dispos?.offres?.length) jalon("offres");
       /* ⚠️ POURQUOI IL N'Y A RIEN : la maison est pleine, ou le séjour est trop
          long ? La Booking Engine ne le dit pas — elle rend une liste vide dans
          les deux cas. On le DÉDUIT d'un second appel : les mêmes dates, deux
@@ -1356,6 +1370,11 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             setReserve({
               groupeId: vente.groupeId, numeros: vente.numeros, client: vente.client,
             });
+            /* ⚠️ LE MÊME JALON QUE PLUS BAS, ET IL EST INDISPENSABLE ICI. Une
+               réservation reprise après un retour de banque est une
+               réservation : l'oublier ferait fuir l'entonnoir au dernier
+               barreau, exactement là où on veut être sûr de soi. */
+            jalon("confirmee");
           })
           .catch(() => setReprise("echec"));
       } else {
@@ -1457,6 +1476,9 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
   const basculerChambre = (c: Choix): boolean => {
     const deja = chambres.some((x) => memeLigne(x, c));
+    // Jalon 4 : on ne compte que l'AJOUT — retirer une chambre n'est pas un
+    // pas de plus dans le tunnel.
+    if (!deja) jalon("choix");
 
     if (!enComposition) {
       // Un seul choix a la fois : on remplace, ou on retire si c'etait celui-la.
@@ -2673,6 +2695,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           onReserve={(r) => {
             setPaiementOuvert(false);
             setReserve(r);
+            jalon("confirmee");   // jalon 6 : la réservation existe dans Mews
             // La chambre est acquise : on peut poser la table. Un échec ici
             // n'annule rien, il s'affiche et donne le téléphone.
             if (tableChoix && choix) {

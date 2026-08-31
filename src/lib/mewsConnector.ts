@@ -153,6 +153,30 @@ export async function etatDemandePaiement(id: string): Promise<string | null> {
   return r.PaymentRequests?.find((p) => p.Id === id)?.State ?? null;
 }
 
+/** Le montant qu'une demande de paiement va réellement porter à la carte, ou
+ *  `null` si on n'a pas pu le lire.
+ *
+ *  ⚠️ IL N'EST PAS FORCÉMENT CELUI DU SÉJOUR, et c'est tout l'objet de cette
+ *  lecture. La demande créée par `reservationGroups/create` suit la règle du
+ *  GROUPE TARIFAIRE, qui aux Voiles ne couvre que l'hébergement nu : mesuré le
+ *  31/08/2026 sur une confort prépayée, Mews demandait **83,00 €** quand le
+ *  client voyait **98,86 €** — les 14 € de petit-déjeuner, pourtant compris
+ *  dans le tarif, et les 1,86 € de taxe de séjour restaient dehors. Le dossier
+ *  de Mireille Guignard (29886) est parti comme ça : 90,90 € encaissés pour
+ *  106,76 € dus, avec une note « rien à encaisser » par-dessus. */
+export async function montantDemandePaiement(id: string): Promise<number | null> {
+  try {
+    const r = await callMews<{ PaymentRequests?: { Id: string; Amount?: { Value?: number } }[] }>(
+      'paymentRequests/getAll',
+      { PaymentRequestIds: [id], Limitation: { Count: 1 } },
+    );
+    const v = r.PaymentRequests?.find((p) => p.Id === id)?.Amount?.Value;
+    return typeof v === 'number' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Renonce à une demande restée en plan — le client a fermé l'onglet. */
 export async function annulerDemandePaiement(id: string): Promise<void> {
   try {

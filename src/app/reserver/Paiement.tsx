@@ -38,6 +38,23 @@ import { poserVente } from "@/lib/reprise3ds";
  */
 
 const SCRIPT_CHECKOUT = "https://cdn.mews.com/payments/checkout-embed.js";
+
+/** Le numéro au format E.164 (`+33612345678`), ou `null` s'il n'y a rien de
+ *  sûr à en tirer.
+ *
+ *  ⚠️ ON PRÉFÈRE NE RIEN ENVOYER À ENVOYER DU DOUTEUX : le checkout refuse la
+ *  configuration entière sur un numéro qui lui déplaît (voir plus bas), et le
+ *  client se retrouve devant un cadre vide. Les formats français usuels —
+ *  « 06 12 34 56 78 », « 06.12.34.56.78 », « 0033612345678 » — sont donc
+ *  ramenés à la forme internationale ; tout le reste est simplement omis. */
+function telephoneE164(brut: string): string | null {
+  const t = (brut || "").replace(/[\s.\-()/]/g, "");
+  if (!t) return null;
+  if (/^\+[1-9]\d{7,14}$/.test(t)) return t;              // déjà international
+  if (/^00[1-9]\d{7,14}$/.test(t)) return `+${t.slice(2)}`; // 0033… → +33…
+  if (/^0\d{9}$/.test(t)) return `+33${t.slice(1)}`;        // 06… → +336…
+  return null;
+}
 const SCRIPT_PCIPROXY = "https://pay.datatrans.com/upp/payment/js/secure-fields-2.0.0.js";
 
 type Checkout = {
@@ -509,7 +526,23 @@ export default function Paiement({
             firstName: prenom.trim(),
             lastName: nom.trim(),
             email: email.trim(),
-            ...(telephone.trim() ? { telephone: telephone.trim() } : {}),
+            /* ⚠️ UN CHAMP FACULTATIF NE DOIT JAMAIS EMPÊCHER D'ENCAISSER, et
+             * c'est exactement ce qui arrivait. Mews valide `telephone` et
+             * REJETTE TOUTE LA CONFIGURATION s'il ne lui plaît pas :
+             *
+             *   Uncaught Error: Invalid payment checkout configuration:
+             *   payer.details.telephone: Invalid input
+             *
+             * Le cadre de paiement ne se montait alors pas du tout — pas de
+             * message, pas d'erreur visible pour le client, juste un blanc à
+             * l'endroit où il sort sa carte. Constaté en PRODUCTION le
+             * 31/08/2026 : tout client tapant son numéro autrement qu'en E.164
+             * ne pouvait pas payer, en silence.
+             *
+             * On envoie donc le numéro seulement s'il est normalisable, et on
+             * l'omet sinon : Mews n'en a pas besoin pour débiter une carte, et
+             * une vente vaut mieux qu'un champ de plus. */
+            ...(telephoneE164(telephone) ? { telephone: telephoneE164(telephone)! } : {}),
           },
         },
         /* Le résumé de surcharge n'a rien à dire ici : l'hôtel n'en applique

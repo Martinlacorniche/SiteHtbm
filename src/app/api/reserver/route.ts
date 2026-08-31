@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   creerReservation, chercherDisponibilite, reglementDe, type Langue,
 } from '@/lib/mewsBooking';
-import { creerDemandePaiement } from '@/lib/mewsConnector';
+import { creerDemandePaiement, montantDemandePaiement, annulerDemandePaiement } from '@/lib/mewsConnector';
 
 /* Pose l'option, et la règle — par l'un des deux chemins.
  *
@@ -252,6 +252,37 @@ export async function POST(req: NextRequest) {
    * relevé le 27/08/2026, chaque réservation du 26/08 en portait deux, nées à
    * la même seconde. Le repli ci-dessous ne sert que si Mews n'en rend pas. */
   let demandeId: string | null = resa.demandeId || null;
+
+  /* ⚠️ ON VÉRIFIE CE QUE MEWS VA RÉELLEMENT DÉBITER, ET ON REFUSE S'IL MANQUE.
+   *
+   * La demande créée par `reservationGroups/create` suit la règle du groupe
+   * tarifaire, qui ici ne couvre que l'hébergement NU. Mesuré en production le
+   * 31/08/2026 sur une confort prépayée : le client voyait 98,86 €, le checkout
+   * affichait « Payer 83,00 € ». Les 14 € de petit-déjeuner — pourtant compris
+   * dans le tarif annoncé — et les 1,86 € de taxe restaient dehors. La
+   * réservation 29886 est partie ainsi : 90,90 € encaissés pour 106,76 € dus,
+   * avec une note « RIEN À ENCAISSER » qui empêchait la réception de rattraper.
+   *
+   * On compare donc au centime, et si la demande de Mews est INFÉRIEURE au
+   * total annoncé, on l'annule et on pose la nôtre. Annuler AVANT de créer :
+   * c'est ce qui évite le doublon relevé le 27/08 (deux demandes nées à la même
+   * seconde sur chaque réservation du 26/08).
+   *
+   * ⚠️ ON NE CORRIGE JAMAIS VERS LE BAS. Une demande SUPÉRIEURE au total serait
+   * une anomalie d'un autre genre — on ne la touche pas, on préfère un client
+   * qui appelle qu'un débit modifié dans son dos par une réparation automatique. */
+  if (demandeId) {
+    const duMews = await montantDemandePaiement(demandeId);
+    if (duMews != null && Math.round(duMews * 100) < Math.round(reglement.montant * 100)) {
+      console.error(
+        `Mews paymentRequest tronquée : ${duMews} € demandés pour ${reglement.montant} € dus`
+        + ` — on la remplace (réservation ${resa.numeros?.[0] ?? '?'})`,
+      );
+      await annulerDemandePaiement(demandeId);
+      demandeId = null;
+    }
+  }
+
   if (!demandeId) {
     const expireUtc = new Date(Date.now() + 20 * 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
     try {
