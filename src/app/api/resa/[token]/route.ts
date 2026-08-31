@@ -64,6 +64,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     const rt = one(ru?.room_types);
     return {
       id: r.id, statut: r.statut,
+      // L'identité voyage avec la réservation : sans elle, le formulaire de
+      // modification s'ouvrait avec des champs de nom VIDES (Martin, 31/08) —
+      // le select la remontait déjà, c'est ce mapping qui la laissait au bord.
+      nom: r.nom, prenom: r.prenom,
       date_arrivee: r.date_arrivee, date_depart: r.date_depart,
       config_lit: r.config_lit, nb_personnes: r.nb_personnes,
       numero: ru?.numero ?? "—", type: rt?.nom ?? null,

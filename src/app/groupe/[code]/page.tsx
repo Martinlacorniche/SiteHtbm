@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useModale } from "@/hooks/useModale";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -389,7 +389,12 @@ function BookingView({ code }: { code: string }) {
   // Clic sur une chambre déjà réservée. Avec un code → on le demande. SANS code → la résa
   // n'est pas verrouillée (choix assumé, Martin 2026-07-16) → on entre directement, sinon
   // on réclamerait un code que personne n'a jamais créé.
-  async function openResa(r: Room) {
+  // `direct` : on vient du plan, où le bouton s'appelle « Modifier ». Y arriver sur
+  // une fiche en lecture qu'il faut RE-cliquer pour éditer, c'est un clic pour rien
+  // (Martin, 31/08 : « less clic is better »). Ailleurs (modes simple et pro), le
+  // clic sur une chambre prise veut dire « c'est la mienne » : la fiche reste le
+  // bon écran d'arrivée.
+  async function openResa(r: Room, direct = false) {
     if (r.claimNeedsPin !== false) { setClaim(r); return; }
     try {
       const res = await fetch(`/api/groupe/${code}/access`, {
@@ -397,7 +402,7 @@ function BookingView({ code }: { code: string }) {
         body: JSON.stringify({ groupe_chambre_id: r.id }),
       });
       const d = await res.json();
-      if (d.ok) router.push(`/groupe/${code}?r=${d.ref}`);
+      if (d.ok) router.push(`/groupe/${code}?r=${d.ref}${direct ? "&edit=1" : ""}`);
       else setClaim(r);
     } catch { setClaim(r); }
   }
@@ -432,7 +437,7 @@ function BookingView({ code }: { code: string }) {
             dort — rien d'autre. C'est l'organisatrice qui remplit, pas seize invités. */}
         {isPlan && paliers && (
           <PlanCoupe paliers={paliers} planVisible={groupe.plan_visible} closed={groupe.closed}
-            isFree={isFree} onPick={setPlanRoom} onManage={openResa} counts={counts} />
+            isFree={isFree} onPick={setPlanRoom} onManage={(r) => openResa(r, true)} counts={counts} />
         )}
 
         {/* Filtre — mode 'simple' seulement : en mode 'pro' le calendrier montre déjà
@@ -1542,7 +1547,11 @@ function ManageView({ token }: { token: string }) {
   // Retour de Stripe : success_url ajoute &paye=1. Ce parametre ne PROUVE rien
   // (n'importe qui peut l'ecrire), il sert juste a expliquer l'attente pendant que
   // le webhook bascule le statut. La verite reste ce que renvoie l'API.
-  const justPaid = useSearchParams().get("paye") === "1";
+  const params = useSearchParams();
+  const justPaid = params.get("paye") === "1";
+  // Arrivée depuis le plan : on ouvre l'édition d'emblée (voir openResa).
+  const ouvrirEdition = params.get("edit") === "1";
+  const editionOuverteRef = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [resas, setResas] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1569,6 +1578,24 @@ function ManageView({ token }: { token: string }) {
   const [payBusy, setPayBusy] = useState(false);
   const fermerAnnulation = useCallback(() => { if (!busy) setCancelTarget(null); }, [busy]);
   const refAnnulation = useModale<HTMLDivElement>(cancelTarget !== null, fermerAnnulation);
+
+  // Ouverture directe du formulaire quand on arrive du plan (?edit=1). En effet
+  // plutôt qu'au chargement : `startEdit` est déclaré après les retours anticipés
+  // du composant, donc inatteignable au premier rendu — la première version ne
+  // faisait rien du tout. Une seule fois, sinon « Enregistrer » (qui recharge)
+  // rouvrirait le formulaire en boucle.
+  useEffect(() => {
+    if (!ouvrirEdition || editionOuverteRef.current || !resas.length) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r: any = resas.find((x: { statut: string }) => estGerable(x.statut));
+    if (!r) return;
+    editionOuverteRef.current = true;
+    setEditingId(r.id);
+    setENom(r.nom || ""); setEPrenom(r.prenom || "");
+    setDa(r.date_arrivee); setDd(r.date_depart);
+    setLit(r.config_lit === "twin" ? "twin" : "double");
+    setPax(r.nb_personnes || 1);
+  }, [ouvrirEdition, resas]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1767,6 +1794,16 @@ function ManageView({ token }: { token: string }) {
                           <button onClick={() => setEditingId(null)} className="h-10 px-4 rounded-full border border-slate-200 text-slate-600 font-medium text-sm">{t.back}</button>
                           <button onClick={() => save(r.id)} disabled={busy} className="flex-1 h-10 rounded-full text-white font-medium text-sm inline-flex items-center justify-center gap-1.5" style={{ background: NAVY }}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> {t.save}</>}</button>
                         </div>
+                        {/* On atterrit désormais DIRECTEMENT ici depuis le plan : sans ce
+                            bouton, libérer une chambre demandait de repasser par « Retour »
+                            puis « Annuler ». Il reste à l'écart des deux autres, en bas et
+                            en rouge : on ne libère pas une chambre par mégarde. */}
+                        {!groupe.locked && estGerable(r.statut) && (
+                          <button onClick={() => { if (ensureCode()) setCancelTarget({ id: r.id, numero: r.numero }); }} disabled={busy}
+                            className="w-full mt-1 h-9 rounded-full border border-rose-200 text-rose-600 font-medium text-[13px] inline-flex items-center justify-center gap-1.5">
+                            <Trash2 className="w-3.5 h-3.5" /> {t.planClear}
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
