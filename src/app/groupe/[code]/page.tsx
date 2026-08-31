@@ -1548,6 +1548,7 @@ function ManageView({ token }: { token: string }) {
   // (n'importe qui peut l'ecrire), il sert juste a expliquer l'attente pendant que
   // le webhook bascule le statut. La verite reste ce que renvoie l'API.
   const params = useSearchParams();
+  const routeur = useRouter();
   const justPaid = params.get("paye") === "1";
   // Arrivée depuis le plan : on ouvre l'édition d'emblée (voir openResa).
   const ouvrirEdition = params.get("edit") === "1";
@@ -1640,6 +1641,10 @@ function ManageView({ token }: { token: string }) {
     try {
       const res = await fetch(`/api/resa/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", resa_id: id, code, nom: eNom, prenom: ePrenom, date_arrivee: da, date_depart: dd, config_lit: lit, nb_personnes: pax }) });
       const d = await res.json(); if (!d.ok) { setMsg(d.error); if (typeof d.error === "string" && d.error.includes("Code")) { setCodeKnown(false); try { sessionStorage.removeItem(`pin_${token}`); } catch {} } return; }
+      // Venu du plan : on y retourne aussitôt. La chambre y porte déjà le nouveau
+      // nom (ou a été libérée) — c'est le meilleur accusé de réception, et ça
+      // épargne le clic « Retour aux chambres » (Martin, 31/08).
+      if (ouvrirEdition && groupe?.code) { routeur.push(`/groupe/${groupe.code}`); return; }
       setEditingId(null); await load(); setMsg(t.modified);
     } finally { setBusy(false); }
   }
@@ -1648,7 +1653,9 @@ function ManageView({ token }: { token: string }) {
     try {
       const res = await fetch(`/api/resa/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel", resa_id: cancelTarget.id, code }) });
       const d = await res.json(); if (!d.ok) { setMsg(d.error); if (typeof d.error === "string" && d.error.includes("Code")) { setCodeKnown(false); try { sessionStorage.removeItem(`pin_${token}`); } catch {} } setCancelTarget(null); return; }
-      setCancelTarget(null); await load();
+      setCancelTarget(null);
+      if (ouvrirEdition && groupe?.code) { routeur.push(`/groupe/${groupe.code}`); return; }
+      await load();
     } finally { setBusy(false); }
   }
   async function startPay() {
