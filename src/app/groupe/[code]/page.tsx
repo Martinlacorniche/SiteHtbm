@@ -20,6 +20,15 @@ const NAVY = "var(--color-navy)";
 const GOLD = "var(--color-gold)";
 // Or lisible en texte sur fond clair (4.7:1). GOLD reste pour les aplats et bordures.
 const GOLD_INK = "var(--color-gold-ink)";
+// Mode 'plan' : une chambre dont le nom est posé passe au vert — la même teinte que
+// les séjours occupés du calendrier, pour qu'un occupé se lise pareil partout.
+const OCCUPE = "#5f9e7f";
+const OCCUPE_INK = "#2f6b4f";
+// Une teinte par catégorie de chambre, attribuée dans l'ordre alphabétique des
+// libellés : stable d'un affichage à l'autre, et valable pour n'importe quel hôtel
+// (aucun mot-clé « mer » ou « single » en dur, qui tomberait en anglais ou à La
+// Corniche). Quatre suffisent — au-delà, on recommence.
+const TEINTES_CATEGORIE = ["#004e7c", "#8C6F39", "#3d7f8c", "#6b5f8c"];
 const SEA_BG = "/images/pagewifi.jpg";
 
 // ---------- Types ----------
@@ -401,7 +410,7 @@ function BookingView({ code }: { code: string }) {
     <main className="pb-28">
       <Hero groupe={groupe} />
 
-      <div className="max-w-5xl mx-auto px-4 mt-6">
+      <div className={`${isPlan ? "max-w-6xl" : "max-w-5xl"} mx-auto px-4 mt-6`}>
         {groupe.closed && <Banner>{t.closed}</Banner>}
 
         {/* Mode 'pro' : chacun pose ses dates, puis choisit une chambre libre SUR CES NUITS. */}
@@ -911,37 +920,40 @@ function RoomBubble({ room, index, selected, planVisible, disabled, free, onClic
 // la 24, loin de son libellé, et la coupe ne se lit plus. La grande carte du mode
 // 'simple' (RoomBubble) fait deux fois cette hauteur : la page entière passait à
 // 2 800 px, on ne voyait plus le bâtiment.
-function PlanRoomCard({ room, free, planVisible, disabled, onClick }: {
-  room: Room; free: boolean; planVisible: boolean; disabled: boolean; onClick: () => void;
+function PlanRoomCard({ room, free, planVisible, disabled, couleur, onClick }: {
+  room: Room; free: boolean; planVisible: boolean; disabled: boolean; couleur: string; onClick: () => void;
 }) {
   const t = useT();
   const lang = useLang();
   const pris = room.taken;
   // La CATÉGORIE compte autant que le numéro quand on répartit des invités : on ne
-  // place pas ses témoins dans une Single par mégarde (Martin, 31/08). Elle tient sur
-  // sa propre ligne, tronquée — « Supérieur Vue Mer » ne rentre pas à côté du numéro
-  // sur un téléphone.
+  // place pas ses témoins dans une Single par mégarde (Martin, 31/08).
   const cat = typeDe(room, lang);
   return (
     <button type="button" onClick={onClick} disabled={pris || !free || disabled}
-      className="text-left rounded-xl border px-2.5 py-2 transition shadow-sm disabled:cursor-default"
+      className="relative w-full text-left rounded-xl border pl-3.5 pr-3 py-2.5 transition shadow-sm hover:shadow-md disabled:cursor-default disabled:hover:shadow-sm overflow-hidden"
       style={{
-        background: pris ? "#f1f5f9" : !free ? "#fafafa" : "#fff",
-        borderColor: pris ? "#cbd5e1" : "rgba(0,78,124,.16)",
-        opacity: !pris && !free ? 0.6 : 1,
+        background: pris ? "#f0f7f3" : !free ? "#fafafa" : "#fff",
+        borderColor: pris ? "rgba(95,158,127,.45)" : "rgba(15,23,42,.10)",
+        opacity: !pris && !free ? 0.55 : 1,
       }}>
-      <div className="flex items-baseline justify-between gap-1.5">
-        <span className={`font-serif font-semibold text-lg leading-none ${pris ? "text-slate-400" : "text-slate-800"}`}>{room.numero}</span>
-        <span className={`inline-flex items-center gap-0.5 text-[10px] ${pris ? "text-slate-400" : "text-slate-500"}`}>
+      {/* Le filet de catégorie : c'est LUI qui fait lire le plan d'un coup d'œil —
+          toutes les vues mer d'un côté, les singles de l'autre. Vert dès qu'un nom
+          est posé : on voit ce qui reste à remplir sans lire une seule ligne. */}
+      <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[5px]"
+        style={{ background: pris ? OCCUPE : couleur }} />
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-serif font-semibold text-xl leading-none" style={{ color: pris ? OCCUPE_INK : "#0f172a" }}>{room.numero}</span>
+        <span className="inline-flex items-center gap-0.5 text-[11px] text-slate-500 shrink-0">
           <Users className="w-3 h-3" />{room.pax_max}
         </span>
       </div>
-      {/* Deux lignes autorisées : tronqué, « Supérieur Vue Mer » et « Confort Côté
-          Ville » devenaient « Supérieur … » et « Confort Côt… » sur un téléphone —
-          soit exactement l'information qu'on venait d'ajouter, perdue. */}
-      {cat && <p className={`mt-0.5 text-[10px] leading-[1.2] line-clamp-2 ${pris ? "text-slate-400" : "text-slate-500"}`}>{cat}</p>}
-      <p className="mt-1 text-[11px] font-medium truncate"
-        style={{ color: pris ? "#475569" : free ? NAVY : "#94a3b8" }}>
+      {cat && (
+        <p className="mt-1 text-[11px] leading-[1.2] line-clamp-2 font-medium"
+          style={{ color: pris ? "#64748b" : couleur }}>{cat}</p>
+      )}
+      <p className="mt-1.5 text-[12px] font-semibold truncate"
+        style={{ color: pris ? OCCUPE_INK : free ? "#94a3b8" : "#cbd5e1" }}>
         {pris ? (planVisible && room.occupant ? room.occupant : t.booked) : free ? t.available : t.notOffered}
       </p>
     </button>
@@ -961,36 +973,73 @@ function PlanCoupe({ paliers, planVisible, closed, isFree, onPick, counts }: {
   counts: { all: number; free: number; taken: number };
 }) {
   const t = useT();
+  const lang = useLang();
+
+  // Les catégories présentes, triées : leur rang fixe la teinte (cf. TEINTES_CATEGORIE).
+  const categories = useMemo(() => {
+    const noms = new Set<string>();
+    for (const p of paliers) for (const r of p.rooms) { const c = typeDe(r, lang); if (c) noms.add(c); }
+    return [...noms].sort((a, b) => a.localeCompare(b, "fr"));
+  }, [paliers, lang]);
+  const couleurDe = (r: Room) => {
+    const c = typeDe(r, lang);
+    const i = c ? categories.indexOf(c) : -1;
+    return i >= 0 ? TEINTES_CATEGORIE[i % TEINTES_CATEGORIE.length] : "#94a3b8";
+  };
+
   return (
     <div className="mb-8">
-      <div className="flex items-baseline justify-center gap-4 mb-5 text-sm">
-        <span className="font-semibold" style={{ color: NAVY }}>{counts.taken} <span className="font-normal text-slate-400">{t.planFilled}</span></span>
-        <span aria-hidden className="w-px h-4 bg-slate-200" />
-        <span className="font-semibold" style={{ color: GOLD_INK }}>{counts.free} <span className="font-normal text-slate-400">{t.planToFill}</span></span>
+      {/* Compteur + légende des catégories : deux lignes qui suffisent à lire tout
+          le reste sans notice. */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mb-3 text-sm">
+        <span className="font-semibold" style={{ color: OCCUPE_INK }}>{counts.taken} <span className="font-normal text-slate-500">{t.planFilled}</span></span>
+        <span aria-hidden className="w-px h-4 bg-slate-300" />
+        <span className="font-semibold" style={{ color: NAVY }}>{counts.free} <span className="font-normal text-slate-500">{t.planToFill}</span></span>
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 mb-5">
+        {categories.map((c, i) => (
+          <span key={c} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
+            <span aria-hidden className="w-2.5 h-2.5 rounded-sm" style={{ background: TEINTES_CATEGORIE[i % TEINTES_CATEGORIE.length] }} />
+            {c}
+          </span>
+        ))}
       </div>
 
-      <div className="relative">
-        {/* La cage d'escalier : un trait continu qui relie les paliers et donne à
-            l'empilement sa lecture d'élévation. */}
-        <span aria-hidden className="absolute left-[62px] sm:left-[86px] top-2 bottom-2 w-px bg-slate-200" />
-        <div className="space-y-2.5">
-          {paliers.map((p) => (
-            <div key={p.ordre} className="flex items-stretch gap-3 sm:gap-5">
-              <div className="w-[54px] sm:w-[78px] shrink-0 pt-2 text-right">
-                <span className="block text-[11px] sm:text-xs font-semibold leading-tight" style={{ color: NAVY }}>{p.nom}</span>
+      {/* Un panneau opaque : posées à même la photo de mer, les cartes blanches
+          n'avaient plus aucun contraste et tout se noyait (Martin, 31/08). */}
+      <div className="rounded-3xl bg-white/92 backdrop-blur-sm shadow-lg ring-1 ring-slate-900/5 px-3 sm:px-5 py-4">
+        <div className="relative">
+          {/* La cage d'escalier : un trait continu qui relie les paliers et donne à
+              l'empilement sa lecture d'élévation. */}
+          <span aria-hidden className="hidden sm:block absolute left-[92px] top-2 bottom-2 w-px bg-slate-200" />
+          <div className="divide-y divide-slate-100">
+            {paliers.map((p) => (
+              // Sur téléphone le libellé passe AU-DESSUS de la rangée : gardé dans une
+              // colonne de gauche, il ne restait plus que ~90 px par chambre et un
+              // palier de trois se cassait en deux lignes — le bâtiment ne se lisait
+              // plus. Sur écran large il reprend sa place, le long de la cage d'escalier.
+              <div key={p.ordre} className="flex flex-col sm:flex-row sm:items-stretch gap-1.5 sm:gap-5 py-2.5 first:pt-0 last:pb-0">
+                <div className="sm:w-[84px] shrink-0 sm:pt-2.5 pl-1 sm:pl-0 sm:text-right">
+                  <span className="block text-[11px] sm:text-[13px] font-semibold leading-tight" style={{ color: NAVY }}>{p.nom}</span>
+                </div>
+                <span aria-hidden className="hidden sm:block relative shrink-0 w-0">
+                  <span className="absolute -left-[5px] top-[13px] w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm" style={{ background: GOLD }} />
+                </span>
+                {/* Centré et étiré plutôt qu'une grille fixe : cinq paliers sur sept
+                    n'ont que deux chambres, et une grille de trois colonnes laissait
+                    une colonne vide à droite à chaque fois — le bâtiment paraissait
+                    amputé. Là, chaque palier occupe sa ligne et la silhouette se lit. */}
+                <div className="flex-1 flex flex-wrap justify-center gap-2.5">
+                  {p.rooms.map((r) => (
+                    <div key={r.id} className="flex-1 basis-0 min-w-[100px] max-w-[300px] flex">
+                      <PlanRoomCard room={r} free={isFree(r)} planVisible={planVisible}
+                        disabled={closed} couleur={couleurDe(r)} onClick={() => onPick(r)} />
+                    </div>
+                  ))}
+                </div>
               </div>
-              {/* La pastille sur le trait, à hauteur du libellé. */}
-              <span aria-hidden className="relative shrink-0 w-0">
-                <span className="absolute -left-[5px] top-[9px] w-2.5 h-2.5 rounded-full border-2 border-white" style={{ background: GOLD }} />
-              </span>
-              <div className="flex-1 grid grid-cols-3 gap-2">
-                {p.rooms.map((r) => (
-                  <PlanRoomCard key={r.id} room={r} free={isFree(r)} planVisible={planVisible}
-                    disabled={closed} onClick={() => onPick(r)} />
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
