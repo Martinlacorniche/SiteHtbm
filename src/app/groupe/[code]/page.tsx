@@ -937,16 +937,18 @@ function PlanRoomCard({ room, free, planVisible, disabled, couleur, onClick }: {
   const cat = typeDe(room, lang);
   return (
     <button type="button" onClick={onClick} disabled={pris || !free || disabled}
-      className="relative w-full text-left rounded-xl border pl-3.5 pr-3 py-2.5 transition shadow-sm hover:shadow-md disabled:cursor-default disabled:hover:shadow-sm overflow-hidden"
+      className="relative w-full text-left rounded-xl border pl-4 pr-3 py-2.5 transition shadow-sm hover:shadow-md disabled:cursor-default disabled:hover:shadow-sm overflow-hidden"
       style={{
-        background: pris ? "#f0f7f3" : !free ? "#fafafa" : "#fff",
-        borderColor: pris ? "rgba(95,158,127,.45)" : "rgba(15,23,42,.10)",
+        // La catégorie TEINTE toute la carte, elle ne se contente pas d'un filet :
+        // sur un écran large, cinq pixels de couleur au bord ne se voyaient pas
+        // (« faut avoir de bons yeux là », Martin 31/08). Fond à 10 %, bordure à
+        // 40 % — assez pour que les familles de chambres sautent aux yeux, assez
+        // discret pour que le vert des chambres remplies reste dominant.
+        background: pris ? "#eaf5ef" : !free ? "#fafafa" : `${couleur}12`,
+        borderColor: pris ? "rgba(95,158,127,.55)" : `${couleur}55`,
         opacity: !pris && !free ? 0.55 : 1,
       }}>
-      {/* Le filet de catégorie : c'est LUI qui fait lire le plan d'un coup d'œil —
-          toutes les vues mer d'un côté, les singles de l'autre. Vert dès qu'un nom
-          est posé : on voit ce qui reste à remplir sans lire une seule ligne. */}
-      <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[5px]"
+      <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[7px]"
         style={{ background: pris ? OCCUPE : couleur }} />
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-serif font-semibold text-xl leading-none" style={{ color: pris ? OCCUPE_INK : "#0f172a" }}>{room.numero}</span>
@@ -955,7 +957,7 @@ function PlanRoomCard({ room, free, planVisible, disabled, couleur, onClick }: {
         </span>
       </div>
       {cat && (
-        <p className="mt-1 text-[11px] leading-[1.2] line-clamp-2 font-medium"
+        <p className="mt-1 text-[11px] leading-[1.2] line-clamp-2 font-semibold"
           style={{ color: pris ? "#64748b" : couleur }}>{cat}</p>
       )}
       <p className="mt-1.5 text-[12px] font-semibold truncate"
@@ -1004,8 +1006,12 @@ function PlanCoupe({ paliers, planVisible, closed, isFree, onPick, counts }: {
       </div>
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 mb-5">
         {categories.map((c, i) => (
-          <span key={c} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
-            <span aria-hidden className="w-2.5 h-2.5 rounded-sm" style={{ background: TEINTES_CATEGORIE[i % TEINTES_CATEGORIE.length] }} />
+          <span key={c} className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+            style={{
+              color: TEINTES_CATEGORIE[i % TEINTES_CATEGORIE.length],
+              background: `${TEINTES_CATEGORIE[i % TEINTES_CATEGORIE.length]}14`,
+              border: `1px solid ${TEINTES_CATEGORIE[i % TEINTES_CATEGORIE.length]}44`,
+            }}>
             {c}
           </span>
         ))}
