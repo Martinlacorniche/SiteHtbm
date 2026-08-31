@@ -166,11 +166,18 @@ export async function etatDemandePaiement(id: string): Promise<string | null> {
  *  106,76 € dus, avec une note « rien à encaisser » par-dessus. */
 export async function montantDemandePaiement(id: string): Promise<number | null> {
   try {
-    const r = await callMews<{ PaymentRequests?: { Id: string; Amount?: { Value?: number } }[] }>(
-      'paymentRequests/getAll',
-      { PaymentRequestIds: [id], Limitation: { Count: 1 } },
-    );
-    const v = r.PaymentRequests?.find((p) => p.Id === id)?.Amount?.Value;
+    const r = await callMews<{
+      PaymentRequests?: { Id: string; Amount?: { GrossValue?: number; Value?: number } }[];
+    }>('paymentRequests/getAll', { PaymentRequestIds: [id], Limitation: { Count: 1 } });
+    const a = r.PaymentRequests?.find((p) => p.Id === id)?.Amount;
+    /* ⚠️ LE MONTANT EST DANS `GrossValue`, PAS DANS `Value` — et s'être trompé
+     * de champ a rendu le garde-fou muet pendant sa première mise en ligne :
+     * `Amount.Value` est `undefined`, donc `null`, donc aucune comparaison,
+     * donc la demande tronquée de Mews passait quand même. Relevé sur une
+     * demande réelle (31/08/2026) :
+     *   Amount: { Currency: 'EUR', NetValue: 83, GrossValue: 83, TaxValues: [] }
+     * On lit le TTC (`GrossValue`) : c'est ce qui est porté à la carte. */
+    const v = a?.GrossValue ?? a?.Value;
     return typeof v === 'number' ? v : null;
   } catch {
     return null;
