@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   creerReservation, chercherDisponibilite, reglementDe, type Langue,
 } from '@/lib/mewsBooking';
-import { creerDemandePaiement, montantDemandePaiement, annulerDemandePaiement } from '@/lib/mewsConnector';
+import { creerDemandePaiement, annulerDemandePaiement } from '@/lib/mewsConnector';
 
 /* Pose l'option, et la règle — par l'un des deux chemins.
  *
@@ -253,34 +253,37 @@ export async function POST(req: NextRequest) {
    * la même seconde. Le repli ci-dessous ne sert que si Mews n'en rend pas. */
   let demandeId: string | null = resa.demandeId || null;
 
-  /* ⚠️ ON VÉRIFIE CE QUE MEWS VA RÉELLEMENT DÉBITER, ET ON REFUSE S'IL MANQUE.
+  /* ⚠️ LA DEMANDE DE MEWS EST TOUJOURS REMPLACÉE, ET CE N'EST PAS DE LA
+   * DÉFIANCE GRATUITE — c'est un constat, mesuré trois fois en production le
+   * 31/08/2026 :
    *
-   * La demande créée par `reservationGroups/create` suit la règle du groupe
-   * tarifaire, qui ici ne couvre que l'hébergement NU. Mesuré en production le
-   * 31/08/2026 sur une confort prépayée : le client voyait 98,86 €, le checkout
-   * affichait « Payer 83,00 € ». Les 14 € de petit-déjeuner — pourtant compris
-   * dans le tarif annoncé — et les 1,86 € de taxe restaient dehors. La
-   * réservation 29886 est partie ainsi : 90,90 € encaissés pour 106,76 € dus,
-   * avec une note « RIEN À ENCAISSER » qui empêchait la réception de rattraper.
+   *     confort prépayée      client 98,86 €   →  Mews demandait 83,00 €
+   *     supérieure prépayée   client 112,36 €  →  Mews demandait 96,50 €
+   *     individuelle prépayée client 89,86 €   →  Mews demandait 74,00 €
    *
-   * On compare donc au centime, et si la demande de Mews est INFÉRIEURE au
-   * total annoncé, on l'annule et on pose la nôtre. Annuler AVANT de créer :
-   * c'est ce qui évite le doublon relevé le 27/08 (deux demandes nées à la même
-   * seconde sur chaque réservation du 26/08).
+   * Toujours le même écart : les 14 € de petit-déjeuner, pourtant COMPRIS dans
+   * le tarif annoncé, plus la taxe de séjour. La demande créée par
+   * `reservationGroups/create` suit la règle du groupe tarifaire, qui ici ne
+   * couvre que l'hébergement nu. La réservation 29886 est partie comme ça :
+   * 90,90 € encaissés pour 106,76 € dus, sous une note « RIEN À ENCAISSER ».
    *
-   * ⚠️ ON NE CORRIGE JAMAIS VERS LE BAS. Une demande SUPÉRIEURE au total serait
-   * une anomalie d'un autre genre — on ne la touche pas, on préfère un client
-   * qui appelle qu'un débit modifié dans son dos par une réparation automatique. */
+   * ⚠️ UNE PREMIÈRE VERSION NE REMPLAÇAIT QU'EN CAS D'ÉCART CONSTATÉ, après
+   * avoir relu le montant chez Mews. Elle n'a rien corrigé en production, et je
+   * n'ai pas su dire pourquoi la lecture ne rendait rien d'exploitable. D'où ce
+   * choix : on ne fait plus DÉPENDRE la justesse du débit d'une lecture qui
+   * peut échouer en silence. On annule, on repose, systématiquement — le
+   * montant vient alors de `reglementDe`, qui applique la part du groupe
+   * tarifaire (`SettlementValue`, 1.0 sur le prépayé) au total réellement
+   * annoncé au client.
+   *
+   * ⚠️ ANNULER AVANT DE CRÉER : c'est ce qui évite le doublon relevé le 27/08,
+   * où chaque réservation portait deux demandes nées à la même seconde. */
   if (demandeId) {
-    const duMews = await montantDemandePaiement(demandeId);
-    if (duMews != null && Math.round(duMews * 100) < Math.round(reglement.montant * 100)) {
-      console.error(
-        `Mews paymentRequest tronquée : ${duMews} € demandés pour ${reglement.montant} € dus`
-        + ` — on la remplace (réservation ${resa.numeros?.[0] ?? '?'})`,
-      );
-      await annulerDemandePaiement(demandeId);
-      demandeId = null;
-    }
+    console.info(
+      `Mews paymentRequest remplacée : la sienne au profit d'une demande de ${reglement.montant} €`,
+    );
+    await annulerDemandePaiement(demandeId);
+    demandeId = null;
   }
 
   if (!demandeId) {
