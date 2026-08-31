@@ -50,7 +50,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, statut, code_pin, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url, mode_paiement, paiement_obligatoire)")
+    .select("id, statut, code_pin, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, nom, prenom, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url, mode_paiement, paiement_obligatoire)")
     .eq("booking_ref", ref);
 
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable" }, { status: 404 });
@@ -175,9 +175,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     const lit = ru?.twinable ? (body.config_lit === "twin" ? "twin" : "double") : target.config_lit;
     const pax = body.nb_personnes != null ? Math.max(1, parseInt(body.nb_personnes) || 1) : target.nb_personnes;
     if (ru && pax > ru.pax_max) return NextResponse.json({ ok: false, error: `Cette chambre accueille ${ru.pax_max} personne(s) max.` }, { status: 400 });
+    // L'identité se corrige aussi : sur une privatisation, l'organisatrice saisit
+    // seize noms d'affilée et une coquille est vite arrivée — sans ça il fallait
+    // annuler la chambre et tout resaisir (Martin, 31/08). Un nom vide ne remplace
+    // jamais l'existant : on ne perd pas une identité par un champ laissé blanc.
+    const nom = typeof body.nom === "string" && body.nom.trim() ? body.nom.trim() : target.nom;
+    const prenom = typeof body.prenom === "string" ? (body.prenom.trim() || null) : target.prenom;
 
     const { error } = await supabaseServer.from("groupe_reservations")
-      .update({ date_arrivee: da, date_depart: dd, config_lit: lit, nb_personnes: pax, derniere_action: "modification", vu_backoffice: false, pms_done: false, modified_at: nowIso })
+      .update({ date_arrivee: da, date_depart: dd, config_lit: lit, nb_personnes: pax, nom, prenom, derniere_action: "modification", vu_backoffice: false, pms_done: false, modified_at: nowIso })
       .eq("id", resa_id);
     // Déplacer ses dates peut désormais TOMBER SUR un autre séjour de la même chambre
     // (23P01 = contrainte d'exclusion, migration 82) → message lisible plutôt que le brut SQL.

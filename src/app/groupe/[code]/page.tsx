@@ -1555,6 +1555,10 @@ function ManageView({ token }: { token: string }) {
   // l'invité n'a jamais créé (Martin 2026-07-16). Sans code, le lien magique fait foi.
   const [hasPin, setHasPin] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // L'identité se corrige comme le reste : sur une privatisation, l'organisatrice
+  // saisit seize noms d'affilée et une coquille est vite arrivée. Sans ça, il
+  // fallait annuler la chambre et tout resaisir (Martin, 31/08).
+  const [eNom, setENom] = useState(""); const [ePrenom, setEPrenom] = useState("");
   const [da, setDa] = useState(""); const [dd, setDd] = useState(""); const [lit, setLit] = useState<"double" | "twin">("double");
   const [pax, setPax] = useState(1);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
@@ -1600,12 +1604,14 @@ function ManageView({ token }: { token: string }) {
     return true;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function startEdit(r: any) { setEditingId(r.id); setDa(r.date_arrivee); setDd(r.date_depart); setLit(r.config_lit === "twin" ? "twin" : "double"); setPax(r.nb_personnes || 1); setMsg(null); }
+  function startEdit(r: any) { setEditingId(r.id); setENom(r.nom || ""); setEPrenom(r.prenom || ""); setDa(r.date_arrivee); setDd(r.date_depart); setLit(r.config_lit === "twin" ? "twin" : "double"); setPax(r.nb_personnes || 1); setMsg(null); }
 
   async function save(id: string) {
-    if (!ensureCode()) return; setBusy(true); setMsg(null);
+    if (!ensureCode()) return;
+    if (!eNom.trim()) { setMsg(t.errName); return; }
+    setBusy(true); setMsg(null);
     try {
-      const res = await fetch(`/api/resa/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", resa_id: id, code, date_arrivee: da, date_depart: dd, config_lit: lit, nb_personnes: pax }) });
+      const res = await fetch(`/api/resa/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", resa_id: id, code, nom: eNom, prenom: ePrenom, date_arrivee: da, date_depart: dd, config_lit: lit, nb_personnes: pax }) });
       const d = await res.json(); if (!d.ok) { setMsg(d.error); if (typeof d.error === "string" && d.error.includes("Code")) { setCodeKnown(false); try { sessionStorage.removeItem(`pin_${token}`); } catch {} } return; }
       setEditingId(null); await load(); setMsg(t.modified);
     } finally { setBusy(false); }
@@ -1719,6 +1725,7 @@ function ManageView({ token }: { token: string }) {
                   <div className="px-5 py-4 space-y-3">
                     {!editing ? (
                       <>
+                        {(r.prenom || r.nom) && <Row icon={<Users className="w-4 h-4" />} label={t.lastName} value={`${r.prenom || ""} ${r.nom || ""}`.trim()} />}
                         <Row icon={<Calendar className="w-4 h-4" />} label={t.stay} value={`${fmt(r.date_arrivee, lang)} → ${fmt(r.date_depart, lang)}`} />
                         {r.twinable && <Row icon={<BedDouble className="w-4 h-4" />} label={t.beds} value={r.config_lit === "twin" ? "2 lits" : "1 grand lit"} />}
                         <Row icon={<Users className="w-4 h-4" />} label="Personnes" value={String(r.nb_personnes)} />
@@ -1734,6 +1741,10 @@ function ManageView({ token }: { token: string }) {
                       </>
                     ) : (
                       <>
+                        <div className="grid grid-cols-2 gap-3">
+                          <FInput label={t.firstName} value={ePrenom} onChange={setEPrenom} placeholder="Léa" />
+                          <FInput label={t.lastName} value={eNom} onChange={setENom} placeholder="Dupont" />
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                           <FDate label="Arrivée" value={da} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDa} />
                           <FDate label="Départ" value={dd} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDd} />
