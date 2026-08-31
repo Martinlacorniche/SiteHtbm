@@ -915,7 +915,13 @@ function PlanRoomCard({ room, free, planVisible, disabled, onClick }: {
   room: Room; free: boolean; planVisible: boolean; disabled: boolean; onClick: () => void;
 }) {
   const t = useT();
+  const lang = useLang();
   const pris = room.taken;
+  // La CATÉGORIE compte autant que le numéro quand on répartit des invités : on ne
+  // place pas ses témoins dans une Single par mégarde (Martin, 31/08). Elle tient sur
+  // sa propre ligne, tronquée — « Supérieur Vue Mer » ne rentre pas à côté du numéro
+  // sur un téléphone.
+  const cat = typeDe(room, lang);
   return (
     <button type="button" onClick={onClick} disabled={pris || !free || disabled}
       className="text-left rounded-xl border px-2.5 py-2 transition shadow-sm disabled:cursor-default"
@@ -930,6 +936,10 @@ function PlanRoomCard({ room, free, planVisible, disabled, onClick }: {
           <Users className="w-3 h-3" />{room.pax_max}
         </span>
       </div>
+      {/* Deux lignes autorisées : tronqué, « Supérieur Vue Mer » et « Confort Côté
+          Ville » devenaient « Supérieur … » et « Confort Côt… » sur un téléphone —
+          soit exactement l'information qu'on venait d'ajouter, perdue. */}
+      {cat && <p className={`mt-0.5 text-[10px] leading-[1.2] line-clamp-2 ${pris ? "text-slate-400" : "text-slate-500"}`}>{cat}</p>}
       <p className="mt-1 text-[11px] font-medium truncate"
         style={{ color: pris ? "#475569" : free ? NAVY : "#94a3b8" }}>
         {pris ? (planVisible && room.occupant ? room.occupant : t.booked) : free ? t.available : t.notOffered}
@@ -996,6 +1006,7 @@ function PlanSheet({ code, groupe, room, onClose, onDone }: {
   onClose: () => void; onDone: () => void;
 }) {
   const t = useT();
+  const lang = useLang();
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
   const [pax, setPax] = useState(Math.min(2, room.pax_max));
@@ -1024,7 +1035,7 @@ function PlanSheet({ code, groupe, room, onClose, onDone }: {
   }
 
   return (
-    <Sheet onClose={onClose} title={`${t.room} ${room.numero}`} subtitle={room.etage || t.planWho}>
+    <Sheet onClose={onClose} title={`${t.room} ${room.numero}`} subtitle={[room.etage, typeDe(room, lang)].filter(Boolean).join(" · ") || t.planWho}>
       <div className="px-5 py-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <FInput label={t.firstName} value={prenom} onChange={setPrenom} placeholder="Léa" />
