@@ -1679,7 +1679,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
        remonter pour changer une date perd le client à chaque aller-retour.
        Sous 1024 px on retrouve le flux normal et les colonnes s'empilent.
 
-       ⚠️ `lg:min-h-[880px]` est le PLANCHER, et il n'est pas décoratif. Cette
+       ⚠️ `lg:min-h-[930px]` est le PLANCHER, et il n'est pas décoratif. Cette
        mise en page a une hauteur incompressible : l'en-tête (160), les marges
        (40), puis une colonne 1 dont rien ne défile — dates, voyageurs, bouton,
        et la carte qui se retourne dont les deux faces sont en `absolute
@@ -1689,11 +1689,23 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
        1366×768 (625 px de fenêtre utile) le bouton « Réserver » était hors de
        l'écran et la réservation impossible. Vu par Nina le 01/09/2026.
 
-       Avec le plancher, `main` fait 880 px sur un écran plus court : la mise en
+       Avec le plancher, `main` fait 930 px sur un écran plus court : la mise en
        page reste entière, et c'est le DOCUMENT qui défile — la barre générale
        revient donc là, et seulement là, où l'écran ne suffit pas. Au-dessus de
-       880 px le plancher est inerte et rien ne change. */
-    <main className="bg-cream text-[#222] lg:flex lg:h-screen lg:min-h-[880px] lg:flex-col lg:overflow-hidden">
+       930 px le plancher est inerte et rien ne change.
+
+       🔑 La VALEUR se mesure, elle ne se devine pas — et elle se mesure EN
+       PROD : en développement les polices de repli sont plus courtes et la page
+       tenait dans 880. Mesuré le 01/09/2026 sur hotels-toulon-mer.com, en
+       imposant des hauteurs successives à `main` et en relevant les blocs qui
+       se mettent à défiler : 880 → le récapitulatif du séjour déborde de 36 px,
+       900 → de 16 px, 920 → plus rien, identique en 1024, 1366 et 1920 px de
+       large, et 20 px de moins en anglais. 930 laisse la marge, et laisse aussi
+       un 1080p maximisé (937 px de fenêtre) sans barre. Un plancher trop court
+       ne coupe plus rien depuis la correction de Nina, mais il rend au
+       récapitulatif sa petite barre de défilement intérieure — que Martin ne
+       veut pas voir sur une réservation d'une chambre (01/09/2026). */
+    <main className="bg-cream text-[#222] lg:flex lg:h-screen lg:min-h-[930px] lg:flex-col lg:overflow-hidden">
 
       <header className="mx-auto w-full max-w-[1600px] shrink-0 px-4 pt-5 lg:px-6 lg:pt-6">
         {/* « Site officiel » partage la ligne du lien de retour, et ne coute
