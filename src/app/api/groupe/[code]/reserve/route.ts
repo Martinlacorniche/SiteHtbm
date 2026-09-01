@@ -267,12 +267,33 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     // Le client, lui, n'a jamais de mail ici : il n'a pas donné d'adresse.
     if (process.env.RESEND_API_KEY && g.mode_vue !== "plan") {
       const resend = new Resend(process.env.RESEND_API_KEY);
+      // Le petit-déjeuner tel qu'il a été ENREGISTRÉ (nuits retenues par le serveur),
+      // pas tel que le navigateur l'a annoncé. Sans lui, le mail de l'équipe ne disait
+      // NULLE PART que l'invité en avait pris — la réception découvrait les couverts
+      // au petit matin (Martin, 01/09/2026).
+      const posees = new Map(insertRows.map((r) => [r.groupe_chambre_id, r]));
+      // Une nuit cochée vaut le petit-déjeuner du LENDEMAIN matin : c'est la date de
+      // service affichée à l'invité, et celle que la cuisine prépare.
+      const matinDe = (nuit: string) => {
+        const d = new Date(nuit + "T12:00:00Z");
+        d.setUTCDate(d.getUTCDate() + 1);
+        return d.toISOString().slice(0, 10).split("-").reverse().slice(0, 2).join("/");
+      };
+      const pdjCellule = (gcId: string, pax: number) => {
+        const ins = posees.get(gcId);
+        // L'hôtel ne propose pas le petit-déjeuner sur ce groupe : rien à dire.
+        if (!ins || ins.pdj_prix_unitaire == null) return "—";
+        const matins = (ins.pdj_nuits || []) as string[];
+        if (!matins.length) return "<span style=\"color:#94a3b8;\">sans petit-déjeuner</span>";
+        const couverts = matins.length * pax;
+        return `<strong>PDJ</strong> ${matins.map(matinDe).join(", ")} · ${couverts} couvert${couverts > 1 ? "s" : ""}`;
+      };
       const roomRowsOf = (rs: { groupe_chambre_id: string; config_lit?: string; nb_personnes?: number }[]) =>
         rs.map((r) => {
           const ru = one(gcMap.get(r.groupe_chambre_id)!.room_units);
           const lit = ru?.twinable ? (r.config_lit === "twin" ? "2 lits séparés" : "1 grand lit") : "—";
           const pax = Math.max(1, parseInt(String(r.nb_personnes)) || 1);
-          return `<tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:600;">Ch. ${ru?.numero ?? "?"}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${lit}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${pax} pers.</td></tr>`;
+          return `<tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:600;">Ch. ${ru?.numero ?? "?"}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${lit}</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${pax} pers.</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:13px;">${pdjCellule(r.groupe_chambre_id, pax)}</td></tr>`;
         }).join("");
 
       // Regroupe les chambres réservées par hôtel.
