@@ -273,6 +273,11 @@ export async function annulerDemandePaiement(id: string): Promise<void> {
  *
  *     #<chambre> <FLEX|NANR> / DIRECT DÉPART 12H OK / <consigne d'encaissement>
  *
+ * soit, sur un prépayé :
+ *
+ *     #individuelle NANR / DIRECT DÉPART 12H OK /
+ *       TOUT PRÉPAYÉ 578,16€ — CHAMBRE + PDJ + TAXE — RIEN À ENCAISSER
+ *
  * Trois blocs, pour les trois seules questions qu'on se pose au comptoir, dans
  * l'ordre où elles se posent : quelle chambre, sous quelles conditions, et
  * est-ce que j'encaisse.
@@ -301,6 +306,15 @@ export async function annulerDemandePaiement(id: string): Promise<void> {
  *  · Prépayé : Mews a débité 100 % du coût, taxe comprise. Il n'y a RIEN à
  *    demander. Écrire « à débiter » ici ferait réencaisser un client qui a
  *    déjà payé — l'accident du 29/07/2026 (cf. `mewsNotes.ts`), à l'envers.
+ *
+ * ⚠️ ET SUR LE PRÉPAYÉ, LA NOTE NOMME LES TROIS COMPOSANTES. Martin,
+ * 01/09/2026 : « pour nos résas prépayées la note doit être que TOUT est
+ * prépayé ». « TS COMPRISE » ne le disait qu'à moitié — le petit-déjeuner
+ * n'était nommé nulle part, alors que Mews éclate un tarif BB en DEUX lignes
+ * de folio (la chambre, puis le PDJ) et qu'une réception qui ouvre le dossier
+ * voit donc une ligne « Petit-déjeuner » qu'aucune note ne déclarait réglée.
+ * Vérifié le 01/09/2026 sur la 29931 : folio 578,16 €, encaissé 578,16 €,
+ * solde ZÉRO — chambre, petit-déjeuner et taxe compris.
  */
 export function noteDeControle(
   { chambre, prepaye, total, taxe, langueClient }:
@@ -310,7 +324,7 @@ export function noteDeControle(
   const bloc: string[] = [`#${codeChambre(chambre)}`, prepaye ? 'NANR' : 'FLEX'];
   bloc.push('/ DIRECT DÉPART 12H OK');
   bloc.push(prepaye
-    ? `/ DÉJÀ DÉBITÉ ${eur(total)} TS COMPRISE — RIEN À ENCAISSER`
+    ? `/ TOUT PRÉPAYÉ ${eur(total)} — CHAMBRE + PDJ + TAXE — RIEN À ENCAISSER`
     : `/ RSP ${eur(total)} DONT TS ${eur(taxe)}`);
   if (langueClient && langueClient !== 'fr') bloc.push(langueClient.toUpperCase());
   return bloc.join(' ');
