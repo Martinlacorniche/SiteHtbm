@@ -93,6 +93,81 @@ export async function confirmerReservations(ids: string[]): Promise<void> {
   await callMews('reservations/confirm', { ReservationIds: ids });
 }
 
+/* ──────────────────── CE QUE LE DOSSIER DOIT, LU DANS LE FOLIO ───────────────
+ *
+ * ⚠️ LE PRIX NE SE REDEMANDE PAS À LA DISPONIBILITÉ UNE FOIS LA CHAMBRE VENDUE.
+ * La note de réception se composait en relisant `hotels/getAvailability` APRÈS
+ * la confirmation, et en cherchant l'offre de la catégorie qu'on venait
+ * d'acheter. Le 31/08/2026 sur la résa 29931 — six nuits en individuelle,
+ * dernière du type — cette offre avait disparu de la réponse : la catégorie
+ * était complète, précisément PARCE QU'ON VENAIT DE LA VENDRE. Le repli `?? 0`
+ * a fait le reste, et la réception a reçu :
+ *
+ *     #individuelle NANR / … / DÉJÀ DÉBITÉ 11,16€ TS COMPRISE — RIEN À ENCAISSER
+ *
+ * 11,16 €, c'était la taxe de séjour seule (6 × 1,86). Le client avait payé
+ * 578,16 €, correctement débités. Un montant faux dans le seul document que la
+ * réception lit au comptoir.
+ *
+ * ⚠️ LE FOLIO, LUI, EST LA VÉRITÉ ET IL NE PEUT PAS DISPARAÎTRE : c'est ce que
+ * la réception réclamerait effectivement, nuits + petit-déjeuner + taxe. Vérifié
+ * sur la 29931 : les dix-huit lignes existent à `CreatedUtc + 1 seconde`, soit
+ * près de quatre minutes avant que la note ne soit posée.
+ *
+ * ⚠️ ON ÉCARTE LES LIGNES ANNULÉES : une nuit reprise ne se facture pas.
+ *
+ * La taxe se reconnaît à son `BillingName` — « Taxe de séjour (Adultes) »,
+ * relevé le 01/09/2026 ; le petit-déjeuner porte « Petit-déjeuner (Adultes) ».
+ * On ne la recalcule PAS à 1,86 € par adulte et par nuit : ce taux est un
+ * barème municipal, il change, et Mews le connaît mieux que nous. */
+export type FolioResa = { total: number; taxe: number; lignes: number };
+
+const EST_TAXE_SEJOUR = /taxe de s[ée]jour|city tax/i;
+
+export async function folioDesReservations(ids: string[]): Promise<Map<string, FolioResa>> {
+  const out = new Map<string, FolioResa>();
+  if (!ids.length) return out;
+
+  type Ligne = {
+    ServiceOrderId: string;
+    BillingName: string | null;
+    CanceledUtc: string | null;
+    Amount?: { GrossValue?: number };
+  };
+  const lignes: Ligne[] = [];
+  let cursor: string | undefined;
+  for (let garde = 0; garde < 20; garde++) {
+    const r = await callMews<{ OrderItems?: Ligne[]; Cursor?: string }>('orderItems/getAll', {
+      ServiceOrderIds: ids,
+      Limitation: { Count: 1000, ...(cursor ? { Cursor: cursor } : {}) },
+    });
+    const lot = r.OrderItems ?? [];
+    lignes.push(...lot);
+    if (lot.length < 1000 || !r.Cursor) break;
+    cursor = r.Cursor;
+  }
+
+  for (const l of lignes) {
+    if (l.CanceledUtc) continue;
+    const montant = Number(l.Amount?.GrossValue ?? 0);
+    const cour = out.get(l.ServiceOrderId) ?? { total: 0, taxe: 0, lignes: 0 };
+    cour.total += montant;
+    if (EST_TAXE_SEJOUR.test(l.BillingName ?? '')) cour.taxe += montant;
+    cour.lignes += 1;
+    out.set(l.ServiceOrderId, cour);
+  }
+  // Les centimes se recollent une fois, à la fin : additionner des flottants
+  // dix-huit fois laisse des 578,1599999999999 dans une note client.
+  for (const [id, f] of out) {
+    out.set(id, {
+      total: Math.round(f.total * 100) / 100,
+      taxe: Math.round(f.taxe * 100) / 100,
+      lignes: f.lignes,
+    });
+  }
+  return out;
+}
+
 /* ─────────────────────── La demande de paiement ──────────────────────────────
  *
  * C'est elle que Mews Payments Checkout consomme : on la crée ici, côté

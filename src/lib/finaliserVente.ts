@@ -1,7 +1,9 @@
 import {
   chercherDisponibilite, chargerCategories, estPrepaye, t, type Langue,
 } from '@/lib/mewsBooking';
-import { confirmerReservations, ajouterNote, noteDeControle } from '@/lib/mewsConnector';
+import {
+  confirmerReservations, ajouterNote, noteDeControle, folioDesReservations,
+} from '@/lib/mewsConnector';
 
 /* Ferme la vente : la confirmation, puis la note que lira la réception.
  *
@@ -26,8 +28,6 @@ import { confirmerReservations, ajouterNote, noteDeControle } from '@/lib/mewsCo
  * Secure, le prépayé après que le checkout de Mews a encaissé.
  */
 
-const TAXE_PAR_ADULTE_NUIT = 1.86;
-
 /** Une chambre du séjour. Plusieurs sont possibles, toutes du même groupe
  *  tarifaire — la contrainte qui garde une seule règle d'encaissement. */
 export type LigneVendue = { categorieId: string; tarifId: string; adultes: number };
@@ -48,7 +48,16 @@ export async function finaliserVente(
   await confirmerReservations(reservationIds);
 
   try {
-    const [dispo, cats] = await Promise.all([
+    /* ⚠️ LE MONTANT VIENT DU FOLIO, PLUS DE LA DISPONIBILITÉ. Relire le prix
+     * dans `hotels/getAvailability` après avoir vendu la chambre, c'est le
+     * chercher là où il vient de disparaître : la catégorie qu'on achète peut
+     * sortir de la réponse parce qu'elle est désormais complète. Le repli
+     * `?? 0` a écrit « DÉJÀ DÉBITÉ 11,16€ » sur un séjour de 578,16 € (résa
+     * 29931, 31/08/2026) — le raisonnement complet est sur
+     * `folioDesReservations`. La disponibilité ne sert plus qu'à savoir si le
+     * TARIF est prépayé, une donnée de catalogue qui ne dépend pas des
+     * chambres restantes. */
+    const [dispo, cats, folios] = await Promise.all([
       chercherDisponibilite({
         arrivee: sejour.arrivee, depart: sejour.depart,
         // La recherche porte sur l'occupation de la première chambre : c'est
@@ -57,10 +66,8 @@ export async function finaliserVente(
         adultes: sejour.lignes[0]?.adultes ?? 1, langue: 'fr',
       }),
       chargerCategories('fr'),
+      folioDesReservations(reservationIds),
     ]);
-    const nuits = Math.max(
-      1, Math.round((Date.parse(sejour.depart) - Date.parse(sejour.arrivee)) / 86_400_000),
-    );
 
     /* ⚠️ UNE NOTE PAR RÉSERVATION, ET PAS LA MÊME POUR TOUTES.
      *
@@ -75,15 +82,20 @@ export async function finaliserVente(
     const notes = reservationIds.map((id, rang) => {
       const ligne = sejour.lignes[rang] ?? sejour.lignes[0];
       if (!ligne) return null;
-      const taxe = TAXE_PAR_ADULTE_NUIT * ligne.adultes * nuits;
-      const prixMews = dispo.offres
-        .find((o) => o.categorieId === ligne.categorieId && o.pourPersonnes === ligne.adultes)
-        ?.prix.find((p) => p.tarifId === ligne.tarifId)?.total ?? 0;
+      /* ⚠️ PAS DE FOLIO, PAS DE NOTE — ET SURTOUT PAS UN MONTANT INVENTÉ. Une
+       * note absente se rattrape au comptoir en ouvrant le dossier ; une note
+       * qui annonce un mauvais montant se croit sur parole. C'est exactement
+       * ce qui a coûté la 29931. */
+      const folio = folios.get(id);
+      if (!folio || folio.total <= 0) {
+        console.error('Note de reception non posee — folio vide pour la reservation', id);
+        return null;
+      }
       const texte = noteDeControle({
         chambre: cats.get(ligne.categorieId)?.nomFr || t(cats.get(ligne.categorieId)?.nom, 'fr'),
         prepaye: estPrepaye(dispo.tarifs.find((r) => r.Id === ligne.tarifId), dispo.groupes),
-        total: prixMews + taxe,
-        taxe,
+        total: folio.total,
+        taxe: folio.taxe,
         langueClient: langue,
       });
       return ajouterNote(id, texte);
