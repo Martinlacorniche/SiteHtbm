@@ -869,8 +869,14 @@ function Maison({
     </button>
   );
 
+  /* Le seul bloc élastique de la colonne 1. Tout le reste — dates, voyageurs,
+     bouton, photo (qui a déjà son plancher à 110 px) — refuse de rétrécir : si
+     ce texte ne pliait pas non plus, la colonne dépasserait par le bas dès
+     qu'une ligne s'ajoute au récit, et le `overflow-hidden` de la page la
+     couperait en silence. Il ne défile que là où l'écran ne suffit pas ; à la
+     hauteur pour laquelle la page est dessinée, aucune barre n'apparaît. */
   const arrivee = (
-    <div className="shrink-0">
+    <div className="min-h-0 overflow-y-auto">
       <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299]">
         {recit.arrivee.titre}
       </h2>
@@ -1671,8 +1677,23 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     /* Sur PC, l'écran EST la page : hauteur fixe, aucune barre de défilement
        générale, chaque colonne défile chez elle. Un tunnel qui oblige à
        remonter pour changer une date perd le client à chaque aller-retour.
-       Sous 1024 px on retrouve le flux normal et les colonnes s'empilent. */
-    <main className="bg-cream text-[#222] lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+       Sous 1024 px on retrouve le flux normal et les colonnes s'empilent.
+
+       ⚠️ `lg:min-h-[880px]` est le PLANCHER, et il n'est pas décoratif. Cette
+       mise en page a une hauteur incompressible : l'en-tête (160), les marges
+       (40), puis une colonne 1 dont rien ne défile — dates, voyageurs, bouton,
+       et la carte qui se retourne dont les deux faces sont en `absolute
+       inset-0` et ne savent donc pas rétrécir (~670 au total). Sans plancher,
+       `h-screen` + `overflow-hidden` COUPAIT tout ce qui dépassait, et comme
+       la page ne défile pas sur PC, le bas devenait INATTEIGNABLE : sur un
+       1366×768 (625 px de fenêtre utile) le bouton « Réserver » était hors de
+       l'écran et la réservation impossible. Vu par Nina le 01/09/2026.
+
+       Avec le plancher, `main` fait 880 px sur un écran plus court : la mise en
+       page reste entière, et c'est le DOCUMENT qui défile — la barre générale
+       revient donc là, et seulement là, où l'écran ne suffit pas. Au-dessus de
+       880 px le plancher est inerte et rien ne change. */
+    <main className="bg-cream text-[#222] lg:flex lg:h-screen lg:min-h-[880px] lg:flex-col lg:overflow-hidden">
 
       <header className="mx-auto w-full max-w-[1600px] shrink-0 px-4 pt-5 lg:px-6 lg:pt-6">
         {/* « Site officiel » partage la ligne du lien de retour, et ne coute
@@ -2308,9 +2329,19 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               Les deux faces font `h-full` : à la première tentative le dos
               était court, `backface-visibility` ne suffisait pas, et on lisait
               le récapitulatif en miroir dessous. */}
-          <div className="min-h-0 flex-1 [perspective:1600px]">
+          <div className="flex min-h-0 flex-1 flex-col [perspective:1600px]">
+          {/* Hauteur par le FLEX, pas par un pourcentage, et rangée `1fr`
+              bornée à zéro.
+              `h-full` ne marchait pas ici : la colonne tient sa hauteur d'un
+              `max-height:100%` qui rogne une hauteur automatique (`self-start`),
+              et Chrome traite alors la hauteur du parent comme indéfinie — le
+              pourcentage retombait sur `auto`, c'est-à-dire sur le contenu.
+              La grille faisait donc 676 px dans un parent de 641, sa rangée
+              `auto` suivait, les faces aussi, et le `overflow-y-auto` du
+              récapitulatif ne voyait jamais de contrainte : il ne défilait pas
+              et la colonne débordait par le bas, sans barre. */}
           <div className={[
-            "grid h-full min-h-0 transition-transform duration-700 ease-in-out [transform-style:preserve-3d]",
+            "grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] transition-transform duration-700 ease-in-out [transform-style:preserve-3d]",
             dosRooftop ? "[transform:rotateY(180deg)]" : "",
           ].join(" ")}>
 
