@@ -116,7 +116,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     await supabaseServer.from("groupe_reservations").update({ stripe_checkout_id: session.id }).in("id", h.ids);
     await supabaseServer.from("payments").insert({
       hotel_id: hotelId, type: "groupe_resa", amount: h.total / 100, currency: "eur",
-      description: `${g.nom} — ${h.lines.length} chambre(s) (paiement en ligne)`,
+      // Les chambres, pas les lignes facturées (cf. reserve/route.ts).
+      description: `${g.nom} — ${h.ids.length} chambre(s) (paiement en ligne)`,
       client_nom: `${first.prenom || ""} ${first.nom}`.trim(), email: first.email,
       status: "open", stripe_checkout_id: session.id, hosted_invoice_url: session.url,
     });

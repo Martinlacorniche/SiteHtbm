@@ -243,7 +243,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       await supabaseServer.from("groupe_reservations").update({ stripe_checkout_id: session.id }).in("id", h.resaIds);
       await supabaseServer.from("payments").insert({
         hotel_id: hotelId, type: "groupe_resa", amount: h.total / 100, currency: "eur",
-        description: `${g.nom} — ${h.lines.length} chambre(s)`, client_nom: `${prenom || ""} ${nom}`.trim(),
+        // `lines` compte les LIGNES facturées (chambre, petit-déjeuner, taxe de
+        // séjour), pas les chambres : une chambre seule s'annonçait « 2 chambre(s) ».
+        // Ce libellé finit sur le folio Mews, la réception le lit.
+        description: `${g.nom} — ${h.resaIds.length} chambre(s)`, client_nom: `${prenom || ""} ${nom}`.trim(),
         email, status: "open", stripe_checkout_id: session.id, hosted_invoice_url: session.url,
       });
       paymentsOut.push({ hotel_id: hotelId, hotelNom: hotelNom.get(hotelId) || "Hôtel", amount: h.total / 100, url: session.url! });
