@@ -19,9 +19,19 @@
  *
  * Le gabarit à donner au partenaire de connectivité (D-EDGE) est donc :
  *
- *   https://www.hotel-voiles.com/reserver
+ *   https://hotels-toulon-mer.com/reserver
  *     ?checkinYear=(CHECKINYEAR)&checkinMonth=(CHECKINMONTH)
  *     &checkinDay=(CHECKINDAY)&nuits=(LENGTH)&adultes=(NUM-ADULTS)
+ *
+ * ⚠️ SUR `hotels-toulon-mer.com`, ET SURTOUT PAS SUR `hotel-voiles.com`.
+ * Ce gabarit portait le second, qui n'est plus qu'un domaine de renvoi : mesuré
+ * le 01/09/2026, `https://www.hotel-voiles.com/reserver?checkinYear=…` répond
+ * 301 vers `https://hotels-toulon-mer.com/` — l'ACCUEIL, chemin et paramètres
+ * jetés. Donné tel quel à un partenaire, chaque lien de réservation gratuit
+ * aurait déposé le voyageur sur la page d'accueil sans ses dates : il aurait vu
+ * un autre prix que celui annoncé dans Google, ce qui est très exactement le
+ * motif de suspension d'une fiche. Le domaine en ligne est le seul à tester,
+ * et il répond 200 sur ce gabarit (vérifié le même jour).
  *
  * ⚠️ ON GARDE AUSSI L'ANCIENNE FORME, `?arrivee=…&depart=…&voyage=…`.
  * Elle sert aux liens de l'accueil, au partage entre deux personnes qui
