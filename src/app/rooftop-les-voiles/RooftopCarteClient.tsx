@@ -121,7 +121,16 @@ export default function RooftopCarteClient() {
           const savedOrder = tileData.config.categories_ordre as string[];
           ordered = [...new Set([...savedOrder, ...dbCats])].filter(c => dbCats.includes(c));
         }
-        const hidden = new Set((tileData?.config?.categories_masquees ?? []) as string[]);
+        // Deux masquages, et ils ne veulent PAS dire la même chose :
+        //   • categories_masquees   → retirée PARTOUT, POS de l'équipe compris.
+        //   • categories_hors_carte → vendable au POS, absente de cette carte.
+        // La seconde existe parce que `wifi_bar.actif` et `categories_masquees`
+        // pilotent les deux à la fois : sans elle, cacher une bouteille au client
+        // la retirerait aussi de la caisse du rooftop.
+        const hidden = new Set([
+          ...((tileData?.config?.categories_masquees ?? []) as string[]),
+          ...((tileData?.config?.categories_hors_carte ?? []) as string[]),
+        ]);
         setDrinkCats(ordered.filter(c => !hidden.has(c)));
       }
       if (tileData?.config?.en?.categories) setCatEn(tileData.config.en.categories as Record<string, string>);
