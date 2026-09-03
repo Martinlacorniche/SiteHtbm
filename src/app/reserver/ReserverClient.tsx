@@ -516,8 +516,8 @@ const PHOTO_DE_TETE: Record<string, string> = {
 
 /* Ce qu'on ne voit pas sur la photo.
  *
- * Une photo montre un lit ; elle ne dit pas s'il y a un balcon, si la rue est
- * calme, si l'on peut avoir des lits jumeaux. Ces phrases viennent du descriptif
+ * Une photo montre un lit ; elle ne dit pas s'il y a un balcon, ni si la rue
+ * est calme. Ces phrases viennent du descriptif
  * chambres de l'hotel (surfaces, balcons, specificites relevees chambre par
  * chambre) et de la description Mews de la categorie — pas d'un argumentaire.
  * Une phrase par categorie, jamais deux : c'est un tunnel, pas une brochure.
@@ -527,9 +527,8 @@ const PHOTO_DE_TETE: Record<string, string> = {
  *
  * Le descriptif recense des lits bebe et des lits d'appoint dans plusieurs
  * chambres : l'hotel ne les propose PAS (tranche le 25/08/2026). Ces colonnes
- * du descriptif ne remontent donc jamais a l'ecran. Les lits jumeaux,
- * eux, sont une autre disposition des memes couchages, pas un lit de plus :
- * ils restent annonces sur la superieure.
+ * du descriptif ne remontent donc jamais a l'ecran. Les lits jumeaux non plus
+ * (retire le 03/09/2026) : on ne les annonce plus sur la superieure.
  */
 const DESCRIPTION_CATEGORIE: Record<string, Record<Langue, string>> = {
   // Individuelle — les quatre ont un balcon, toutes au niveau de l'ascenseur.
@@ -542,10 +541,10 @@ const DESCRIPTION_CATEGORIE: Record<string, Record<Langue, string>> = {
     fr: "Côté rue, dans un quartier résidentiel très calme. Une chambre PMR et une avec baignoire, selon disponibilité.",
     en: "Street side, in a very quiet residential district. One accessible room and one with a bathtub, subject to availability.",
   },
-  // Supérieure — vue mer ; cinq des sept ont un balcon, lits jumeaux possibles.
+  // Supérieure — vue mer ; cinq des sept ont un balcon.
   "c60f97a0-8870-4c0e-8d1e-aaa9008727ad": {
-    fr: "Vue sur la rade, balcon pour cinq des sept chambres. Lits jumeaux possibles, selon disponibilité.",
-    en: "Looking out over the bay, with a balcony in five of the seven rooms. Twin beds subject to availability.",
+    fr: "Vue sur la rade, balcon pour cinq des sept chambres.",
+    en: "Looking out over the bay, with a balcony in five of the seven rooms.",
   },
 };
 
