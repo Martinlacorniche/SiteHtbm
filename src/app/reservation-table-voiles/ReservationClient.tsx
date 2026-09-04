@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Minus, Plus, Check, Phone, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -38,6 +38,13 @@ export default function ReservationClient() {
   // complet" — donc grises, sans un mot. Le client croyait le rooftop plein.
   const [calErr, setCalErr] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  /* Un jour indisponible l'est pour deux raisons tres differentes : COMPLET
+   * (toutes les tables prises) ou FERME (rooftop_closures). La fonction de
+   * dispo repond `false` dans les deux cas. Sans la nuance, la fermeture
+   * d'hiver — 213 jours, du 01/10 au 01/05 — s'affiche comme sept mois
+   * « complets » : le client avance de mois en mois sans jamais comprendre
+   * que le rooftop est simplement ferme pour la saison. */
+  const [closures, setClosures] = useState<{ debut: string; fin: string }[]>([]);
 
   // Étape 3 — contact
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -80,6 +87,38 @@ export default function ReservationClient() {
     })();
     return () => { annule = true; };
   }, [viewY, viewM, pax, reloadKey]);
+
+  useEffect(() => {
+    let annule = false;
+    (async () => {
+      const { data } = await supabase.from("rooftop_closures")
+        .select("date_debut,date_fin").eq("hotel_id", VOILES_ID);
+      if (!annule && data) setClosures(data.map(c => ({ debut: String(c.date_debut), fin: String(c.date_fin) })));
+    })();
+    return () => { annule = true; };
+  }, []);
+
+  const estFerme = useCallback(
+    (jour: string) => closures.some(c => jour >= c.debut && jour <= c.fin), [closures]);
+
+  /* Le mois entier est ferme : on annonce la reouverture au lieu d'afficher
+   * trente cases barrees. La date de reprise est le lendemain de la fermeture
+   * en cours — c'est la seule chose que le client veut savoir. */
+  const moisFerme = useMemo(() => {
+    const total = daysInMonth(viewY, viewM);
+    let dernier = "";
+    for (let i = 1; i <= total; i++) {
+      const j = ymd(viewY, viewM, i);
+      if (j < today) continue;
+      if (!estFerme(j)) return null;
+      dernier = j;
+    }
+    if (!dernier) return null;
+    const c = closures.find(x => dernier >= x.debut && dernier <= x.fin);
+    if (!c) return null;
+    const d = new Date(`${c.fin}T00:00:00`); d.setDate(d.getDate() + 1);
+    return { reprise: ymd(d.getFullYear(), d.getMonth(), d.getDate()) };
+  }, [viewY, viewM, today, estFerme, closures]);
 
   const curY = now.getFullYear();
   const curM = now.getMonth();
@@ -277,7 +316,8 @@ export default function ReservationClient() {
                   const dateStr = ymd(viewY, viewM, d);
                   const isPast = dateStr < today;
                   const isAvailable = !isPast && avail[dateStr] === true;
-                  const isComplet = !isPast && avail[dateStr] === false;
+                  const isFerme = !isPast && !isAvailable && estFerme(dateStr);
+                  const isComplet = !isPast && !isAvailable && !isFerme && avail[dateStr] === false;
                   return (
                     <button
                       key={dateStr}
@@ -289,7 +329,9 @@ export default function ReservationClient() {
                           ? "bg-emerald-50 text-emerald-700 font-semibold hover:bg-gold hover:text-navy-deep cursor-pointer ring-1 ring-emerald-100"
                           : isComplet
                             ? "bg-slate-50 text-slate-300 line-through cursor-not-allowed"
-                            : "text-slate-300 cursor-not-allowed",
+                            : isFerme
+                              ? "text-slate-200 cursor-not-allowed"
+                              : "text-slate-300 cursor-not-allowed",
                       ].join(" ")}
                     >
                       {d}
@@ -297,6 +339,18 @@ export default function ReservationClient() {
                   );
                 })}
               </div>
+
+              {/* Ferme pour la saison : on annonce la reouverture, et on y emmene. */}
+              {moisFerme && !calErr && (
+                <p className="mt-4 rounded-xl border border-gold/30 bg-gold/10 px-3 py-2.5 text-center text-[13px] leading-relaxed text-slate-600">
+                  Le rooftop est ferme tout le mois. Reouverture le{" "}
+                  <button type="button"
+                    onClick={() => { const d = new Date(`${moisFerme.reprise}T00:00:00`); setViewY(d.getFullYear()); setViewM(d.getMonth()); }}
+                    className="font-semibold text-navy-deep underline underline-offset-2">
+                    {new Date(`${moisFerme.reprise}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                  </button>.
+                </p>
+              )}
 
               {/* La disponibilite n'a pas repondu : on le dit, avec la sortie de secours. */}
               {calErr && (
@@ -309,7 +363,7 @@ export default function ReservationClient() {
               {/* Légende */}
               <div className="mt-4 flex items-center justify-center gap-4 text-[11px] text-slate-400">
                 <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-emerald-50 ring-1 ring-emerald-100" /> Libre</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-slate-100" /> Complet</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-slate-100" /> {moisFerme ? "Ferme" : "Complet"}</span>
                 {loadingCal && <span className="inline-flex items-center gap-1"><Loader2 size={11} className="animate-spin" /> …</span>}
               </div>
 
