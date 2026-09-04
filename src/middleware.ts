@@ -10,12 +10,17 @@ import { SITE_URL } from '@/lib/site';
  * domaines au lieu de s'additionner sur un seul, et c'est pour ça que
  * l'adresse `.netlify.app` remonte là où on ne l'attend pas.
  *
- * Deux domaines de l'hôtel aggravent le tout — relevé le même jour :
- *   hotel-voiles.com   → 301 vers sitehtbm.netlify.app
- *   hotel-corniche.com → 301 vers sitehtbm.netlify.app
- * Ces deux-là sont derrière Cloudflare, pas dans ce dépôt : leur redirection se
- * corrige chez Cloudflare, pas ici. Mais tant qu'elles pointent sur le
- * sous-domaine Netlify, ce rebond-ci les rattrape et les renvoie au bon endroit.
+ * Deux domaines de l'hôtel sont derrière Cloudflare, hors de ce dépôt :
+ *   hotel-voiles.com   → 301
+ *   hotel-corniche.com → 301
+ *
+ * ⚠️ RELEVÉ LE 04/09/2026 : ils ne passent PLUS par sitehtbm.netlify.app (donc
+ * le rebond ci-dessous ne les rattrape plus), et surtout ils redirigent vers la
+ * RACINE en écrasant le chemin :
+ *   hotel-voiles.com/wifi → 301 → hotels-toulon-mer.com/     (et non /wifiv)
+ * Un QR code ou un lien imprimé portant l'un de ces domaines avec un chemin
+ * dépose donc le client sur la page d'accueil. Cela se corrige chez Cloudflare
+ * — une règle qui reporte le chemin (…/$1) —, pas ici.
  *
  * ⚠️ 301 ET PAS `noindex`. Un `noindex` ferait disparaître la copie sans
  * transmettre ce qu'elle a accumulé ; une redirection permanente le reverse au
