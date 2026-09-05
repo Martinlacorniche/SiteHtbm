@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype v2 — le parcours /reserver · Les Voiles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FDFCF8; --navy:#004e7c; --navy-deep:#013a5c; --azure:#3E6E8E;
+    --gold:#C6A972; --gold-dark:#B8975E; --gold-ink:#8C6F39;
+    --ink:#22272B; --muted:#5B6770; --line:#E7E2D6; --ok:#2F6B4F;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:Inter,system-ui,sans-serif;background:var(--cream);color:var(--ink);line-height:1.5}
+  .serif{font-family:"Playfair Display",Georgia,serif}
+  .page{max-width:680px;margin:0 auto;padding:0 20px 140px}
+
+  /* ——— progression ——— */
+  .progress{position:sticky;top:0;z-index:20;background:rgba(253,252,248,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:14px 20px;display:flex;justify-content:center}
+  .steps{display:flex;gap:0;align-items:center;font-size:12.5px;color:var(--muted)}
+  .steps .s{display:flex;align-items:center;gap:7px}
+  .steps .n{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:flex;
+    align-items:center;justify-content:center;font-size:11.5px;font-weight:700;background:#fff;transition:.3s}
+  .steps .s.actif{color:var(--navy);font-weight:600}
+  .steps .s.actif .n{border-color:var(--gold);background:var(--gold);color:#fff}
+  .steps .s.fait .n{border-color:var(--gold-ink);background:var(--gold-ink);color:#fff}
+  .steps .trait{width:34px;height:1.5px;background:var(--line);margin:0 10px}
+  .steps .s.fait + .trait{background:var(--gold-ink)}
+
+  /* ——— étapes ——— */
+  .etape{display:none;padding-top:44px;animation:in .45s ease both}
+  .etape.on{display:block}
+  @keyframes in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .kicker{font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-ink)}
+  h1{font-size:clamp(28px,5.5vw,38px);color:var(--navy);font-weight:600;line-height:1.15;margin:8px 0 6px;text-wrap:balance}
+  h1 em{font-style:italic;color:var(--gold-ink)}
+  .sub{color:var(--muted);font-size:15.5px;max-width:52ch}
+  .retour{background:none;border:none;color:var(--azure);font-size:13.5px;font-weight:600;cursor:pointer;
+    margin-bottom:18px;padding:0;text-decoration:underline}
+  .action{margin-top:26px;width:100%;background:var(--gold);color:#fff;border:none;border-radius:14px;
+    padding:17px;font-size:16.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:.2s}
+  .action:hover{background:var(--gold-dark)}
+  .action:disabled{opacity:.45;cursor:not-allowed}
+
+  /* ——— étape 1 : dates ——— */
+  .dates{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:26px}
+  .champ{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px 16px}
+  .champ label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .champ input,.champ select{border:none;font:inherit;font-weight:600;color:var(--navy);background:none;width:100%;outline:none;font-size:16px}
+  .champ:focus-within{border-color:var(--gold)}
+  .perkline{margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;
+    font-size:13.5px;color:var(--muted)}
+  .perkline b{color:var(--gold-ink);font-weight:600}
+
+  /* ——— étape 2 : chambres ——— */
+  .chambre{background:#fff;border:1.5px solid var(--line);border-radius:18px;overflow:hidden;margin-top:18px;
+    cursor:pointer;transition:.25s;position:relative}
+  .chambre:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(1,58,92,.10)}
+  .chambre.choisie{border-color:var(--gold);box-shadow:0 0 0 3px rgba(198,169,114,.25)}
+  .chambre .visu{height:130px;display:flex;align-items:flex-end;padding:14px 18px;color:#fff}
+  .chambre .visu span{font-size:12px;font-style:italic;opacity:.85}
+  .v-cour .visu{background:linear-gradient(120deg,#8fa8b5,#5B6770)}
+  .v-mer .visu{background:linear-gradient(120deg,#7fb3d0,#004e7c)}
+  .v-balcon .visu{background:linear-gradient(120deg,#d8bc84,#8C6F39)}
+  .tag-coeur{position:absolute;top:12px;right:12px;background:var(--gold);color:#fff;font-size:11.5px;
+    font-weight:700;border-radius:999px;padding:5px 12px;z-index:2}
+  .chambre .corps{padding:16px 20px 18px}
+  .chambre h2{font-size:21px;color:var(--navy);font-weight:600}
+  .pitch{font-family:"Playfair Display",serif;font-style:italic;color:var(--gold-ink);font-size:15.5px;margin-top:3px}
+  .faits{font-size:13px;color:var(--muted);margin-top:6px}
+  .chambre .bas{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;flex-wrap:wrap}
+  .chambre .prix b{font-size:22px;color:var(--navy)}
+  .chambre .prix .pour{font-size:13.5px;color:var(--muted)}
+  .chambre .prix .detail{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+  .delta{font-size:12px;font-weight:700;color:var(--gold-ink);background:#FBF7EE;border:1px solid #EDE3CC;
+    border-radius:999px;padding:4px 11px;white-space:nowrap}
+  .choisir{background:none;border:1.5px solid var(--gold);color:var(--gold-ink);border-radius:999px;
+    padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.2s}
+  .chambre.choisie .choisir{background:var(--gold);color:#fff}
+  .details{margin-top:26px;text-align:center}
+  .details summary{cursor:pointer;font-size:13.5px;color:var(--azure);font-weight:600;list-style:none}
+  .details summary::-webkit-details-marker{display:none}
+  .details summary::after{content:" ▾"}
+  .details[open] summary::after{content:" ▴"}
+  .details .contenu{margin-top:12px;font-size:13.5px;color:var(--muted);background:#fff;
+    border:1px solid var(--line);border-radius:14px;padding:16px 18px;text-align:left}
+  .details .contenu li{list-style:none;padding:2px 0}
+  .details .contenu li::before{content:"✓";color:var(--gold-ink);font-weight:700;margin-right:7px}
+  .simple{margin-top:16px;background:var(--navy-deep);color:var(--cream);border-radius:14px;
+    padding:16px 20px;font-size:14px}
+  .simple b{color:var(--gold);font-weight:600}
+
+  /* ——— étape 3 : tarif ——— */
+  .rappel{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);
+    border-radius:14px;padding:14px 18px;margin-top:24px}
+  .rappel .mini{width:64px;height:48px;border-radius:8px;flex-shrink:0}
+  .rappel .qui{font-size:15px;font-weight:600;color:var(--navy)}
+  .rappel .quand{font-size:13px;color:var(--muted)}
+  .tarif{display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid var(--line);
+    border-radius:16px;padding:18px 20px;margin-top:14px;cursor:pointer;transition:.2s;text-align:left;width:100%;font-family:inherit}
+  .tarif:hover{border-color:var(--gold)}
+  .tarif.choisi{border-color:var(--gold);background:#FBF7EE;box-shadow:0 0 0 3px rgba(198,169,114,.22)}
+  .tarif .zone{flex:1}
+  .tarif b{font-size:16.5px;color:var(--navy)}
+  .tarif .pourquoi{font-size:13.5px;color:var(--muted);margin-top:3px}
+  .tarif .pourquoi .ok{color:var(--ok);font-weight:600}
+  .tarif .montant{text-align:right}
+  .tarif .montant b{font-size:22px}
+  .tarif .montant s{font-size:13.5px;color:var(--muted);margin-right:6px}
+  .tarif .montant span{display:block;font-size:12px;color:var(--muted)}
+  .eco{display:inline-block;background:#EAF3EC;color:var(--ok);font-size:12px;font-weight:700;
+    border-radius:6px;padding:2px 8px;margin-top:4px}
+  .reco{font-size:11.5px;font-weight:700;color:var(--gold-ink);text-transform:uppercase;letter-spacing:.08em}
+  .confiance{display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;margin-top:22px;font-size:13px;color:var(--muted)}
+  .confiance span::before{content:"✓";color:var(--gold-ink);font-weight:700;margin-right:5px}
+  .confiance .sun::before{content:"☀️";margin-right:4px}
+
+  /* ——— confirmation ——— */
+  .bravo{text-align:center;padding-top:60px}
+  .bravo .soleil{font-size:52px;animation:pop .6s ease both}
+  @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  .bravo h1{margin-top:14px}
+  .bravo .ticket{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;
+    margin-top:24px;text-align:left;font-size:14.5px}
+  .bravo .ticket div{display:flex;justify-content:space-between;padding:5px 0}
+  .bravo .ticket .mut{color:var(--muted);font-size:13px}
+  .bravo .proto{margin-top:18px;font-size:12.5px;color:var(--muted);font-style:italic}
+
+  /* ——— pilule contexte ——— */
+  .pilule{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:30;background:var(--navy-deep);
+    color:var(--cream);border-radius:999px;padding:10px 20px;font-size:13.5px;display:flex;gap:10px;
+    align-items:center;box-shadow:0 8px 24px rgba(1,58,92,.28);white-space:nowrap;max-width:92vw;overflow:hidden}
+  .pilule b{color:var(--gold)}
+  .pilule .ptsep{opacity:.35}
+</style>
+</head>
+<body>
+
+<!-- PROGRESSION -->
+<div class="progress">
+  <div class="steps">
+    <div class="s actif" id="s1"><span class="n">1</span> Vos dates</div><div class="trait"></div>
+    <div class="s" id="s2"><span class="n">2</span> Votre chambre</div><div class="trait"></div>
+    <div class="s" id="s3"><span class="n">3</span> Votre tarif</div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ÉTAPE 1 -->
+  <section class="etape on" id="e1">
+    <p class="kicker">Réservation directe · Hôtel Les Voiles</p>
+    <h1 class="serif">On vous attend <em>quand&nbsp;?</em></h1>
+    <p class="sub">Trois petites questions et c'est calé. Réserver ici, c'est le meilleur prix — et le départ à 12h offert.</p>
+    <div class="dates">
+      <div class="champ"><label>Arrivée</label><input type="date" id="arr" value="2026-09-12"></div>
+      <div class="champ"><label>Départ</label><input type="date" id="dep" value="2026-09-14"></div>
+      <div class="champ"><label>Voyageurs</label>
+        <select id="pers"><option>1 adulte</option><option selected>2 adultes</option><option>2 adultes + bébé</option></select>
+      </div>
+      <div class="champ"><label>Nuits</label><input type="text" id="nuits" value="2 nuits" readonly></div>
+    </div>
+    <p class="perkline">☀️ <b>Départ 12h00 offert</b> · Petit-déj inclus · Meilleur prix garanti — <b>exclu site officiel</b></p>
+    <button class="action" onclick="aller(2)">Voir les chambres disponibles →</button>
+  </section>
+
+  <!-- ÉTAPE 2 -->
+  <section class="etape" id="e2">
+    <button class="retour" onclick="aller(1)">← modifier mes dates</button>
+    <p class="kicker">12 → 14 septembre · 2 adultes · 3 chambres libres</p>
+    <h1 class="serif">Trois chambres, <em>une rade.</em></h1>
+    <p class="sub">Touchez celle qui vous ressemble. Les prix sont les totaux de votre séjour, au même tarif flexible — comparez d'un coup d'œil.</p>
+
+    <article class="chambre v-cour" data-nom="Double — côté cour" data-prix="276" onclick="choisirChambre(this)">
+      <div class="visu"><span>photo · côté cour</span></div>
+      <div class="corps">
+        <h2 class="serif">Double — côté cour</h2>
+        <p class="pitch">« Le même confort, au calme — le petit prix malin. »</p>
+        <p class="faits">Lit 140 · ~14 m²</p>
+        <div class="bas">
+          <p class="prix"><b>276 €</b> <span class="pour">pour 2 nuits</span><span class="detail">138 €/nuit · flexible · TTC</span></p>
+          <button class="choisir">Choisir</button>
+        </div>
+      </div>
+    </article>
+
+    <article class="chambre v-mer choisie" data-nom="Double Vue Mer" data-prix="336" onclick="choisirChambre(this)">
+      <span class="tag-coeur">☀️ Notre coup de cœur</span>
+      <div class="visu"><span>photo · vue mer</span></div>
+      <div class="corps">
+        <h2 class="serif">Double Vue Mer</h2>
+        <p class="pitch">« Le réveil face à la rade de Toulon. »</p>
+        <p class="faits">Lit 160 · ~15 m² · plus que 2 à ces dates</p>
+        <div class="bas">
+          <p class="prix"><b>336 €</b> <span class="pour">pour 2 nuits</span><span class="detail">168 €/nuit · flexible · TTC</span></p>
+          <span class="delta">+60 € vs côté cour</span>
+          <button class="choisir">Choisie ✓</button>
+        </div>
+      </div>
+    </article>
+
+    <article class="chambre v-balcon" data-nom="Vue Mer · Balcon" data-prix="396" onclick="choisirChambre(this)">
+      <div class="visu"><span>photo · balcon</span></div>
+      <div class="corps">
+        <h2 class="serif">Vue Mer · Balcon</h2>
+        <p class="pitch">« La rade rien qu'à vous, depuis votre balcon privé. »</p>
+        <p class="faits">Lit 160 · ~15 m² + balcon</p>
+        <div class="bas">
+          <p class="prix"><b>396 €</b> <span class="pour">pour 2 nuits</span><span class="detail">198 €/nuit · flexible · TTC</span></p>
+          <span class="delta">+120 € vs côté cour</span>
+          <button class="choisir">Choisir</button>
+        </div>
+      </div>
+    </article>
+
+    <details class="details">
+      <summary>Ce que toutes nos chambres incluent</summary>
+      <div class="contenu">
+        <li>Climatisation · TV écran plat · Wi-Fi gratuit</li>
+        <li>Salle de bain privative avec douche · sèche-cheveux · non-fumeur</li>
+        <li>Et dans l'hôtel : 🍳 cuisine en libre-service · 👶 lit bébé sur demande · ♿ chambre PMR</li>
+      </div>
+    </details>
+
+    <div class="simple">Volontairement simples : pas de minibar dans les chambres — mais une <b>cuisine en libre-service</b> pour vos repas, et le <b>rooftop au 6ᵉ face à la mer</b> pour l'apéro.</div>
+
+    <button class="action" onclick="aller(3)">Continuer avec la Vue Mer →</button>
+  </section>
+
+  <!-- ÉTAPE 3 -->
+  <section class="etape" id="e3">
+    <button class="retour" onclick="aller(2)">← changer de chambre</button>
+    <p class="kicker">Dernière question</p>
+    <h1 class="serif">Flexible ou <em>malin&nbsp;?</em></h1>
+
+    <div class="rappel">
+      <div class="mini v-mer" style="background:linear-gradient(120deg,#7fb3d0,#004e7c)"></div>
+      <div>
+        <div class="qui" id="rNom">Double Vue Mer</div>
+        <div class="quand">12 → 14 septembre · 2 nuits · 2 adultes · petit-déj inclus</div>
+      </div>
+    </div>
+
+    <button class="tarif choisi" data-prix="336" onclick="choisirTarif(this)">
+      <div class="zone">
+        <span class="reco">Recommandé</span><br>
+        <b>Flexible</b>
+        <p class="pourquoi"><span class="ok">Annulation gratuite jusqu'au 10 sept., 18h00</span><br>Payez à l'hôtel, dormez tranquille.</p>
+      </div>
+      <div class="montant"><b>336 €</b><span>2 nuits, TTC</span></div>
+    </button>
+
+    <button class="tarif" data-prix="302" onclick="choisirTarif(this)">
+      <div class="zone">
+        <b>Prépayé — le malin</b>
+        <p class="pourquoi">Payé maintenant, non remboursable.<br>Vous savez que vous venez ? Gardez la différence pour l'apéro au rooftop.</p>
+        <span class="eco">économisez 34 €</span>
+      </div>
+      <div class="montant"><s>336 €</s><b>302 €</b><span>2 nuits, TTC</span></div>
+    </button>
+
+    <div class="confiance">
+      <span>Confirmation immédiate</span>
+      <span class="sun">Départ 12h00 offert</span>
+      <span>Meilleur prix garanti</span>
+      <span>Paiement sécurisé</span>
+    </div>
+
+    <button class="action" id="ctaPayer" onclick="aller(4)">Réserver — 336 €</button>
+  </section>
+
+  <!-- CONFIRMATION -->
+  <section class="etape" id="e4">
+    <div class="bravo">
+      <div class="soleil">☀️</div>
+      <h1 class="serif">C'est noté, <em>à très vite.</em></h1>
+      <p class="sub" style="margin:0 auto">Votre chambre est tenue. Le soleil, lui, est déjà dehors sur la rade.</p>
+      <div class="ticket">
+        <div><span>Chambre</span><b id="tNom">Double Vue Mer</b></div>
+        <div><span>Dates</span><b>12 → 14 sept. 2026</b></div>
+        <div class="mut"><span>Tarif</span><span id="tTarif">Flexible · annulation jusqu'au 10 sept.</span></div>
+        <div class="mut"><span>Petit-déjeuner</span><span>inclus</span></div>
+        <div class="mut"><span>Départ</span><span>12h00 — offert ☀️</span></div>
+        <div style="border-top:1px solid var(--line);margin-top:6px;padding-top:10px"><span>Total</span><b id="tTotal">336 €</b></div>
+      </div>
+      <p class="proto">(Prototype — ici se branchera le paiement Mews, puis la confirmation par e-mail.)</p>
+    </div>
+  </section>
+
+</div>
+
+<!-- PILULE CONTEXTE -->
+<div class="pilule" id="pilule">📅 12→14 sept. <span class="ptsep">·</span> 2 adultes</div>
+
+<script>
+  let chambre = { nom: "Double Vue Mer", prix: 336 };
+  let tarif = { nom: "Flexible", prix: 336 };
+
+  function aller(n){
+    document.querySelectorAll('.etape').forEach(e => e.classList.remove('on'));
+    document.getElementById('e'+n).classList.add('on');
+    [1,2,3].forEach(i => {
+      const s = document.getElementById('s'+i);
+      s.classList.toggle('actif', i === n);
+      s.classList.toggle('fait', i < n);
+      s.querySelector('.n').textContent = i < n ? '✓' : i;
+    });
+    window.scrollTo({top:0, behavior:'smooth'});
+    majPilule();
+  }
+
+  function choisirChambre(el){
+    document.querySelectorAll('.chambre').forEach(c => {
+      c.classList.remove('choisie');
+      c.querySelector('.choisir').textContent = 'Choisir';
+    });
+    el.classList.add('choisie');
+    el.querySelector('.choisir').textContent = 'Choisie ✓';
+    chambre = { nom: el.dataset.nom, prix: +el.dataset.prix };
+    document.querySelector('#e2 .action').textContent = 'Continuer avec la ' + chambre.nom + ' →';
+    document.getElementById('rNom').textContent = chambre.nom;
+    majPilule();
+    // guidage : on avance tout seul après un temps de lecture
+    setTimeout(() => aller(3), 650);
+  }
+
+  function choisirTarif(el){
+    document.querySelectorAll('.tarif').forEach(t => t.classList.remove('choisi'));
+    el.classList.add('choisi');
+    tarif = { nom: el.querySelector('b').textContent, prix: +el.dataset.prix };
+    document.getElementById('ctaPayer').textContent = 'Réserver — ' + tarif.prix + ' €';
+    document.getElementById('tTotal').textContent = tarif.prix + ' €';
+    document.getElementById('tTarif').textContent = tarif.nom;
+    document.getElementById('tNom').textContent = chambre.nom;
+    majPilule();
+  }
+
+  function majPilule(){
+    let txt = '📅 12→14 sept. <span class="ptsep">·</span> 2 adultes';
+    const e2on = document.getElementById('e2').classList.contains('on'),
+          e3on = document.getElementById('e3').classList.contains('on'),
+          e4on = document.getElementById('e4').classList.contains('on');
+    if (e2on) txt += ' <span class="ptsep">·</span> <b>' + chambre.nom + '</b>';
+    if (e3on || e4on) txt += ' <span class="ptsep">·</span> <b>' + chambre.nom + '</b> <span class="ptsep">·</span> <b>' + tarif.prix + ' €</b>';
+    document.getElementById('pilule').innerHTML = txt;
+    document.getElementById('pilule').style.display = e4on ? 'none' : 'flex';
+  }
+</script>
+</body>
+</html>

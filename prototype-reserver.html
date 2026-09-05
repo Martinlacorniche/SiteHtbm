@@ -1,0 +1,482 @@
+<title>Les chambres des Voiles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+<style>
+  /* Palette du site, pas une nouvelle : les tokens de globals.css. */
+  :root {
+    --cream:      #FDFCF8;
+    --ground:     #FDFCF8;
+    --surface:    #ffffff;
+    --ink:        #22272B;
+    --muted:      #6B7A82;
+    --faint:      #8A9299;
+    --line:       #E7E2D6;
+    --navy:       #004e7c;
+    --navy-deep:  #013a5c;
+    --gold:       #C6A972;
+    --gold-ink:   #8C6F39;
+    --gold-wash:  rgba(198, 169, 114, 0.14);
+    --flag:       #A8571F;
+    --flag-wash:  rgba(168, 87, 31, 0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:    #0E1E29;
+      --surface:   #142937;
+      --ink:       #ECE8DF;
+      --muted:     #A9B6BE;
+      --faint:     #8697A1;
+      --line:      #23404F;
+      --navy:      #7FC0E4;
+      --navy-deep: #BFE0F2;
+      --gold:      #D8BC84;
+      --gold-ink:  #E0C68F;
+      --gold-wash: rgba(198, 169, 114, 0.16);
+      --flag:      #E0975E;
+      --flag-wash: rgba(224, 151, 94, 0.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:    #0E1E29;
+    --surface:   #142937;
+    --ink:       #ECE8DF;
+    --muted:     #A9B6BE;
+    --faint:     #8697A1;
+    --line:      #23404F;
+    --navy:      #7FC0E4;
+    --navy-deep: #BFE0F2;
+    --gold:      #D8BC84;
+    --gold-ink:  #E0C68F;
+    --gold-wash: rgba(198, 169, 114, 0.16);
+    --flag:      #E0975E;
+    --flag-wash: rgba(224, 151, 94, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .serif { font-family: "Playfair Display", Georgia, serif; }
+
+  .page { max-width: 1080px; margin: 0 auto; padding: 56px 24px 96px; }
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--gold-ink);
+  }
+  h1 { font-family: "Playfair Display", Georgia, serif; font-weight: 600;
+       font-size: clamp(30px, 4.2vw, 44px); line-height: 1.12; margin: 10px 0 0;
+       color: var(--navy); text-wrap: balance; }
+  .chapo { max-width: 62ch; margin-top: 14px; font-size: 17px; color: var(--muted); }
+
+  h2 { font-family: "Playfair Display", Georgia, serif; font-weight: 600;
+       font-size: 25px; margin: 0; color: var(--navy); text-wrap: balance; }
+  h3 { font-size: 15px; margin: 0; color: var(--ink); }
+
+  section { margin-top: 56px; }
+  .section-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 22px; }
+  .section-head p { margin: 0; max-width: 62ch; color: var(--muted); font-size: 15px; }
+
+  /* ── Le parti pris ─────────────────────────────────────────────── */
+  .partis { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .parti {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 20px;
+  }
+  .parti .quoi { font-size: 13px; font-weight: 600; color: var(--gold-ink);
+                 letter-spacing: 0.04em; text-transform: uppercase; }
+  .parti p { margin: 8px 0 0; font-size: 14.5px; color: var(--muted); }
+  .parti .dit { font-family: "Playfair Display", Georgia, serif; font-style: italic;
+                font-size: 17px; color: var(--ink); margin-top: 10px; display: block; }
+
+  /* ── La maquette ───────────────────────────────────────────────── */
+  .maquette {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+    padding: 24px; display: grid; gap: 18px;
+  }
+  .maquette-cadre { position: relative; }
+  .cadre-label {
+    position: absolute; top: -10px; left: 20px; background: var(--ground);
+    padding: 0 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--faint);
+  }
+
+  .equip { border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .equip .titre { font-size: 12px; font-weight: 600; letter-spacing: 0.12em;
+                  text-transform: uppercase; color: var(--faint); }
+  .equip ul { list-style: none; margin: 10px 0 0; padding: 0;
+              display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14.5px; color: var(--ink); }
+  .equip li::before { content: "✓"; color: var(--gold-ink); font-weight: 700; margin-right: 7px; }
+  .equip .hotel { margin: 12px 0 0; padding-top: 12px; border-top: 1px dashed var(--line);
+                  font-size: 14.5px; color: var(--muted); }
+  .equip .hotel b { color: var(--ink); font-weight: 600; }
+
+  .chambre { border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .chambre-tete { display: flex; flex-wrap: wrap; align-items: baseline;
+                  justify-content: space-between; gap: 10px; }
+  .chambre-tete .nom { font-family: "Playfair Display", Georgia, serif;
+                       font-size: 23px; color: var(--navy); }
+  .chambre-tete .stock { font-size: 13px; font-weight: 600; color: var(--faint); }
+  .chambre-tete .stock.rare { color: var(--flag); }
+  .pitch { font-family: "Playfair Display", Georgia, serif; font-style: italic;
+           font-size: 17px; color: var(--gold-ink); margin: 6px 0 0; }
+  .fait { margin: 8px 0 0; font-size: 13.5px; color: var(--muted); }
+
+  .tarifs { display: grid; gap: 8px; margin-top: 14px; }
+  .tarif { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+           border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+  .tarif.retenu { border-color: var(--navy); background: var(--gold-wash); }
+  .tarif .quoi { min-width: 0; }
+  .tarif .quoi b { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+                   font-size: 15px; font-weight: 600; color: var(--ink); }
+  .tarif .quoi span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .eco { display: inline-block; border-radius: 999px;
+         background: var(--gold-wash); color: var(--gold-ink);
+         font-size: 12px; font-weight: 700; padding: 2px 9px; vertical-align: 1px; }
+  .tarif .prix { text-align: right; font-variant-numeric: tabular-nums; }
+  .tarif .prix b { display: block; font-size: 20px; font-weight: 700; color: var(--navy); }
+  .tarif .prix span { display: block; font-size: 12px; color: var(--faint); }
+
+  .simple {
+    border-radius: 14px; padding: 18px 20px; font-size: 15px;
+    background: var(--navy-deep); color: var(--cream);
+  }
+  .simple b { color: var(--gold); font-weight: 600; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .simple { background: #0A1922; color: #ECE8DF; }
+  }
+  :root[data-theme="dark"] .simple { background: #0A1922; color: #ECE8DF; }
+
+  /* ── Marquage des faits non confirmés ──────────────────────────── */
+  .aconf {
+    border-bottom: 1px dotted var(--flag); color: var(--flag);
+    cursor: help; text-decoration: none;
+  }
+
+  /* ── Tableaux d'état ───────────────────────────────────────────── */
+  .etat { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .etat th, .etat td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line);
+                       vertical-align: top; }
+  .etat th { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+             color: var(--faint); font-weight: 600; }
+  .etat td.q { color: var(--ink); }
+  .etat td.r { color: var(--muted); }
+  .etat code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+               font-size: 12.5px; color: var(--gold-ink); }
+  .tag { display: inline-block; border-radius: 999px; padding: 2px 10px;
+         font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .tag.ok { background: var(--gold-wash); color: var(--gold-ink); }
+  .tag.todo { background: var(--flag-wash); color: var(--flag); }
+  .table-wrap { overflow-x: auto; }
+
+  .questions { display: grid; gap: 12px; }
+  .question { display: flex; gap: 14px; align-items: baseline;
+              border-left: 2px solid var(--gold); padding: 4px 0 4px 16px; }
+  .question b { font-size: 15px; color: var(--ink); font-weight: 600; }
+  .question p { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+
+  .retire { display: grid; gap: 10px; }
+  .retire div { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 14px;
+                font-size: 14.5px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .retire b { color: var(--flag); font-weight: 600; }
+  .retire span { color: var(--muted); }
+
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line);
+           font-size: 13px; color: var(--faint); }
+
+  @media (max-width: 620px) {
+    .page { padding: 36px 18px 72px; }
+    .retire div { grid-template-columns: 1fr; gap: 4px; }
+    .tarif { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .tarif .prix { text-align: left; }
+  }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Hôtel Les Voiles · tunnel de réservation</p>
+  <h1>Les chambres, côté texte</h1>
+  <p class="chapo">
+    Comment décrire trois chambres sans monter une usine à gaz : une ligne d'équipements dite
+    une seule fois, une phrase par chambre, et l'absence de minibar transformée en argument.
+    Tout ce qui est chiffré ici vient de la vraie API Mews, interrogée le 24 août.
+  </p>
+
+  <!-- ── 1. Le parti pris ─────────────────────────────────────────── -->
+  <section>
+    <div class="section-head">
+      <h2>Le parti pris</h2>
+      <p>
+        L'hôtel est simple et l'assume : check-in autonome, pas de comptoir occupé toute la
+        journée, l'équipe est au rooftop. Raconté comme un manque, ça fait un 4,2 sur Google.
+        Raconté comme un choix, ça devient la raison de venir.
+      </p>
+    </div>
+    <div class="partis">
+      <div class="parti">
+        <p class="quoi">Le vide au lobby</p>
+        <p>Ne pas s'excuser d'une réception vide : dire où est l'équipe.</p>
+        <span class="dit">« Personne à l'accueil ? On est au rooftop, au 6ᵉ. Montez, c'est là que ça se passe. »</span>
+      </div>
+      <div class="parti">
+        <p class="quoi">Le check-in autonome</p>
+        <p>Une contrainte d'effectif devient une liberté d'horaire.</p>
+        <span class="dit">« Arrivez à 23 h si votre train arrive à 23 h. Votre chambre vous attend, sans personne pour vous attendre. »</span>
+      </div>
+      <div class="parti">
+        <p class="quoi">Le minibar absent</p>
+        <p>Une absence qu'on remplace par deux présences, et qui vend le rooftop.</p>
+        <span class="dit">« Pas de minibar. Une cuisine en libre-service, et un bar face à la mer. »</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. La maquette ───────────────────────────────────────────── -->
+  <section>
+    <div class="section-head">
+      <h2>Le bloc chambres, tel qu'il s'afficherait</h2>
+      <p>
+        Colonne centrale de <code>/reserver</code>. Noms de catégories, prix, écart prépayé et
+        taxe de séjour : valeurs réelles du 24 août (1 nuit, 2 personnes). Ce qui est
+        <span class="aconf" title="Fait non vérifié : à confirmer avant mise en ligne">souligné en orange</span>
+        n'est pas encore confirmé et ne doit pas partir en production tel quel.
+      </p>
+    </div>
+
+    <div class="maquette-cadre">
+      <span class="cadre-label">Nos chambres</span>
+      <div class="maquette">
+
+        <div class="equip">
+          <p class="titre">Dans toutes nos chambres</p>
+          <ul>
+            <li>Climatisation</li>
+            <li>TV écran plat</li>
+            <li>Wi-Fi gratuit</li>
+            <li><span class="aconf" title="Non confirmé : douche ou baignoire ?">Salle de bain privative</span></li>
+            <li><span class="aconf" title="Non confirmé">Sèche-cheveux</span></li>
+            <li><span class="aconf" title="Non confirmé">Non-fumeur</span></li>
+          </ul>
+          <p class="hotel">
+            <b>Et dans l'hôtel :</b> cuisine en libre-service · lit bébé sur demande ·
+            chambre PMR · rooftop au 6ᵉ, face à la rade
+          </p>
+        </div>
+
+        <div class="chambre">
+          <div class="chambre-tete">
+            <span class="nom">Chambre confort</span>
+            <span class="stock">2 chambres disponibles</span>
+          </div>
+          <p class="pitch">« L'essentiel, bien fait — et le silence en prime. »</p>
+          <p class="fait"><span class="aconf" title="Non confirmé : literie et surface">Lit 140 · ~14 m²</span> · 2 personnes</p>
+          <div class="tarifs">
+            <div class="tarif retenu">
+              <span class="quoi">
+                <b>Tarif flexible</b>
+                <span>Annulable sans frais jusqu'au 24 août, 18 h</span>
+              </span>
+              <span class="prix"><b>149,00 €</b><span>la nuit</span></span>
+            </div>
+            <div class="tarif">
+              <span class="quoi">
+                <b>Prépayé, non remboursable <span class="eco">Économisez 10 €</span></b>
+                <span>Réglé aujourd'hui, définitif</span>
+              </span>
+              <span class="prix"><b>139,00 €</b><span>la nuit</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chambre">
+          <div class="chambre-tete">
+            <span class="nom">Chambre supérieure — vue mer</span>
+            <span class="stock">2 chambres disponibles</span>
+          </div>
+          <p class="pitch">« Le réveil face à la rade, sans se lever du lit. »</p>
+          <p class="fait">
+            <span class="aconf" title="Non confirmé : literie, surface, et lesquelles ont un balcon">Lit 160 · ~15 m² · certaines avec balcon</span>
+            · 2 personnes
+          </p>
+          <div class="tarifs">
+            <div class="tarif">
+              <span class="quoi">
+                <b>Tarif flexible</b>
+                <span>Annulable sans frais jusqu'au 24 août, 18 h</span>
+              </span>
+              <span class="prix"><b>164,00 €</b><span>la nuit</span></span>
+            </div>
+            <div class="tarif">
+              <span class="quoi">
+                <b>Prépayé, non remboursable <span class="eco">Économisez 10 €</span></b>
+                <span>Réglé aujourd'hui, définitif</span>
+              </span>
+              <span class="prix"><b>154,00 €</b><span>la nuit</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chambre">
+          <div class="chambre-tete">
+            <span class="nom">Chambre individuelle</span>
+            <span class="stock">3 chambres disponibles</span>
+          </div>
+          <p class="pitch">« Pour un voyageur seul : une vraie chambre, pas un placard. »</p>
+          <p class="fait"><span class="aconf" title="Non confirmé : literie et surface">Lit 90 ou 140</span> · 1 personne</p>
+          <div class="tarifs">
+            <div class="tarif">
+              <span class="quoi">
+                <b>Tarif flexible</b>
+                <span>Annulable sans frais jusqu'au 24 août, 18 h</span>
+              </span>
+              <span class="prix"><b>115,00 €</b><span>la nuit</span></span>
+            </div>
+          </div>
+        </div>
+
+        <p class="simple">
+          Volontairement simples : pas de minibar dans les chambres — mais une
+          <b>cuisine en libre-service</b> pour vos repas, et le <b>rooftop au 6ᵉ étage</b>,
+          face à la mer, pour l'apéro.
+        </p>
+
+        <p style="margin:0;font-size:12.5px;color:var(--faint)">
+          + 1,86 € de taxe de séjour par adulte et par nuit, à régler sur place
+        </p>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. Déjà en ligne / à ajouter ─────────────────────────────── -->
+  <section>
+    <div class="section-head">
+      <h2>Ce qui tourne déjà, ce qu'il reste</h2>
+      <p>
+        Cinq des dispositifs du plan sont codés et en ligne depuis ce matin. Le bloc chambres
+        ci-dessus est la seule pièce qui manque encore.
+      </p>
+    </div>
+    <div class="table-wrap">
+      <table class="etat">
+        <thead>
+          <tr><th>Dispositif</th><th>État</th><th>Où</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="q">Bandeau privilège, paramétré par hôtel</td>
+            <td><span class="tag ok">en ligne</span></td>
+            <td class="r"><code>lib/site.ts</code> · PRIVILEGES</td>
+          </tr>
+          <tr>
+            <td class="q">Recherche lancée au chargement</td>
+            <td><span class="tag ok">en ligne</span></td>
+            <td class="r"><code>ReserverClient.tsx</code></td>
+          </tr>
+          <tr>
+            <td class="q">Prépayé chiffré, flexible daté</td>
+            <td><span class="tag ok">en ligne</span></td>
+            <td class="r">écart réel Mews, deadline déduite du tarif</td>
+          </tr>
+          <tr>
+            <td class="q">Cluster de confiance au paiement</td>
+            <td><span class="tag ok">en ligne</span></td>
+            <td class="r">colonne récapitulatif</td>
+          </tr>
+          <tr>
+            <td class="q">Mobile : formulaire replié + barre collante</td>
+            <td><span class="tag ok">en ligne</span></td>
+            <td class="r">sous 1024 px</td>
+          </tr>
+          <tr>
+            <td class="q">Ligne d'équipements communs</td>
+            <td><span class="tag todo">à coder</span></td>
+            <td class="r">constante statique, aucun appel Mews en plus</td>
+          </tr>
+          <tr>
+            <td class="q">Phrase par catégorie</td>
+            <td><span class="tag todo">à coder</span></td>
+            <td class="r">table id Mews → phrase, repli par mot-clé</td>
+          </tr>
+          <tr>
+            <td class="q">Bloc « volontairement simples »</td>
+            <td><span class="tag todo">à coder</span></td>
+            <td class="r">sous la liste des chambres</td>
+          </tr>
+          <tr>
+            <td class="q">Photos de chambres</td>
+            <td><span class="tag todo">à décider</span></td>
+            <td class="r">Mews fournit des ImageIds ; sinon photos locales</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 4. Ce que j'ai retiré ────────────────────────────────────── -->
+  <section>
+    <div class="section-head">
+      <h2>Ce que j'ai retiré du premier prototype</h2>
+      <p>
+        La version précédente affichait des éléments faux ou invérifiables. Sur une page qui
+        encaisse, ça se paie au comptoir — ou en avis.
+      </p>
+    </div>
+    <div class="retire">
+      <div><b>Deux avis clients signés</b><span>« Claire, août 2026 », « Mehdi, juillet 2026 » : inventés. Des faux avis sur la page de réservation, c'est le seul vrai interdit du lot.</span></div>
+      <div><b>« Best Western® »</b><span>C'est La Corniche. Les Voiles est un 3★ indépendant — la marque n'a rien à faire sur cette page.</span></div>
+      <div><b>« Meilleur prix garanti »</b><span>Tu ne l'as pas validé : la parité avec Booking n'est pas arbitrée.</span></div>
+      <div><b>« Paiement sécurisé », « Confirmation immédiate »</b><span>Le bouton payer est encore mort. On le dira le jour où il encaisse.</span></div>
+      <div><b>Économies de 28 à 40 €</b><span>Le vrai écart Mews est de 10 € par nuit, identique sur les deux catégories.</span></div>
+      <div><b>Taxe de séjour à 3,30 €</b><span>C'est 1,86 € par adulte et par nuit — soit 7,44 € pour deux personnes, deux nuits.</span></div>
+      <div><b>Palette approchée</b><span>#1D3A52 au lieu du bleu #004e7c, et du blanc sur or à 2,25:1 — le contraste qu'on venait de corriger.</span></div>
+    </div>
+  </section>
+
+  <!-- ── 5. Ce qu'il me manque ────────────────────────────────────── -->
+  <section>
+    <div class="section-head">
+      <h2>Ce qu'il me manque pour écrire les textes définitifs</h2>
+      <p>Quatre faits. Sans eux, je laisse tomber la précision plutôt que de l'approximer.</p>
+    </div>
+    <div class="questions">
+      <div class="question">
+        <div>
+          <b>Literie et surface, par catégorie</b>
+          <p>140 ou 160 ? Combien de m² ? Si tu ne les as pas sous la main, on supprime la ligne : « ~15 m² » faux vaut moins que rien du tout.</p>
+        </div>
+      </div>
+      <div class="question">
+        <div>
+          <b>Les balcons</b>
+          <p>Sur toutes les vues mer, ou seulement certaines ? Si c'est « certaines », on ne peut pas le promettre au niveau de la catégorie — Mews ne distingue pas.</p>
+        </div>
+      </div>
+      <div class="question">
+        <div>
+          <b>La salle de bain</b>
+          <p>Douche partout, ou baignoire dans certaines ? Sèche-cheveux et non-fumeur : je les ai supposés, confirme-les.</p>
+        </div>
+      </div>
+      <div class="question">
+        <div>
+          <b>La cuisine en libre-service</b>
+          <p>Accessible à toute heure ? Équipée de quoi (plaques, frigo, micro-ondes, vaisselle) ? C'est l'argument le plus fort de la page pour les familles et les longs séjours : il mérite deux lignes précises.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Maquette de travail — la mise en page reprend les tokens du site (crème #FDFCF8, bleu #004e7c,
+    or #C6A972, Playfair Display et Inter) mais n'est pas le rendu exact de la page.
+    Prix, disponibilités et dates : relevés réels de l'API Mews du 24 août 2026, une nuit, deux personnes.
+  </footer>
+
+</div>

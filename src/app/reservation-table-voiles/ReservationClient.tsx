@@ -16,6 +16,28 @@ const firstWeekdayMon = (y: number, m: number) => (new Date(y, m, 1).getDay() + 
 const WEEKDAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 // Créneaux d'arrivée au choix du client : 17h00 → 21h30 (fermeture 22h).
+/* Combien de minutes depuis minuit, à Paris — pas dans le fuseau du visiteur.
+ * Quelqu'un qui réserve depuis Londres ou Montréal ne doit pas voir des
+ * créneaux d'un autre pays. */
+function minutesParis(): number {
+  const p = new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const h = Number(p.find((x) => x.type === 'hour')?.value ?? 0);
+  const m = Number(p.find((x) => x.type === 'minute')?.value ?? 0);
+  return h * 60 + m;
+}
+function jourParis(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+}
+const enMinutes = (slot: string) => {
+  const [h, m] = slot.split('h');
+  return Number(h) * 60 + Number(m || 0);
+};
+/* On arrête de proposer un créneau une demi-heure avant : le temps d'arriver,
+ * et le temps que la salle s'organise. */
+const PREAVIS = 30;
+
 const SLOTS = (() => {
   const o: string[] = [];
   for (let h = 17; h <= 21; h++) { o.push(`${h}h00`); o.push(`${h}h30`); }
@@ -49,6 +71,23 @@ export default function ReservationClient() {
   // Étape 3 — contact
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [heure, setHeure] = useState("19h00");
+
+  /* Les créneaux encore ouverts pour la date choisie. Un autre jour : tous.
+   * Aujourd'hui : seulement ceux qui restent, préavis compris — proposer
+   * 19h00 à 22h48 ferait réserver une table pour un service terminé, et
+   * l'équipe la découvrirait le lendemain. */
+  const creneauxDuJour = useMemo(() => {
+    if (!selectedDate || selectedDate !== jourParis()) return SLOTS;
+    const limite = minutesParis() + PREAVIS;
+    return SLOTS.filter((sl) => enMinutes(sl) >= limite);
+  }, [selectedDate]);
+
+  /* Si l'heure retenue n'est plus proposée (on passe à aujourd'hui, ou le
+   * temps a tourné pendant que la page était ouverte), on retombe sur la
+   * première encore possible plutôt que d'envoyer une heure impossible. */
+  useEffect(() => {
+    if (creneauxDuJour.length && !creneauxDuJour.includes(heure)) setHeure(creneauxDuJour[0]);
+  }, [creneauxDuJour, heure]);
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [email, setEmail] = useState("");
@@ -238,7 +277,7 @@ export default function ReservationClient() {
 
               <Field label="À quelle heure ?">
                 <select value={heure} onChange={e => setHeure(e.target.value)} className={inputCls}>
-                  {SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
+                  {creneauxDuJour.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <p className="mt-1 text-[11px] text-slate-400">Service de 17h à 22h · dernière arrivée 21h30.</p>
               </Field>
@@ -257,7 +296,7 @@ export default function ReservationClient() {
               </div>
               <Field label="Un petit mot ? (facultatif)">
                 <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3}
-                  placeholder="Occasion spéciale, allergies, coin préféré…" className={`${inputCls} resize-none`} />
+                  placeholder="Occasion spéciale, spécificité alimentaire, coin préféré…" className={`${inputCls} resize-none`} />
               </Field>
 
               {error && <p className="text-sm text-red-500">{error}</p>}
@@ -315,7 +354,10 @@ export default function ReservationClient() {
                   const d = i + 1;
                   const dateStr = ymd(viewY, viewM, d);
                   const isPast = dateStr < today;
-                  const isAvailable = !isPast && avail[dateStr] === true;
+                  /* Aujourd'hui ne vaut que s'il reste un créneau à venir :
+                     à 22h48, la dernière arrivée de 21h30 est passée. */
+                  const resteCeJour = dateStr !== jourParis() || SLOTS.some((sl) => enMinutes(sl) >= minutesParis() + PREAVIS);
+                  const isAvailable = !isPast && avail[dateStr] === true && resteCeJour;
                   const isFerme = !isPast && !isAvailable && estFerme(dateStr);
                   const isComplet = !isPast && !isAvailable && !isFerme && avail[dateStr] === false;
                   return (
