@@ -49,6 +49,7 @@ export default function BarPage() {
   const [items, setItems] = useState<BarItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [catEn, setCatEn] = useState<Record<string, string>>({});
+  const [catPrix, setCatPrix] = useState<Record<string, string>>({});
   const [active, setActive] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const t = T[lang];
@@ -77,6 +78,15 @@ export default function BarPage() {
       }
       if (tileData?.config?.en?.categories) {
         setCatEn(tileData.config.en.categories as Record<string, string>);
+      }
+      /* Le prix de la CATÉGORIE, en repli de celui de l'article.
+       *
+       * Les deux existent : l'article porte le sien quand il se distingue (un
+       * vin au verre et à la bouteille), sinon il suit sa catégorie. La page
+       * ne lisait que l'article — d'où « Azuria - Limo » affiché avec un prix
+       * VIDE au client, parce que personne n'avait rempli cette ligne. */
+      if (tileData?.config?.categories_prix) {
+        setCatPrix(tileData.config.categories_prix as Record<string, string>);
       }
       setLoading(false);
     });
@@ -192,9 +202,17 @@ export default function BarPage() {
                               </p>
                             )}
                           </div>
-                          <span className="text-sm font-semibold tabular-nums text-slate-800 shrink-0 pt-0.5">
-                            {item.prix.includes("€") ? item.prix : `${item.prix} €`}
-                          </span>
+                          {(() => {
+                            const brut = (item.prix ?? "").trim() || (catPrix[item.categorie] ?? "").trim();
+                            // Sans prix nulle part, on n'affiche RIEN plutôt qu'un « € »
+                            // orphelin : un tarif vide inquiète plus qu'il n'informe.
+                            if (!brut) return null;
+                            return (
+                              <span className="text-sm font-semibold tabular-nums text-slate-800 shrink-0 pt-0.5">
+                                {brut.includes("€") ? brut : `${brut} €`}
+                              </span>
+                            );
+                          })()}
                         </li>
                       );
                     })}
