@@ -237,11 +237,75 @@ function renderContent(tile: DbTile, weather: WeatherState, lang: Lang): React.R
       );
     default: {
       const texte = pickTexte();
-      return texte
-        ? <p className="text-slate-600 text-sm leading-relaxed">{texte}</p>
-        : null;
+      /* Le bouton de la tuile, réglé dans NWH.os (Wifi client → la tuile). Il
+         se rend APRÈS le texte : on lit d'abord, on clique ensuite.
+
+         ⚠️ L'ADRESSE EST ACCEPTÉE DANS L'UN OU L'AUTRE DES DEUX CHAMPS. Martin a
+         collé la sienne dans « ce qui est écrit dessus » le jour même de la mise
+         en ligne (11/09/2026) — et c'est le geste attendu : on a une adresse en
+         main, on la colle dans le champ du bouton. */
+      const brutUrl = (config?.lien_url ?? "").trim();
+      const brutNom = (cfgVal(config, lang, slug, "lien_nom") ?? "").trim();
+      const estUrl = (v: string) => /^https?:\/\//i.test(v);
+      const lien = brutUrl || (estUrl(brutNom) ? brutNom : "");
+      const lienNom = estUrl(brutNom) && !brutUrl ? "" : brutNom;
+      if (!texte && !lien) return null;
+      return (
+        <div className="space-y-4">
+          {texte && (
+            <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
+              <AvecLiens texte={texte} />
+            </p>
+          )}
+          {lien && (
+            <a href={lien} target="_blank" rel="noopener noreferrer"
+               className="block w-full rounded-full bg-navy px-5 py-3.5 text-center text-sm font-semibold text-white transition hover:bg-azure">
+              {lienNom || (lang === "en" ? "Book" : "Réserver")}
+            </a>
+          )}
+        </div>
+      );
     }
   }
+}
+
+/* Le texte d'une tuile, avec ses adresses rendues cliquables.
+ *
+ * ⚠️ UNE ADRESSE COLLÉE DANS UN TEXTE EST UNE ADRESSE MORTE. Le portail
+ * l'affichait en toutes lettres, sur deux lignes, et le client la recopiait à
+ * la main (Martin, 11/09/2026). Le lien s'affiche par son DOMAINE : une adresse
+ * de réservation porte des paramètres que personne ne lit.
+ *
+ * ⚠️ ET ON N'ÉCRIT PAS DE HTML. Le texte vient de la réception : le passer par
+ * `dangerouslySetInnerHTML` ouvrirait une injection sur la première page que
+ * voit un client. On découpe, et React pose les liens lui-même.
+ *
+ * ⚠️ CE FICHIER EST LE JUMEAU DE `src/app/h/[slug]/wifi/Portail.tsx` DANS
+ * NWH.os. HTBM a le forfait personnalisation : ses pages publiques sont servies
+ * par CE dépôt, pas par le produit. Une amélioration du portail doit donc être
+ * portée des deux côtés — celle-ci l'a été le même jour, après que Martin a
+ * réglé le bouton dans l'admin et ne l'a pas vu apparaître. */
+function AvecLiens({ texte }: { texte: string }) {
+  const morceaux = texte.split(/(https?:\/\/[^\s<>"')]+)/gi);
+  if (morceaux.length === 1) return <>{texte}</>;
+  return (
+    <>
+      {morceaux.map((m, i) => {
+        if (!/^https?:\/\//i.test(m)) return <span key={i}>{m}</span>;
+        const fin = m.match(/[.,;:!?]+$/)?.[0] ?? "";
+        const url = fin ? m.slice(0, -fin.length) : m;
+        let nom = url;
+        try { nom = new URL(url).hostname.replace(/^www\./, ""); } catch { /* adresse tordue : on la laisse */ }
+        return (
+          <span key={i}>
+            <a href={url} target="_blank" rel="noopener noreferrer"
+               className="font-medium text-navy underline underline-offset-2 break-words hover:text-azure">{nom} ↗</a>
+            {fin}
+          </span>
+        );
+      })}
+    </>
+  );
 }
 
 const HREFS: Record<string, string> = { menu: "/wifi/menu", curiosites: "/wifi/curiosites", bar: "/wifi/bar", plage: "/wifi/plage" };
