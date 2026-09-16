@@ -438,11 +438,10 @@ export default function WifiPage() {
                 onClick={() => setAnnonce(null)}
               />
 
-              {/* Nuage */}
+              {/* Carte */}
               <motion.div
-                className="relative z-10 w-full max-w-[320px] bg-white overflow-hidden"
+                className="relative z-10 flex w-full max-w-md max-h-[calc(100dvh-3rem)] flex-col rounded-3xl bg-white overflow-hidden"
                 style={{
-                  borderRadius: "52% 48% 38% 42% / 58% 55% 42% 40%",
                   boxShadow: "0 20px 60px rgba(180,200,230,0.5), 0 8px 30px rgba(0,0,0,0.10)",
                 }}
                 initial={{ opacity: 0, scale: 0.88, y: 12 }}
@@ -450,7 +449,7 @@ export default function WifiPage() {
                 exit={{ opacity: 0, scale: 0.94 }}
                 transition={{ type: "spring", stiffness: 420, damping: 30 }}
               >
-                <div className="px-8 pt-10 pb-8 text-center">
+                <div className="min-h-0 overflow-y-auto px-6 pt-7 pb-4 sm:px-8 sm:pt-8 text-left">
                   <p
                     className="text-[10px] font-semibold uppercase tracking-[0.18em] mb-3"
                     style={{
@@ -461,14 +460,16 @@ export default function WifiPage() {
                     {annonce.config?.type === "urgent" ? t.urgent : t.info}
                   </p>
                   <p
-                    className="text-slate-900 text-[15px] leading-[1.6] font-medium mb-6"
+                    className="whitespace-pre-line break-words text-slate-900 text-[15px] leading-[1.6] font-medium"
                     style={{ fontFamily: "var(--font-sans)" }}
                   >
                     {(lang === "en" && annonce.config?.en?.message) || annonce.config?.message}
                   </p>
+                </div>
+                <div className="flex shrink-0 justify-end px-6 pt-2 pb-6 sm:px-8 sm:pb-7">
                   <button
                     onClick={() => setAnnonce(null)}
-                    className="px-8 py-2.5 rounded-full text-[13px] font-semibold transition-colors bg-slate-100 hover:bg-slate-200 active:bg-slate-300"
+                    className="w-full sm:w-auto px-8 py-2.5 rounded-full text-[13px] font-semibold transition-colors bg-slate-100 hover:bg-slate-200 active:bg-slate-300"
                     style={{
                       fontFamily: "var(--font-sans)",
                       color: annonce.config?.type === "urgent" ? "#dc2626" : "var(--color-navy)",

@@ -105,9 +105,27 @@ function renderContent(tile: DbTile, lang: Lang): React.ReactNode {
       );
     default: {
       const texte = pickTexte();
-      return texte
-        ? <p className="text-slate-600 text-sm leading-relaxed">{texte}</p>
-        : null;
+      /* Le bouton de la tuile, réglé dans NWH.os (config `lien_url` / `lien_nom`,
+         `en.lien_nom` en anglais) — même règle que la page de La Corniche :
+         l'adresse est acceptée dans l'un ou l'autre des deux champs. */
+      const brutUrl = (config?.lien_url ?? "").trim();
+      const brutNom = (cfgVal(config, lang, slug, "lien_nom") ?? "").trim();
+      const estUrl = (v: string) => /^https?:\/\//i.test(v);
+      const lien = brutUrl || (estUrl(brutNom) ? brutNom : "");
+      const lienNom = estUrl(brutNom) && !brutUrl ? "" : brutNom;
+      if (!texte && !lien) return null;
+      return (
+        <div className="space-y-4">
+          {texte && <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{texte}</p>}
+          {lien && (
+            <a href={lien} target="_blank" rel="noopener noreferrer"
+               className="block w-full rounded-full bg-navy px-5 py-3.5 text-center text-sm font-semibold text-white transition hover:bg-azure"
+               style={{ fontFamily: "var(--font-sans)" }}>
+              {lienNom || (lang === "en" ? "Open" : "Ouvrir")}
+            </a>
+          )}
+        </div>
+      );
     }
   }
 }
@@ -339,23 +357,25 @@ export default function WifiVPage() {
             >
               <div className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={() => setAnnonce(null)} />
               <motion.div
-                className="relative z-10 w-full max-w-[320px] bg-white overflow-hidden"
-                style={{ borderRadius: "52% 48% 38% 42% / 58% 55% 42% 40%", boxShadow: "0 20px 60px rgba(180,200,230,0.5)" }}
+                className="relative z-10 flex w-full max-w-md max-h-[calc(100dvh-3rem)] flex-col rounded-3xl bg-white overflow-hidden"
+                style={{ boxShadow: "0 20px 60px rgba(180,200,230,0.5)" }}
                 initial={{ opacity: 0, scale: 0.88, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.94 }}
                 transition={{ type: "spring", stiffness: 420, damping: 30 }}
               >
-                <div className="px-8 pt-10 pb-8 text-center">
+                <div className="min-h-0 overflow-y-auto px-6 pt-7 pb-4 sm:px-8 sm:pt-8 text-left">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] mb-3" style={{ fontFamily: "var(--font-sans)", color: annonce.config?.type === "urgent" ? "#dc2626" : "#9CA3AF" }}>
                     {annonce.config?.type === "urgent" ? t.urgent : t.info}
                   </p>
-                  <p className="text-slate-900 text-[15px] leading-[1.6] font-medium mb-6" style={{ fontFamily: "var(--font-sans)" }}>
+                  <p className="whitespace-pre-line break-words text-slate-900 text-[15px] leading-[1.6] font-medium" style={{ fontFamily: "var(--font-sans)" }}>
                     {(lang === "en" && annonce.config?.en?.message) || annonce.config?.message}
                   </p>
+                </div>
+                <div className="flex shrink-0 justify-end px-6 pt-2 pb-6 sm:px-8 sm:pb-7">
                   <button
                     onClick={() => setAnnonce(null)}
-                    className="px-8 py-2.5 rounded-full text-[13px] font-semibold transition-colors bg-slate-100 hover:bg-slate-200"
+                    className="w-full sm:w-auto px-8 py-2.5 rounded-full text-[13px] font-semibold transition-colors bg-slate-100 hover:bg-slate-200"
                     style={{ fontFamily: "var(--font-sans)", color: annonce.config?.type === "urgent" ? "#dc2626" : "#1a3a4a" }}
                   >
                     {t.ok}
