@@ -22,7 +22,12 @@
 // L'agent prépare, le client finit chez nous. Rien à attendre de personne.
 
 import { chercherDisponibilite, chargerCategories, estPrepaye, HOTEL_ID } from '@/lib/mewsBooking';
+import { lireJeton, verifierJeton, debiter, rembourser, ErreurPaiement } from '@/lib/ucp/paiement';
+import {
+  poserReservation, folioDe, consignerPaiement, annulerReservation, type ClientAgent,
+} from '@/lib/ucp/reservationMews';
 import { SITE_URL } from '@/lib/site';
+import { supabaseServer } from '@/lib/supabase-server';
 
 /** La version de protocole qu'on annonce, et la seule qu'on sait parler.
  *
@@ -48,6 +53,7 @@ export type DemandeSejour = {
   adultes: number;
   arrivee: string;
   depart: string;
+  client?: ClientAgent;
 };
 
 /* ⚠️ LES MONTANTS D'UCP SONT EN PLUS PETITE UNITÉ. Le barème du protocole suit
@@ -74,6 +80,12 @@ export type Session = {
   cree: number;
   demande: DemandeSejour;
   booking: Record<string, unknown>;
+  /** De quoi poser la réservation sans réinterroger la disponibilité. */
+  choix: { categorieId: string; tarifId: string; centimes: number };
+  /** Qui réserve. Donné à la création ou par `update`, jamais à la complétion. */
+  client?: ClientAgent;
+  /** Ce qui a été fait, pour ne pas le refaire sur une reprise. */
+  fait?: { reservationId: string; customerId: string; numero: string | null; paiement: string };
 };
 
 /* ⚠️ LES SESSIONS VIVENT EN MÉMOIRE, ET C'EST ASSUMÉ POUR CE PREMIER JALON.
@@ -128,6 +140,31 @@ export class ErreurUcp extends Error {
 
 const ESTDATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/* ⚠️ LA TAXE DE SÉJOUR N'EST PAS DANS LE PRIX DU MOTEUR, ET ELLE EST AU FOLIO.
+ * `hotels/getAvailability` détaille la TVA (`TaxValues`, code `FR-R`) mais
+ * ignore la taxe municipale, qui se facture par personne et par nuit — 3,72 €
+ * par nuit pour deux, relevé sur le folio. L'annoncer est la seule façon que
+ * le prix donné à l'agent soit celui qui sera débité.
+ *
+ * ⚠️ ET ELLE SE LIT, ELLE NE SE CODE PAS EN DUR : c'est une décision
+ * municipale, elle change. Sans elle, on n'annonce pas de prix du tout —
+ * mieux vaut refuser de vendre que vendre au mauvais prix. */
+let taxeCache: { quand: number; valeur: number } | null = null;
+async function taxeSejourParNuitee(): Promise<number> {
+  if (taxeCache && Date.now() - taxeCache.quand < 600_000) return taxeCache.valeur;
+  const { data, error } = await supabaseServer
+    .from('hotels').select('taxe_sejour').eq('id', HOTEL_NWH).maybeSingle();
+  const v = Number(data?.taxe_sejour);
+  if (error || !Number.isFinite(v)) {
+    throw new ErreurUcp('Le tarif ne peut pas être établi : taxe de séjour indisponible.', 'unavailable');
+  }
+  taxeCache = { quand: Date.now(), valeur: v };
+  return v;
+}
+
+/** Les Voiles, tel que NWH.os le nomme (l'identifiant Mews est `HOTEL_ID`). */
+const HOTEL_NWH = 'ded6e6fb-ff3c-4fa8-ad07-403ee316be53';
+
 /** Construit une session de réservation à partir de la VRAIE disponibilité. */
 export async function creerSession(d: DemandeSejour): Promise<Session> {
   if (!ESTDATE.test(d.arrivee) || !ESTDATE.test(d.depart) || d.depart <= d.arrivee) {
@@ -148,7 +185,15 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
    * notre serveur est cassé. */
   const retenues = dispo.offres
     .filter((o) => !d.accommodationTypeId || o.categorieId === d.accommodationTypeId)
-    .filter((o) => o.prix.length > 0);
+    .filter((o) => o.prix.length > 0)
+    /* 🔴 L'OCCUPATION D'ABORD, LE PRIX ENSUITE. Interrogé pour deux adultes,
+     * Mews répond AUSSI avec la Chambre Individuelle tarifée pour UNE
+     * personne. Retenir la moins chère sans regarder `pourPersonnes`, c'est
+     * annoncer à l'agent le prix d'un petit-déjeuner pour un quand le folio en
+     * facturera deux : 262,00 € annoncés contre 297,44 € dus, mesuré le
+     * 28/09/2026 sur un séjour de deux nuits. L'écart n'apparaît qu'au moment
+     * de débiter — c'est-à-dire trop tard. */
+    .filter((o) => o.pourPersonnes === d.adultes);
   if (!retenues.length) {
     throw new ErreurUcp('Aucune disponibilité pour ces dates et cette occupation.', 'unavailable');
   }
@@ -204,6 +249,12 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
   const tarif = (dispo.tarifs as { Id?: string; Name?: unknown }[]).find((t) => t.Id === choisi!.tarifId);
   const nomTarif = sansDecor(aplatir(tarif?.Name)) || 'Tarif direct';
 
+  const nuits = Math.round(
+    (Date.parse(`${d.depart}T00:00:00Z`) - Date.parse(`${d.arrivee}T00:00:00Z`)) / 86_400_000,
+  );
+  const taxe = Math.round(await taxeSejourParNuitee() * nuits * d.adultes * 100) / 100;
+  const aPayer = choisi.total + taxe;
+
   const stay = {
     id: identifiant('ss'),
     accommodation_type: {
@@ -226,7 +277,8 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     stay_dates: { start_date: d.arrivee, end_date: d.depart },
     totals: [
       { type: 'subtotal', amount: centimes(choisi.total) },
-      { type: 'total', amount: centimes(choisi.total) },
+      { type: 'tax', amount: centimes(taxe) },
+      { type: 'total', amount: centimes(aPayer) },
     ],
   };
 
@@ -236,30 +288,34 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
       version: UCP_VERSION,
       status: 'success',
       capabilities: { 'dev.ucp.lodging.booking': [{ version: UCP_VERSION }] },
-      payment_handlers: {},
+      /* Le même handler que le profil, répété ici : la spécification permet à
+         l'agent de le lire sur la session sans relire `/.well-known/ucp`. */
+      payment_handlers: { [HANDLER_ID]: [HANDLER] },
     },
     id,
-    /* 🔴 `requires_escalation` TOUJOURS — ET C'EST UNE RÈGLE, PAS UN MANQUE.
+    /* 🔑 LE STATUT DIT CE QU'IL MANQUE, ET RIEN D'AUTRE.
      *
-     * Martin, 28/09/2026 : « résa sans garantie c'est non, trop risqué ». La
-     * spécification autorise pourtant un `payment: {}` VIDE pour les
-     * réservations sans empreinte : un agent pourrait alors bloquer une chambre
-     * de bout en bout sans qu'aucune carte soit engagée. Sur seize chambres,
-     * quelques réservations fantômes un samedi de juillet suffisent à fermer
-     * l'hôtel à la vraie clientèle.
+     * Il a longtemps valu `requires_escalation` en toutes circonstances : on
+     * ne savait pas encaisser depuis un agent, et la réservation repartait
+     * dans notre tunnel. Ce n'est plus vrai — un jeton de paiement partagé EST
+     * une carte, donc la règle de la maison (« résa sans garantie c'est non »)
+     * est tenue sans passer la main.
      *
-     * Donc : on ne complète JAMAIS ici. L'agent prépare, propose un prix vrai,
-     * et rend la main à notre tunnel par `continue_url` — c'est lui qui prend
-     * la carte et pose la garantie. C'est aussi pour ça qu'il n'existe ni
-     * `complete_booking_session` ni `update_booking_session` sur cet endpoint :
-     * une porte absente ne s'ouvre pas par erreur. */
-    status: 'requires_escalation',
+     * ⚠️ ET `continue_url` RESTE, TOUJOURS. C'est la porte de sortie quand la
+     * banque du client réclame une authentification que l'agent ne peut pas
+     * lever : mesuré le 28/09, une carte soumise au 3-D Secure sort en
+     * `requires_action`, et rien n'est alors ni débité ni réservé. Sans cette
+     * URL, ces clients-là seraient perdus en silence. */
+    status: d.client?.nom ? 'ready_for_complete' : 'incomplete',
     property: PROPRIETE,
     stays: [stay],
     currency: 'EUR',
     totals: [
       { type: 'subtotal', amount: centimes(choisi.total) },
-      { type: 'total', amount: centimes(choisi.total) },
+      /* La taxe de séjour, nommée : un agent qui la voit peut l'annoncer au
+         client, et le total est alors exactement ce qui sera débité. */
+      { type: 'tax', amount: centimes(taxe) },
+      { type: 'total', amount: centimes(aPayer) },
     ],
     links: [
       { type: 'terms_of_service', url: `${SITE_URL}/cgv` },
@@ -269,7 +325,213 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     expires_at: new Date(Date.now() + DUREE_SESSION_MS).toISOString(),
   };
 
-  const session: Session = { id, cree: Date.now(), demande: d, booking };
+  const session: Session = {
+    id, cree: Date.now(), demande: d, booking,
+    choix: { categorieId: choisi.categorieId, tarifId: choisi.tarifId, centimes: centimes(aPayer) },
+    ...(d.client ? { client: d.client } : {}),
+  };
   ranger(session);
   return session;
 }
+
+/* ═══════════════════════════ CONCLURE UNE RÉSERVATION ═══════════════════════
+ *
+ * 🔑 L'ORDRE DES GESTES EST TOUT. Il est dicté par deux faits mesurés :
+ *   · un jeton d'agent est à USAGE UNIQUE — on ne débite qu'une fois, donc au
+ *     bon montant du premier coup ;
+ *   · LE MONTANT VIENT DU FOLIO, pas de la disponibilité (résa 29931).
+ * Et le folio n'existe qu'une fois la réservation posée. D'où la séquence :
+ * vérifier le jeton → poser la réservation → lire le folio → débiter → 
+ * consigner. Si le débit échoue, la réservation est défaite ; si la
+ * consignation échoue, on ne défait RIEN — l'argent est pris et la chambre est
+ * acquise, c'est au comptoir de rattraper une écriture, pas au client de
+ * perdre sa chambre.
+ */
+
+/** Complète la session : le client doit être connu, le paiement présent. */
+export async function completerSession(
+  { id, instruments, cleIdempotence }:
+  { id: string; instruments: Record<string, unknown>[]; cleIdempotence?: string },
+): Promise<Record<string, unknown>> {
+  const session = lireSession(id);
+  /* ⚠️ LES SESSIONS VIVENT EN MÉMOIRE. Un redéploiement entre l'ouverture et
+   * la complétion la fait disparaître — l'agent doit alors rouvrir, et non
+   * croire que sa réservation est perdue quelque part. Rien n'a été posé ni
+   * débité à ce stade : une session absente ne coûte rien à personne. */
+  if (!session) throw new ErreurUcp('Session inconnue ou expirée — ouvrez-en une nouvelle.', 'unavailable');
+
+  /* Reprise : si tout était déjà fait, on rend le même résultat plutôt que de
+     reposer une seconde chambre. */
+  if (session.fait) return session.booking;
+
+  const client = session.client;
+  if (!client?.nom?.trim()) {
+    throw new ErreurUcp(
+      'Le nom du client est nécessaire avant de conclure — donnez `booker` à la création ou par `update_booking_session`.',
+    );
+  }
+
+  const spt = jetonDe(instruments);
+  const jeton = await lireJeton(spt);
+  verifierJeton(jeton, session.choix.centimes, session.demande.arrivee);
+
+  /* ── 1. la chambre ─────────────────────────────────────────────────────── */
+  const posee = await poserReservation({
+    client,
+    categorieId: session.choix.categorieId,
+    tarifId: session.choix.tarifId,
+    arrivee: session.demande.arrivee,
+    depart: session.demande.depart,
+    adultes: session.demande.adultes,
+  });
+
+  /* ── 2. ce qu'elle coûte vraiment ──────────────────────────────────────── */
+  let centimesDus: number;
+  try {
+    const total = await folioDe(posee.reservationId);
+    centimesDus = Math.round(total * 100);
+    if (centimesDus <= 0) throw new Error('folio vide');
+    /* ⚠️ ON NE DÉBITE JAMAIS PLUS QUE LE PRIX ANNONCÉ À L'AGENT. Le client a
+     * accepté un montant ; si le folio en dit un plus élevé, c'est un écart
+     * qu'on ne peut pas lui imposer par surprise. On défait et on le dit. */
+    if (centimesDus > session.choix.centimes) {
+      throw new ErreurUcp(
+        `Le prix a changé depuis l'ouverture de la session (${(centimesDus / 100).toFixed(2)} € `
+        + `au lieu de ${(session.choix.centimes / 100).toFixed(2)} €) — rouvrez une session.`,
+        'unavailable',
+      );
+    }
+  } catch (e) {
+    await annulerReservation(posee.reservationId, 'Agent : folio illisible ou prix changé').catch(() => {});
+    throw e;
+  }
+
+  /* ── 3. l'argent ───────────────────────────────────────────────────────── */
+  let paiement: string;
+  try {
+    const d = await debiter({
+      spt, centimes: centimesDus, cleIdempotence,
+      description: `${PROPRIETE.name} — ${session.demande.arrivee} → ${session.demande.depart}`
+        + `${posee.numero ? ` (résa ${posee.numero})` : ''}`,
+    });
+    paiement = d.id;
+  } catch (e) {
+    /* La chambre ne reste pas tenue sur un paiement qui n'est pas venu. */
+    await annulerReservation(posee.reservationId, 'Agent : paiement non abouti').catch(() => {});
+    throw e;
+  }
+
+  /* ── 4. le dire au PMS ─────────────────────────────────────────────────── */
+  try {
+    await consignerPaiement({
+      accountId: posee.customerId, reservationId: posee.reservationId,
+      montant: centimesDus / 100, reference: paiement,
+    });
+  } catch (e) {
+    /* ⚠️ ON NE DÉFAIT RIEN ICI, ET SURTOUT PAS LA CHAMBRE. L'argent est pris,
+     * le client a sa réservation : une écriture manquante se rattrape au
+     * comptoir, une chambre annulée ne se rattrape pas. */
+    console.error('[ucp] REGLEMENT NON CONSIGNE DANS MEWS — a rattraper au comptoir.',
+      { reservation: posee.numero, paymentIntent: paiement, montant: centimesDus / 100 },
+      e instanceof Error ? e.message : e);
+  }
+
+  session.fait = { ...posee, paiement };
+  session.booking = {
+    ...session.booking,
+    status: 'completed',
+    totals: [
+      { type: 'subtotal', amount: centimesDus },
+      { type: 'total', amount: centimesDus },
+    ],
+    confirmation: {
+      id: posee.numero ?? posee.reservationId,
+      label: `Réservation ${posee.numero ?? ''}`.trim(),
+      permalink_url: `${SITE_URL}/reserver`,
+    },
+    payment: {
+      instruments: [{
+        id: paiement, handler_id: HANDLER_ID, type: 'tokenized_card', selected: true,
+        ...(jeton.carte ? { display: { label: jeton.carte } } : {}),
+      }],
+    },
+    /* `continue_url` n'a plus de sens : il n'y a plus rien à finir ailleurs. */
+    continue_url: undefined,
+  };
+  return session.booking;
+}
+
+/** Complète la session avec ce que l'agent apprend en chemin (le client). */
+export function majSession(id: string, client?: ClientAgent): Record<string, unknown> {
+  const session = lireSession(id);
+  if (!session) throw new ErreurUcp('Session inconnue ou expirée — ouvrez-en une nouvelle.', 'unavailable');
+  if (client?.nom?.trim()) session.client = client;
+  session.booking = {
+    ...session.booking,
+    /* Le statut dit à l'agent ce qui manque encore. C'est la seule chose qui
+       le renseigne : la spécification n'a pas de champ « il manque ceci ». */
+    status: session.client?.nom ? 'ready_for_complete' : 'incomplete',
+    ...(session.client
+      ? { booker: {
+        first_name: session.client.prenom, last_name: session.client.nom,
+        ...(session.client.email ? { email: session.client.email } : {}),
+        ...(session.client.telephone ? { phone_number: session.client.telephone } : {}),
+      } }
+      : {}),
+  };
+  return session.booking;
+}
+
+/** L'identifiant de notre handler de paiement, tel que le profil l'annonce. */
+export const HANDLER_ID = 'stripe_spt';
+
+/* 🔑 LE PROFIL STRIPE EST L'ADRESSE. Un agent n'accorde pas un jeton « à
+ * l'hôtel » : il l'accorde à un profil Stripe nommé, et c'est ce profil que
+ * Stripe reconnaît quand nous débitons. Sans le publier, un agent ne peut
+ * physiquement pas frapper de jeton pour nous. */
+export const PROFIL_STRIPE = 'profile_61VU2xMKFf2D0J1qLA6VU2xMRlDPtzH80SX0leXxoG1A';
+
+/** Ce qu'un agent doit savoir pour nous payer. */
+export const HANDLER = {
+  version: UCP_VERSION,
+  id: HANDLER_ID,
+  provider: 'stripe',
+  /* La forme attendue, puisque personne ne l'a normalisée — voir `jetonDe`. */
+  available_instruments: [{
+    type: 'tokenized_card',
+    credential: { type: 'stripe_shared_payment_token' },
+    /* Le jeton se frappe vers CE profil, et sa limite doit couvrir le total
+       annoncé sur la session. */
+    network_business_profile: PROFIL_STRIPE,
+    currency: 'EUR',
+  }],
+  note: 'Jeton de paiement partagé Stripe, accordé au profil ci-dessus. '
+    + 'Le séjour est débité en totalité à la réservation (tarif prépayé, non remboursable).',
+} as const;
+
+/* ⚠️ LA FORME DU CREDENTIAL N'EST PAS NORMALISÉE, ET C'EST ASSUMÉ. UCP laisse
+ * chaque fournisseur de paiement définir son instrument : le schéma de base
+ * n'impose qu'un `type`, et ouvre le reste (`additionalProperties: true`).
+ * Stripe n'a pas publié le sien au 28/09/2026. On publie donc le nôtre dans
+ * `/.well-known/ucp` — c'est exactement là que la spécification dit de le
+ * chercher — et on accepte ici les quelques écritures qu'un agent raisonnable
+ * pourrait produire, plutôt que d'échouer sur une clé nommée autrement. Le
+ * jour où Stripe publie sa forme, elle s'ajoute à cette liste. */
+function jetonDe(instruments: Record<string, unknown>[]): string {
+  for (const i of instruments ?? []) {
+    const cred = (i.credential ?? {}) as Record<string, unknown>;
+    for (const v of [
+      cred.shared_payment_granted_token, cred.token, cred.id, cred.value,
+      (i as Record<string, unknown>).shared_payment_granted_token, (i as Record<string, unknown>).token,
+    ]) {
+      if (typeof v === 'string' && v.startsWith('spt_')) return v;
+    }
+  }
+  throw new ErreurUcp(
+    'Aucun jeton de paiement dans `payment.instruments`. '
+    + 'Cet hôtel n’accepte que des jetons de paiement partagés Stripe (`spt_…`), '
+    + 'accordés au profil indiqué dans /.well-known/ucp.',
+  );
+}
+
+export { ErreurPaiement, rembourser };

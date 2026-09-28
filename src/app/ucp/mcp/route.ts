@@ -17,7 +17,10 @@
 // les réservations ici, ce sera une décision séparée, avec ses garde-fous.
 
 import { NextResponse } from 'next/server';
-import { creerSession, lireSession, ErreurUcp, UCP_VERSION, PROPRIETE } from '@/lib/ucp/lodging';
+import {
+  creerSession, lireSession, majSession, completerSession,
+  ErreurUcp, ErreurPaiement, UCP_VERSION, PROPRIETE,
+} from '@/lib/ucp/lodging';
 import { soirs, reserverTable, creneauxDe, ErreurRooftop, COUVERTS_MAX } from '@/lib/ucp/rooftop';
 
 export const dynamic = 'force-dynamic';
@@ -62,6 +65,14 @@ const OUTILS = [
           type: 'object',
           properties: {
             property: { type: 'object', properties: { id: { type: 'string' } } },
+            booker: {
+              type: 'object',
+              description: 'Le client qui réserve. Son nom est nécessaire avant de conclure.',
+              properties: {
+                first_name: { type: 'string' }, last_name: { type: 'string' },
+                email: { type: 'string' }, phone_number: { type: 'string' },
+              },
+            },
             stays: {
               type: 'array',
               items: {
@@ -94,6 +105,83 @@ const OUTILS = [
       properties: {
         meta: { type: 'object' },
         booking: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+      },
+      required: ['booking'],
+    },
+  },
+  {
+    name: 'update_booking_session',
+    description:
+      'Complète une session ouverte avec le client qui réserve (`booker`). '
+      + 'À appeler avant de conclure si le nom n’a pas été donné à l’ouverture.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meta: { type: 'object' },
+        id: { type: 'string' },
+        booking: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            booker: {
+              type: 'object',
+              properties: {
+                first_name: { type: 'string' }, last_name: { type: 'string' },
+                email: { type: 'string' }, phone_number: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: 'complete_booking_session',
+    description:
+      'Conclut la réservation : débite le jeton de paiement et pose la chambre dans le PMS de l’hôtel. '
+      + 'Le séjour est réglé EN TOTALITÉ et n’est pas remboursable (tarif prépayé). '
+      + 'Exige un jeton de paiement partagé Stripe (`spt_…`) accordé au profil publié dans /.well-known/ucp, '
+      + 'et le nom du client. '
+      + 'Si la banque du client réclame une authentification, rien n’est débité ni réservé : '
+      + 'la réservation doit alors être finalisée par le client via `continue_url`.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        meta: {
+          type: 'object',
+          description: 'Doit porter `idempotency-key` : elle évite un double débit sur reprise.',
+        },
+        id: { type: 'string', description: 'Identifiant de la session ouverte.' },
+        booking: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            payment: {
+              type: 'object',
+              properties: {
+                instruments: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' }, handler_id: { type: 'string' },
+                      type: { type: 'string' },
+                      credential: {
+                        type: 'object',
+                        properties: {
+                          type: { type: 'string' },
+                          shared_payment_granted_token: { type: 'string' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              required: ['instruments'],
+            },
+          },
+          required: ['payment'],
+        },
       },
       required: ['booking'],
     },
@@ -140,6 +228,19 @@ const OUTILS = [
     },
   },
 ] as const;
+
+/** Le client tel qu'UCP le décrit, ramené à ce dont Mews a besoin. */
+function lireBooker(v: unknown) {
+  const b = (v ?? {}) as Record<string, unknown>;
+  const nom = String(b.last_name ?? '').trim();
+  if (!nom) return undefined;
+  return {
+    prenom: String(b.first_name ?? '').trim(),
+    nom,
+    email: b.email ? String(b.email).trim() : undefined,
+    telephone: b.phone_number ? String(b.phone_number).trim() : undefined,
+  };
+}
 
 /** Un contenu d'outil MCP : le texte pour l'humain, la donnée pour la machine. */
 const contenu = (donnee: unknown) => ({
@@ -201,8 +302,26 @@ export async function POST(req: Request) {
             adultes: Number(occ.adults ?? 2),
             accommodationTypeId: (stay.accommodation_type as { id?: string } | undefined)?.id,
             ratePlanId: (stay.rate_plan as { id?: string } | undefined)?.id,
+            client: lireBooker(booking.booker),
           });
           return ok(corps.id, contenu(session.booking));
+        }
+
+        if (nom === 'update_booking_session') {
+          return ok(corps.id, contenu(majSession(
+            String(args.id ?? booking.id ?? ''),
+            lireBooker(booking.booker),
+          )));
+        }
+
+        if (nom === 'complete_booking_session') {
+          const paiement = (booking.payment ?? {}) as { instruments?: Record<string, unknown>[] };
+          const meta = (args.meta ?? {}) as Record<string, unknown>;
+          return ok(corps.id, contenu(await completerSession({
+            id: String(args.id ?? booking.id ?? ''),
+            instruments: Array.isArray(paiement.instruments) ? paiement.instruments : [],
+            cleIdempotence: meta['idempotency-key'] ? String(meta['idempotency-key']) : undefined,
+          })));
         }
 
         if (nom === 'get_rooftop_availability') {
@@ -245,6 +364,12 @@ export async function POST(req: Request) {
         return ko(corps.id, -32601, `Méthode inconnue : ${corps.method}`);
     }
   } catch (e) {
+    if (e instanceof ErreurPaiement) {
+      /* ⚠️ UN REFUS N'EST PAS UNE PANNE. L'agent doit pouvoir dire au client
+         « votre banque a refusé » ou « votre banque demande une confirmation »,
+         et non « le site de l'hôtel est cassé ». */
+      return ko(corps.id, e.code === 'requires_action' ? -32005 : -32004, e.message);
+    }
     if (e instanceof ErreurRooftop) {
       return ko(corps.id, e.code === 'unavailable' ? -32003 : -32602, e.message);
     }

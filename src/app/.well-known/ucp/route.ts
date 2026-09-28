@@ -7,15 +7,14 @@
 //
 // ⚠️ ON N'ANNONCE QUE CE QU'ON SERT VRAIMENT. Déclarer une capacité qu'on ne
 // sait pas tenir est pire que se taire : l'agent appelle, échoue, et l'hôtel
-// passe pour cassé dans un classement qu'on ne verra jamais. Ici, une seule
-// capacité — `dev.ucp.lodging.booking` — et aucun `payment_handlers`, parce que
-// nous ne savons pas encore encaisser depuis un agent. C'est exactement ce que
-// la spécification prévoit : la réservation se termine par un `continue_url`
-// vers notre tunnel.
+// passe pour cassé dans un classement qu'on ne verra jamais. Ce fichier
+// n'annonçait donc aucun `payment_handlers` tant que nous ne savions pas
+// encaisser depuis un agent — ce n'est plus le cas depuis le 28/09/2026, et le
+// handler publié ci-dessous est réellement servi par `/ucp/mcp`.
 
 import { NextResponse } from 'next/server';
 import { SITE_URL } from '@/lib/site';
-import { UCP_CANAL, UCP_VERSION } from '@/lib/ucp/lodging';
+import { HANDLER, HANDLER_ID, UCP_CANAL, UCP_VERSION } from '@/lib/ucp/lodging';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,9 +58,14 @@ export function GET() {
           },
         ],
       },
-      /* Vide, et volontairement : aucun instrument de paiement ne se collecte
-         chez nous depuis un agent. Voir le commentaire d'en-tête. */
-      payment_handlers: {},
+      /* 🔑 C'EST ICI QU'UN AGENT APPREND COMMENT NOUS PAYER. La spécification
+       * est explicite : « Payment handlers are discovered from the business's
+       * UCP profile at /.well-known/ucp ». Elle laisse en revanche chaque
+       * fournisseur de paiement définir la forme de son instrument — le schéma
+       * commun n'impose qu'un `type` et ouvre le reste. Stripe n'avait pas
+       * publié la sienne au 28/09/2026 : on publie donc la nôtre, ici, où il
+       * est prévu qu'on la cherche. */
+      payment_handlers: { [HANDLER_ID]: [HANDLER] },
     },
   }, {
     headers: {
