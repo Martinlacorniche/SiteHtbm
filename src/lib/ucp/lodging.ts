@@ -21,7 +21,7 @@
 //     nécessaire, sous le statut `requires_escalation`.
 // L'agent prépare, le client finit chez nous. Rien à attendre de personne.
 
-import { chercherDisponibilite, chargerCategories, HOTEL_ID } from '@/lib/mewsBooking';
+import { chercherDisponibilite, chargerCategories, estPrepaye, HOTEL_ID } from '@/lib/mewsBooking';
 import { SITE_URL } from '@/lib/site';
 
 /** La version de protocole qu'on annonce, et la seule qu'on sait parler. */
@@ -138,18 +138,48 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     throw new ErreurUcp('Aucune disponibilité pour ces dates et cette occupation.', 'unavailable');
   }
 
-  /* Le moins cher qui corresponde : c'est ce qu'un agent compare. Un plan
-     tarifaire nommé par la demande l'emporte sur le prix. */
+  /* 🔴 UN AGENT N'ACHÈTE QUE DU PRÉPAYÉ. Martin, 28/09/2026 : « agent =
+   * prépayé, ne pas lui ouvrir le flex ». Ce n'est pas une préférence
+   * commerciale, c'est ce que le paiement délégué permet — mesuré le même
+   * jour sur les jetons partagés Stripe :
+   *   · un jeton d'agent est à USAGE UNIQUE — il se désactive au premier
+   *     paiement, donc pas de second débit en cas de no-show ;
+   *   · `setup_future_usage` est refusé avec un jeton partagé — donc aucune
+   *     carte conservée, rechargeable au comptoir comme le fait Mews ;
+   *   · une empreinte carte tombe au bout de sept jours, quand une résa
+   *     flexible se prend couramment à J-30.
+   * Vendre un flexible à un agent, c'est donc vendre une chambre sans
+   * garantie. Le prépayé, lui, est payé le jour même : pas de paiement, pas de
+   * chambre.
+   *
+   * ⚠️ ET LA QUESTION SE POSE AU GROUPE TARIFAIRE, PAS AU LIBELLÉ. `estPrepaye`
+   * lit `SettlementAction: ChargeCreditCard` ; un tarif renommé un jour chez
+   * Mews ne doit pas rouvrir le flexible par la bande. */
+  const prepaye = (tarifId: string) =>
+    estPrepaye(dispo.tarifs.find((t) => t.Id === tarifId), dispo.groupes);
+
+  if (d.ratePlanId && !prepaye(d.ratePlanId)) {
+    throw new ErreurUcp('Ce plan tarifaire ne se vend pas par agent — seuls les tarifs prépayés le sont.');
+  }
+
+  /* Le moins cher qui corresponde, parmi les prépayés : c'est ce qu'un agent
+     compare. Un plan tarifaire nommé par la demande l'emporte sur le prix. */
   let choisi: { categorieId: string; tarifId: string; total: number; parNuit: number } | null = null;
   for (const o of retenues) {
     for (const p of o.prix) {
       if (d.ratePlanId && p.tarifId !== d.ratePlanId) continue;
+      if (!prepaye(p.tarifId)) continue;
       if (!choisi || p.total < choisi.total) {
         choisi = { categorieId: o.categorieId, tarifId: p.tarifId, total: p.total, parNuit: p.parNuit };
       }
     }
   }
-  if (!choisi) throw new ErreurUcp('Ce plan tarifaire n’est pas disponible pour ces dates.', 'unavailable');
+  if (!choisi) {
+    throw new ErreurUcp(
+      'Aucun tarif prépayé disponible pour ces dates — la réservation par agent ne se fait qu\'en prépaiement.',
+      'unavailable',
+    );
+  }
 
   const cat = (categories as Map<string, { nom?: string; couchages?: number | null }>).get(choisi.categorieId);
   /* ⚠️ MEWS REND UN NOM MULTILINGUE, PAS UNE CHAÎNE. `Name` vaut

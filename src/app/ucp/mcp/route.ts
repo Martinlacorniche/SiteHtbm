@@ -50,6 +50,8 @@ const OUTILS = [
       'Ouvre une session de réservation à l’Hôtel-Rooftop Les Voiles (Toulon, Mourillon) '
       + 'pour des dates et une occupation données. Rend la chambre et le tarif réellement '
       + 'disponibles, le prix total en centimes d’euro, et une URL pour finaliser. '
+      + 'Seuls les tarifs PRÉPAYÉS se réservent par agent : le séjour est réglé en totalité '
+      + 'à la réservation, et n’est pas remboursable. '
       + 'Rend une erreur claire si l’hôtel est complet ou fermé sur la période.',
     inputSchema: {
       type: 'object',
