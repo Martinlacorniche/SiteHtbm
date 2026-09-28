@@ -175,11 +175,29 @@ export async function annulerReservation(reservationId: string, motif: string): 
   await callMews('reservations/cancel', { ReservationIds: [reservationId], Notes: motif });
 }
 
-/** Confirme une chambre tenue — à n'appeler qu'une fois l'argent encaissé. */
+/**
+ * Confirme une chambre tenue — à n'appeler qu'une fois l'argent encaissé.
+ *
+ * 🔴 `reservations/update` NE CONFIRME PAS, ET RÉPOND 200. Mesuré le
+ * 28/09/2026 : un `update` avec `State: { Value: 'Confirmed' }` renvoie un
+ * succès et laisse la réservation `Optional`. J'avais pris ce 200 pour une
+ * confirmation — la vente n°30309 est restée optionnelle, donc promise à être
+ * relâchée par Mews une demi-heure plus tard, **l'argent déjà encaissé**.
+ *
+ * L'opération qui confirme est `reservations/confirm`, et elle n'existe que
+ * sur le Connector.
+ *
+ * ⚠️ ET ON RELIT L'ÉTAT APRÈS. C'est toute la leçon : sur cette API, un 200 ne
+ * prouve rien. Une chambre qu'on croit vendue et que Mews relâchera est le
+ * pire résultat possible — le client a payé et n'a plus de chambre, et
+ * personne ne s'en aperçoit avant son arrivée.
+ */
 export async function confirmerReservation(reservationId: string): Promise<void> {
-  await callMews('reservations/update', {
-    ReservationUpdates: [{ ReservationId: reservationId, State: { Value: 'Confirmed' } }],
-  });
+  await callMews('reservations/confirm', { ReservationIds: [reservationId] });
+  const etat = await etatReservation(reservationId);
+  if (etat !== 'Confirmed' && etat !== 'Started') {
+    throw new Error(`Mews n’a pas confirmé la réservation (état : ${etat ?? 'inconnu'}).`);
+  }
 }
 
 /** L'état d'une chambre tenue : est-elle encore à nous ? */

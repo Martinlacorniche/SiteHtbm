@@ -23,6 +23,9 @@ import {
 } from '@/lib/ucp/lodging';
 import { soirs, reserverTable, creneauxDe, ErreurRooftop, COUVERTS_MAX } from '@/lib/ucp/rooftop';
 import { ficheHotel } from '@/lib/ucp/hotel';
+import { reconnaitre } from '@/lib/ucp/acces';
+import { arrivee, HEURE_ARRIVEE } from '@/lib/ucp/checkin';
+import { lireSejour, noteDuSejour, ouvrirReglement, consignerReglements } from '@/lib/ucp/sejour';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -197,6 +200,54 @@ const OUTILS = [
       + '`create_booking_session`.',
     inputSchema: { type: 'object', properties: {} },
   },
+  /* ── LE SÉJOUR, UNE FOIS VENDU ───────────────────────────────────────────
+   * 🔴 TOUS EXIGENT LA CLÉ DU SÉJOUR, y compris pour LIRE. Vendre est ouvert à
+   * tous ; un nom de client et le détail d'une note ne regardent que lui. */
+  {
+    name: 'get_stay',
+    description:
+      'Relit un séjour déjà réservé : dates, numéro de réservation, chambre attribuée. '
+      + 'Exige la clé du séjour (`stay_key`), celle remise dans la confirmation. '
+      + 'Rappel : un séjour réservé par agent est prépayé — il n’est ni annulable, ni modifiable.',
+    inputSchema: {
+      type: 'object',
+      properties: { stay_key: { type: 'string', description: 'La clé remise dans la confirmation.' } },
+      required: ['stay_key'],
+    },
+  },
+  {
+    name: 'get_check_in',
+    description:
+      'Le code du portail, le numéro de chambre et le code de la porte — l’hôtel n’a pas de réception 24 h/24 '
+      + `et l’arrivée est autonome. Délivrés SEULEMENT le jour de l’arrivée, à partir de ${HEURE_ARRIVEE} h, `
+      + 'et une fois la chambre faite. Sinon, dit ce qui manque et à partir de quand revenir.',
+    inputSchema: {
+      type: 'object',
+      properties: { stay_key: { type: 'string' } },
+      required: ['stay_key'],
+    },
+  },
+  {
+    name: 'get_folio',
+    description:
+      'La note du séjour : le détail des prestations, ce qui est déjà réglé, et ce qui reste dû.',
+    inputSchema: {
+      type: 'object',
+      properties: { stay_key: { type: 'string' } },
+      required: ['stay_key'],
+    },
+  },
+  {
+    name: 'pay_folio',
+    description:
+      'Ouvre un lien de paiement pour solder la note du séjour. Rend une erreur claire s’il n’y a rien à régler. '
+      + 'Le règlement est ensuite consigné dans le PMS de l’hôtel.',
+    inputSchema: {
+      type: 'object',
+      properties: { stay_key: { type: 'string' } },
+      required: ['stay_key'],
+    },
+  },
   /* ── LE ROOFTOP ──────────────────────────────────────────────────────────
    * Une table se réserve sans payer, et fermement : il n'y a donc ni session
    * ni escalade ici, contrairement aux chambres. Deux outils suffisent —
@@ -342,6 +393,64 @@ export async function POST(req: Request) {
         }
 
         if (nom === 'get_property_details') return ok(corps.id, contenu(ficheHotel()));
+
+        /* La clé, d'abord et toujours, pour tout ce qui touche un séjour. */
+        if (nom === 'get_stay' || nom === 'get_check_in' || nom === 'get_folio' || nom === 'pay_folio') {
+          const ouvert = await reconnaitre(String(args.stay_key ?? ''));
+          /* ⚠️ UN REFUS NE SE MOTIVE PAS : inconnue, expirée ou révoquée se
+             répondent de la même façon, sinon on renseigne qui tâtonne. */
+          if (!ouvert) return ko(corps.id, -32001, 'Clé de séjour invalide.');
+
+          const sejour = await lireSejour(ouvert.reservationId);
+          if (!sejour) return ko(corps.id, -32001, 'Clé de séjour invalide.');
+
+          if (nom === 'get_stay') {
+            return ok(corps.id, contenu({
+              reservation: sejour.numero, status: sejour.statut,
+              check_in_date: sejour.arrivee, check_out_date: sejour.depart,
+              room: sejour.chambre,
+              property: PROPRIETE.name,
+              note: 'Tarif prépayé : ce séjour n’est ni annulable, ni modifiable, ni remboursable.',
+            }));
+          }
+
+          if (nom === 'get_check_in') {
+            const a = await arrivee({ hotelId: ouvert.hotelId, reservationId: ouvert.reservationId });
+            return ok(corps.id, contenu(a));
+          }
+
+          /* Un règlement payé mais pas encore posé au folio fausserait la note
+             qu'on s'apprête à lire : on le consigne avant de répondre. */
+          await consignerReglements(String(args.stay_key)).catch(() => 0);
+          const note = await noteDuSejour({
+            reservationId: ouvert.reservationId, accountId: sejour.accountId,
+          });
+
+          if (nom === 'get_folio') {
+            return ok(corps.id, contenu({
+              reservation: sejour.numero,
+              currency: note.devise,
+              lines: note.lignes.map((l) => ({ date: l.date, label: l.libelle, amount: Math.round(l.montant * 100) })),
+              total: Math.round(note.total * 100),
+              paid: Math.round(note.regle * 100),
+              balance_due: Math.round(note.solde * 100),
+            }));
+          }
+
+          /* pay_folio */
+          const centimes = Math.round(note.solde * 100);
+          if (centimes <= 0) {
+            return ko(corps.id, -32602, 'Cette note est déjà soldée — il n’y a rien à régler.');
+          }
+          const r = await ouvrirReglement({
+            jeton: String(args.stay_key), hotelId: ouvert.hotelId,
+            reservationId: ouvert.reservationId, accountId: sejour.accountId,
+            centimes, libelle: `${PROPRIETE.name} — note du séjour ${sejour.numero ?? ''}`.trim(),
+          });
+          return ok(corps.id, contenu({
+            payment_url: r.url, amount: centimes, currency: note.devise, expires_at: r.expire,
+          }));
+        }
 
         if (nom === 'get_rooftop_availability') {
           const liste = await soirs({

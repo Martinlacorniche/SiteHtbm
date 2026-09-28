@@ -52,6 +52,21 @@ export function GET() {
          * une propriété par son nom, son adresse et ses photos : rien pour les
          * horaires, les équipements ou le petit-déjeuner. Un agent qui ne peut
          * rien raconter ne convainc personne. */
+        /* 🔴 CE SERVICE NE S'OUVRE QU'AVEC LA CLÉ DU SÉJOUR, remise dans la
+         * confirmation. L'endpoint est public : sans cette clé, un inconnu
+         * lirait les notes des clients et, demain, ouvrirait leurs portes. */
+        'htbm.stay': [
+          {
+            version: UCP_VERSION,
+            transport: 'mcp',
+            endpoint: `${SITE_URL}/ucp/mcp`,
+            tools: ['get_stay', 'get_check_in', 'get_folio', 'pay_folio'],
+            requires: 'stay_key',
+            note: 'Le séjour après la vente : le relire, obtenir les codes d’arrivée, '
+              + 'lire et régler sa note. Exige la clé remise dans la confirmation. '
+              + 'Ni annulation ni modification : le tarif vendu par agent est prépayé.',
+          },
+        ],
         'htbm.hotel': [
           {
             version: UCP_VERSION,
