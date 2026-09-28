@@ -24,8 +24,23 @@
 import { chercherDisponibilite, chargerCategories, estPrepaye, HOTEL_ID } from '@/lib/mewsBooking';
 import { SITE_URL } from '@/lib/site';
 
-/** La version de protocole qu'on annonce, et la seule qu'on sait parler. */
-export const UCP_VERSION = '2026-01-01';
+/** La version de protocole qu'on annonce, et la seule qu'on sait parler.
+ *
+ * ⚠️ ELLE SE LIT DANS LA SPÉCIFICATION, ELLE NE S'INVENTE PAS. On annonçait
+ * `2026-01-01`, une date qui ne correspondait à rien : les quatre URL de
+ * spécification que le profil publiait rendaient toutes 404, vérifié le
+ * 28/09/2026. Un agent qui suit nos liens pour savoir comment nous parler
+ * tombait dans le vide, et rien ne le disait.
+ *
+ * La vraie version est celle de `info.version` du descripteur OpenRPC du
+ * service Lodging. Et la capacité vit sous `/draft/` : elle est encore un
+ * brouillon — `/latest/` ne la connaît pas. */
+export const UCP_VERSION = '2026-09-25';
+
+/** Le canal de publication de la spécification. Le lodging n'est pas stabilisé ;
+ *  le jour où il l'est, cette constante devient `latest` et rien d'autre ne
+ *  bouge. */
+export const UCP_CANAL = 'draft';
 
 export type DemandeSejour = {
   accommodationTypeId?: string;

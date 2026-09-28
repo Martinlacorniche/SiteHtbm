@@ -15,7 +15,7 @@
 
 import { NextResponse } from 'next/server';
 import { SITE_URL } from '@/lib/site';
-import { UCP_VERSION } from '@/lib/ucp/lodging';
+import { UCP_CANAL, UCP_VERSION } from '@/lib/ucp/lodging';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,9 +27,9 @@ export function GET() {
         'dev.ucp.lodging': [
           {
             version: UCP_VERSION,
-            spec: `https://ucp.dev/${UCP_VERSION}/specification/overview`,
+            spec: `https://ucp.dev/${UCP_CANAL}/specification/overview`,
             transport: 'mcp',
-            schema: `https://ucp.dev/${UCP_VERSION}/services/lodging/mcp.openrpc.json`,
+            schema: `https://ucp.dev/${UCP_CANAL}/services/lodging/mcp.openrpc.json`,
             endpoint: `${SITE_URL}/ucp/mcp`,
           },
         ],
@@ -38,8 +38,8 @@ export function GET() {
         'dev.ucp.lodging.booking': [
           {
             version: UCP_VERSION,
-            spec: `https://ucp.dev/${UCP_VERSION}/specification/lodging/booking`,
-            schema: `https://ucp.dev/${UCP_VERSION}/schemas/lodging/booking.json`,
+            spec: `https://ucp.dev/${UCP_CANAL}/specification/lodging/booking`,
+            schema: `https://ucp.dev/${UCP_CANAL}/schemas/lodging/booking.json`,
           },
         ],
       },
