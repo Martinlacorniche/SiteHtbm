@@ -103,12 +103,22 @@ export async function arrivee(
     };
   }
 
-  const { data } = await supabaseServer.from('codes_acces')
-    .select('cible, code, note').eq('hotel_id', hotelId).eq('actif', true)
-    .in('cible', ['portail', chambre]);
-  const par = new Map((data ?? []).map((c) => [String(c.cible), c]));
-  const portail = par.get('portail');
-  const porte = par.get(chambre);
+  /* ⚠️ TOUS LES HÔTELS N'ONT PAS DE PORTAIL, NI DE CODE À LA PORTE. Le réglage
+   * dit lequel des deux existe ici (migration 352). Annoncer « votre code de
+   * porte » à un hôtel qui remet des cartes au comptoir enverrait le client
+   * chercher un clavier qui n'existe pas. */
+  const [reglage, coffre] = await Promise.all([
+    supabaseServer.from('codes_acces_reglage')
+      .select('portail, porte').eq('hotel_id', hotelId).maybeSingle(),
+    supabaseServer.from('codes_acces')
+      .select('cible, code, note').eq('hotel_id', hotelId).eq('actif', true)
+      .in('cible', ['portail', chambre]),
+  ]);
+  const aPortail = Boolean(reglage.data?.portail);
+  const aCodePorte = Boolean(reglage.data?.porte);
+  const par = new Map((coffre.data ?? []).map((c) => [String(c.cible), c]));
+  const portail = aPortail ? par.get('portail') : undefined;
+  const porte = aCodePorte ? par.get(chambre) : undefined;
 
   /* ⚠️ UNE CHAMBRE SANS CODE SE DIT, elle ne s'invente pas. Si le coffre est
    * vide pour cette porte, le client doit appeler plutôt que de rester devant
