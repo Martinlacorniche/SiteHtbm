@@ -415,7 +415,10 @@ export async function POST(req: Request) {
           }
 
           if (nom === 'get_check_in') {
-            const a = await arrivee({ hotelId: ouvert.hotelId, reservationId: ouvert.reservationId });
+            const a = await arrivee({
+              hotelId: ouvert.hotelId, reservationId: ouvert.reservationId,
+              reference: `ucp:${String(args.stay_key)}`,
+            });
             return ok(corps.id, contenu(a));
           }
 
