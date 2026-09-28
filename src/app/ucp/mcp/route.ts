@@ -405,15 +405,32 @@ export async function traiter(req: Request, sansPaiement = false) {
 
   try {
     switch (corps.method) {
-      case 'initialize':
+      case 'initialize': {
+        /* 🔴 ON ANNONÇAIT UNE VERSION EN DUR, ET C'EST CE QUI A FAIT ÉCHOUER LA
+         * PREMIÈRE SOUMISSION À L'ANNUAIRE. Le client demandait `2025-06-18`,
+         * on répondait `2024-11-05` : il voyait « 0 outil, 0 ressource » et
+         * abandonnait la connexion.
+         *
+         * La spécification veut que le serveur réponde avec la version
+         * demandée s'il la parle, et propose la sienne sinon. On reflète donc
+         * ce que le client demande quand on la connaît — les trois versions
+         * publiées se valent pour ce que nous exposons : des outils, rien de
+         * plus. */
+        const CONNUES = new Set(['2024-11-05', '2025-03-26', '2025-06-18']);
+        const demandee = String(
+          (corps.params as { protocolVersion?: string } | undefined)?.protocolVersion ?? '',
+        );
         return ok(corps.id, {
-          protocolVersion: '2024-11-05',
+          protocolVersion: CONNUES.has(demandee) ? demandee : '2025-06-18',
           capabilities: { tools: {} },
-          serverInfo: { name: 'Hôtel-Rooftop Les Voiles — UCP Lodging', version: UCP_VERSION },
+          serverInfo: { name: 'Hôtel-Rooftop Les Voiles', version: UCP_VERSION },
         });
+      }
 
       case 'notifications/initialized':
-        return new NextResponse(null, { status: 204, headers: CORS });
+        /* 202 et pas 204 : c'est ce que la spécification demande pour une
+           notification acceptée sans réponse. */
+        return new NextResponse(null, { status: 202, headers: CORS });
 
       case 'tools/list':
         return ok(corps.id, {
@@ -671,8 +688,12 @@ export async function traiter(req: Request, sansPaiement = false) {
   }
 }
 
-/** Un GET renvoie de quoi se repérer : qui répond ici, et où est le profil. */
-export function GET() {
+/** Un GET renvoie de quoi se repérer : qui répond ici, et où est le profil.
+ *  ⚠️ 405 pour un client qui cherche un flux d'événements — voir `/mcp`. */
+export function GET(req: Request) {
+  if ((req.headers.get('accept') ?? '').includes('text/event-stream')) {
+    return new NextResponse(null, { status: 405, headers: { ...CORS, Allow: 'POST, OPTIONS' } });
+  }
   return NextResponse.json({
     service: 'dev.ucp.lodging',
     version: UCP_VERSION,

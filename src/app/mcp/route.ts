@@ -32,8 +32,18 @@ export function OPTIONS() {
 
 export const POST = (req: Request) => traiter(req, true);
 
-/** Un GET dit qui répond ici, et où trouver la porte complète. */
-export function GET() {
+/**
+ * 🔴 UN CLIENT « STREAMABLE HTTP » FAIT UN GET POUR OUVRIR UN FLUX, et il faut
+ * lui répondre 405 quand on n'en sert pas. On rendait 200 avec du JSON
+ * descriptif : le client attendait un flux d'événements qui n'arrivait jamais.
+ *
+ * Un humain qui ouvre l'adresse dans son navigateur, lui, mérite de savoir où
+ * il est tombé — on ne lui rend le descriptif que s'il ne demande pas de flux.
+ */
+export function GET(req: Request) {
+  if ((req.headers.get('accept') ?? '').includes('text/event-stream')) {
+    return new Response(null, { status: 405, headers: { Allow: 'POST, OPTIONS' } });
+  }
   return Response.json({
     service: 'Hôtel-Rooftop Les Voiles',
     transport: 'mcp',
