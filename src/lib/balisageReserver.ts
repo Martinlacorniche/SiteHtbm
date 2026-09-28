@@ -69,7 +69,12 @@ const VOILES = {
     postalCode: '83000',
     addressCountry: 'FR',
   },
-  geo: { '@type': 'GeoCoordinates', latitude: 43.1076, longitude: 5.9469 },
+  /* ⚠️ VÉRIFIÉES AUPRÈS DU GÉOCODEUR DE L'ÉTAT (api-adresse.data.gouv.fr),
+   * le 28/09/2026 : « 124 Rue Gubler 83000 Toulon », score 0,97. Ce fichier
+   * publiait 43,1076 / 5,9469 — 460 m plus loin, soit une autre rue — en
+   * prétendant reprendre « les valeurs déjà publiées sur les autres pages ».
+   * Un client guidé par un agent serait descendu au mauvais endroit. */
+  geo: { '@type': 'GeoCoordinates', latitude: 43.109081, longitude: 5.951233 },
   priceCurrency: 'EUR',
   currenciesAccepted: 'EUR',
   availableLanguage: ['fr', 'en', 'es', 'it', 'de'],

@@ -42,11 +42,12 @@ export function ficheHotel() {
     description: recit.lignes.join(' '),
 
     location: {
-      /* ⚠️ PAS DE COORDONNÉES ICI. Le site en publie DEUX jeux différents pour
-       * le même hôtel — 43,1091/5,9511 sur l'accueil et le rooftop,
-       * 43,1076/5,9469 sur la page de réservation, soit 460 m d'écart. Tant
-       * que ce n'est pas tranché, ne rien dire vaut mieux qu'envoyer un client
-       * dans la mauvaise rue. */
+      /* Vérifiées auprès du géocodeur de l'État (api-adresse.data.gouv.fr) le
+       * 28/09/2026 : « 124 Rue Gubler 83000 Toulon », score 0,97. Le site en
+       * publiait deux jeux distants de 460 m ; c'est un agent qui guide un
+       * client jusqu'à la porte, autant que ce soit la bonne. */
+      latitude: 43.109081,
+      longitude: 5.951233,
       neighbourhood: 'Le Mourillon, Toulon',
       beach_distance_m: 300,
       notes: 'Sur les hauteurs du Mourillon, dans un quartier résidentiel très calme. '

@@ -44,7 +44,7 @@ const jsonLd = {
     postalCode: "83000",
     addressCountry: "FR",
   },
-  geo: { "@type": "GeoCoordinates", latitude: 43.1091085, longitude: 5.9511278 },
+  geo: { "@type": "GeoCoordinates", latitude: 43.109081, longitude: 5.951233 },
   amenityFeature: [
     { "@type": "LocationFeatureSpecification", name: "Vue mer", value: true },
     { "@type": "LocationFeatureSpecification", name: "Rooftop / terrasse à ciel ouvert", value: true },
