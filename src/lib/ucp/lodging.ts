@@ -533,6 +533,7 @@ export async function completerSession(
         description: `${PROPRIETE.name} — ${session.demande.arrivee} → ${session.demande.depart}`,
         email: client.email,
         retour: `${SITE_URL}/ucp/retour?s=${session.id}`,
+        marque: { ucp_session: session.id },
       });
       session.attente = {
         checkout: lien.checkout, reservationId: posee.reservationId, customerId: posee.customerId,

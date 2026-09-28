@@ -206,6 +206,7 @@ export async function ouvrirReglement(
   const lien = await lienDePaiement({
     centimes, description: libelle, email,
     retour: `${SITE_URL}/sejour/${jeton}?paye=1`,
+    marque: { sejour_jeton: jeton },
   });
   const { error } = await supabaseServer.from('sejour_paiement').insert({
     checkout: lien.checkout, jeton, hotel_id: hotelId,

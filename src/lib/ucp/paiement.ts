@@ -177,8 +177,10 @@ export const TENUE_MINUTES = 35;
 export type LienPaiement = { url: string; checkout: string; expire: string };
 
 export async function lienDePaiement(
-  { centimes, description, email, retour }:
-  { centimes: number; description: string; email?: string; retour: string },
+  { centimes, description, email, retour, marque }:
+  { centimes: number; description: string; email?: string; retour: string;
+    /** De quoi retrouver QUOI conclure quand le paiement arrive par webhook. */
+    marque?: Record<string, string> },
 ): Promise<LienPaiement> {
   const expire = Math.floor(Date.now() / 1000) + LIEN_MINUTES * 60;
   const corps: Record<string, string> = {
@@ -195,6 +197,10 @@ export async function lienDePaiement(
     expires_at: String(expire),
   };
   if (email) corps.customer_email = email;
+  /* ⚠️ SANS CETTE MARQUE, UN PAIEMENT QUI ARRIVE PAR WEBHOOK EST ORPHELIN.
+   * Stripe nous dit « telle session a été payée » ; encore faut-il savoir de
+   * quelle réservation ou de quelle note il s'agit. */
+  for (const [k, v] of Object.entries(marque ?? {})) corps[`metadata[${k}]`] = v;
 
   const s = await stripe<{ id: string; url: string }>('checkout/sessions', corps);
   return { url: s.url, checkout: s.id, expire: new Date(expire * 1000).toISOString() };
