@@ -21,7 +21,10 @@
 //     nécessaire, sous le statut `requires_escalation`.
 // L'agent prépare, le client finit chez nous. Rien à attendre de personne.
 
-import { chercherDisponibilite, chargerCategories, estPrepaye, HOTEL_ID } from '@/lib/mewsBooking';
+import {
+  chercherDisponibilite, chargerCategories, estPrepaye, urlPhoto,
+  HOTEL_ID, type CategorieChambre,
+} from '@/lib/mewsBooking';
 import { lireJeton, verifierJeton, debiter, rembourser, ErreurPaiement } from '@/lib/ucp/paiement';
 import {
   poserReservation, folioDe, consignerPaiement, annulerReservation, type ClientAgent,
@@ -242,7 +245,7 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     );
   }
 
-  const cat = (categories as Map<string, { nom?: string; couchages?: number | null }>).get(choisi.categorieId);
+  const cat = (categories as Map<string, CategorieChambre>).get(choisi.categorieId);
   /* ⚠️ MEWS REND UN NOM MULTILINGUE, PAS UNE CHAÎNE. `Name` vaut
    * `{ "fr-FR": "Tarif Prépayé, petit déjeuner inclus" }` : le passer tel quel
    * à un agent lui ferait lire « [object Object] », ou pire, recopier
@@ -256,11 +259,28 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
   const taxe = Math.round(await taxeSejourParNuitee() * nuits * d.adultes * 100) / 100;
   const aPayer = choisi.total + taxe;
 
+  /* 🔑 UN AGENT NE PEUT DIRE QUE CE QU'ON LUI DONNE. On ne lui envoyait qu'un
+   * titre et une capacité : il pouvait vendre une chambre sans jamais savoir
+   * ce qu'elle contient, ni la montrer. Mews porte déjà la description et les
+   * photos — 3 à 5 par catégorie, tenues à jour par l'hôtel dans son
+   * back-office, et les seules sans le bandeau que les OTA incrustent.
+   *
+   * ⚠️ ON N'INVENTE RIEN ET ON NE RECOPIE RIEN : le jour où l'hôtel corrige
+   * une description ou change une photo, ce que lisent les agents suit. Une
+   * fiche recopiée dans le dépôt aurait divergé au premier changement. */
+  const media = (cat?.images ?? []).slice(0, 5).map((id) => ({
+    type: 'image',
+    url: urlPhoto(id, 1600),
+    alt_text: `${cat?.nom || 'Chambre'} — ${PROPRIETE.name}`,
+  }));
+
   const stay = {
     id: identifiant('ss'),
     accommodation_type: {
       id: choisi.categorieId,
       title: cat?.nom || 'Chambre',
+      ...(cat?.description ? { description: cat.description } : {}),
+      ...(media.length ? { media } : {}),
       /* ⚠️ LA CAPACITÉ NE PEUT PAS ÊTRE INFÉRIEURE À L'OCCUPATION VENDUE.
        * La configuration donne « Chambre Individuelle : 1 couchage » alors que
        * Mews la propose — et la facture — pour deux adultes. Annoncer une

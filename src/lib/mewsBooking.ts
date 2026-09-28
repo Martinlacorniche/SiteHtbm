@@ -235,6 +235,10 @@ export type CategorieChambre = {
    *  vraie traduction ou le repli francais — voir `NOM_ANGLAIS` cote ecran. */
   nomFr: string;
   images: string[];
+  /** La description libre de la catégorie, telle que l'hôtel l'écrit dans son
+   *  back-office. L'écran n'en tirait que la surface ; une machine, elle, a
+   *  besoin du texte entier pour décrire la chambre à un client. */
+  description: string;
   /** Combien de personnes y dorment — `NormalBedCount` de la configuration. */
   couchages: number | null;
   /** Surface en m², extraite de la description libre. Nulle si l'hôtel ne l'y a
@@ -291,6 +295,7 @@ export async function chargerCategories(langue: Langue): Promise<Map<string, Cat
     nom: t(c.Names ?? c.Name, langue),
     nomFr: t(c.Names ?? c.Name, 'fr'),
     images: c.ImageIds ?? [],
+    description: t(c.Descriptions ?? c.Description, langue),
     couchages: typeof c.NormalBedCount === 'number' ? c.NormalBedCount : null,
     surface: surfaceDe(t(c.Descriptions ?? c.Description, langue)),
   }]));
