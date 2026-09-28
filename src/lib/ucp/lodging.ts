@@ -183,8 +183,8 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     chargerCategories('fr').catch(() => new Map()),
   ]);
 
-  /* ⚠️ AUCUNE OFFRE N'EST UNE RÉPONSE, PAS UNE PANNE. L'hôtel se loue en Villa
-   * de mi-octobre à mi-mai : « complet » et « fermé » se disent tous deux par
+  /* ⚠️ AUCUNE OFFRE N'EST UNE RÉPONSE, PAS UNE PANNE. L'hôtel se loue aussi
+   * entière : « complet » et « fermé » se disent tous deux par
    * une absence d'offre, et un agent doit pouvoir le rapporter sans croire que
    * notre serveur est cassé. */
   const retenues = dispo.offres

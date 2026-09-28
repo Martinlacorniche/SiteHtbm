@@ -157,7 +157,7 @@ const T: Record<"fr" | "en", Translations> = {
     tiles: {
       pdj:      { title: "Petit-déjeuner",       tagline: "Buffet inclus" },
       checkin:  { title: "Check-in",             tagline: "À partir de 15h" },
-      checkout: { title: "Check-out",            tagline: "Avant 11h" },
+      checkout: { title: "Check-out",            tagline: "11h — midi en direct" },
       rooftop:  { title: "Rooftop",              tagline: "Bar & panorama" },
       urgences: { title: "Urgences",             tagline: "Réception 24h/24" },
       regles:   { title: "Règles de la maison",  tagline: "Pour votre séjour" },
@@ -172,7 +172,7 @@ const T: Record<"fr" | "en", Translations> = {
     defaults: {
       pdj:      { horaires: "7h00 – 10h00" },
       checkin:  { heure: "À partir de 15h", note: "Dépôt des bagages possible avant." },
-      checkout: { standard: "avant 11h" },
+      checkout: { standard: "avant 11h — midi si vous avez réservé en direct" },
       rooftop:  { description: "Vue panoramique sur Toulon et la rade. Boissons & petite restauration." },
       urgences: { message: "Contactez la réception immédiatement." },
       regles:   { texte: "Bienvenue aux Voiles ! Merci de respecter la tranquillité des autres clients et nos espaces communs." },
@@ -192,7 +192,7 @@ const T: Record<"fr" | "en", Translations> = {
     tiles: {
       pdj:      { title: "Breakfast",      tagline: "Buffet included" },
       checkin:  { title: "Check-in",       tagline: "From 15:00" },
-      checkout: { title: "Check-out",      tagline: "Before 11:00" },
+      checkout: { title: "Check-out",      tagline: "11:00 — noon if booked direct" },
       rooftop:  { title: "Rooftop",        tagline: "Bar & view" },
       urgences: { title: "Emergencies",    tagline: "24/7 reception" },
       regles:   { title: "House rules",    tagline: "For your stay" },
@@ -207,7 +207,7 @@ const T: Record<"fr" | "en", Translations> = {
     defaults: {
       pdj:      { horaires: "7:00 – 10:00" },
       checkin:  { heure: "From 15:00", note: "Early luggage drop-off available." },
-      checkout: { standard: "before 11:00" },
+      checkout: { standard: "before 11:00 — noon if you booked direct" },
       rooftop:  { description: "Panoramic view over Toulon and the bay. Drinks & light fare." },
       urgences: { message: "Contact the front desk immediately." },
       regles:   { texte: "Welcome to Les Voiles! Please respect the peace of other guests and our shared spaces." },

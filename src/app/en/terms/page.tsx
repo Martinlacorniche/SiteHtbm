@@ -91,7 +91,7 @@ export default function Terms() {
               Hôtel-Rooftop Les Voiles is located at <strong>124 rue Gubler, 83000
               Toulon, France</strong>.<br />
               Telephone: <a href="tel:+33494413623" className="underline">+33 4 94 41 36 23</a><br />
-              Email: <a href="mailto:contact@hotel-voiles.com" className="underline">contact@hotel-voiles.com</a>
+              Email: <a href="mailto:contact-lesvoiles@htbm.fr" className="underline">contact-lesvoiles@htbm.fr</a>
             </p>
             <p>
               The hotel is operated — and stays are sold and charged — by
@@ -217,7 +217,7 @@ export default function Terms() {
             </p>
             <p>
               Cancellations and changes are made by telephone on +33 4 94 41 36 23 or by
-              email to contact@hotel-voiles.com, quoting your confirmation number.
+              email to contact-lesvoiles@htbm.fr, quoting your confirmation number.
               Changing dates or length of stay amounts to a new booking, at the rate
               then available.
             </p>
@@ -281,7 +281,7 @@ export default function Terms() {
             <p>
               Under the General Data Protection Regulation, you have the right to access,
               rectify, erase, restrict and object to the processing of your data, by
-              writing to contact@hotel-voiles.com.
+              writing to contact-lesvoiles@htbm.fr.
             </p>
             <p>
               Card details are not kept by the hotel: they are held by its payment
@@ -292,7 +292,7 @@ export default function Terms() {
           <Section n={12} titre="Complaints and mediation">
             <p>
               Complaints should be addressed to the hotel, preferably in writing, at
-              contact@hotel-voiles.com. The hotel undertakes to reply within a
+              contact-lesvoiles@htbm.fr. The hotel undertakes to reply within a
               reasonable time.
             </p>
             <p>

@@ -145,8 +145,8 @@ const CONFIG = {
     },
   
     desc: {
-      fr: "L'expérience unique d'un hôtel rien que pour vous (de mi-octobre à mi-mai). Une adresse secrète du Mourillon à 300m des plages.",
-      en: "The unique experience of a hotel just for you (from mid-October to mid-May). A secret address in Mourillon, 300m from the beaches."
+      fr: "L'expérience unique d'un hôtel rien que pour vous, toute l'année. Une adresse secrète du Mourillon à 300m des plages.",
+      en: "The unique experience of a hotel just for you, all year round. A secret address in Mourillon, 300m from the beaches."
     },
     // Le contact de la Villa, c'est la réception des Voiles (17/09/2026) —
     // plus le portable ni l'adresse du commercial.

@@ -25,7 +25,7 @@ const FAQ = [
   },
   {
     q: "Existe-t-il un hôtel privatisable à Toulon ?",
-    a: "Oui, la Villa Les Voiles permet de privatiser entièrement l'établissement (jusqu'à 16 chambres, rooftop avec vue mer, patio), de mi-octobre à mi-mai, à 300 m des plages du Mourillon.",
+    a: "Oui, la Villa Les Voiles permet de privatiser entièrement l'établissement (jusqu'à 16 chambres, rooftop avec vue mer, patio), toute l’année selon les disponibilités, à 300 m des plages du Mourillon.",
   },
   {
     q: "Quel hôtel pour un séminaire ou un déplacement professionnel à Toulon ?",

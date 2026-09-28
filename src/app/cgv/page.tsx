@@ -108,7 +108,7 @@ export default function CGV() {
               L&apos;Hôtel-Rooftop Les Voiles est situé au <strong>124 rue Gubler, 83000
               Toulon</strong>.<br />
               Téléphone : <a href="tel:+33494413623" className="underline">04 94 41 36 23</a><br />
-              Courriel : <a href="mailto:contact@hotel-voiles.com" className="underline">contact@hotel-voiles.com</a>
+              Courriel : <a href="mailto:contact-lesvoiles@htbm.fr" className="underline">contact-lesvoiles@htbm.fr</a>
             </p>
             <p>
               L&apos;hôtel est exploité, et les séjours sont vendus et encaissés, par
@@ -246,7 +246,7 @@ export default function CGV() {
             </p>
             <p>
               Toute demande d&apos;annulation ou de modification se fait par téléphone au
-              04 94 41 36 23 ou par courriel à contact@hotel-voiles.com, en indiquant
+              04 94 41 36 23 ou par courriel à contact-lesvoiles@htbm.fr, en indiquant
               le numéro de confirmation. Une modification de dates ou de durée équivaut
               à une nouvelle réservation, au tarif alors disponible.
             </p>
@@ -318,7 +318,7 @@ export default function CGV() {
               loi « Informatique et Libertés », le client dispose d&apos;un droit
               d&apos;accès, de rectification, d&apos;effacement, de limitation et
               d&apos;opposition, qu&apos;il exerce en écrivant à
-              contact@hotel-voiles.com.
+              contact-lesvoiles@htbm.fr.
             </p>
             <p>
               Les données de carte bancaire ne sont pas conservées par l&apos;hôtel : elles
@@ -330,7 +330,7 @@ export default function CGV() {
           <Section n={12} titre="Réclamations et médiation">
             <p>
               Toute réclamation doit être adressée à l&apos;hôtel, de préférence par
-              écrit, à contact@hotel-voiles.com. L&apos;hôtel s&apos;engage à y répondre
+              écrit, à contact-lesvoiles@htbm.fr. L&apos;hôtel s&apos;engage à y répondre
               dans un délai raisonnable.
             </p>
             <p>
