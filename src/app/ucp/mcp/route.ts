@@ -18,6 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { creerSession, lireSession, ErreurUcp, UCP_VERSION, PROPRIETE } from '@/lib/ucp/lodging';
+import { soirs, reserverTable, creneauxDe, ErreurRooftop, COUVERTS_MAX } from '@/lib/ucp/rooftop';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -97,6 +98,47 @@ const OUTILS = [
       required: ['booking'],
     },
   },
+  /* ── LE ROOFTOP ──────────────────────────────────────────────────────────
+   * Une table se réserve sans payer, et fermement : il n'y a donc ni session
+   * ni escalade ici, contrairement aux chambres. Deux outils suffisent —
+   * savoir quels soirs sont ouverts, et prendre la table. */
+  {
+    name: 'get_rooftop_availability',
+    description:
+      'Les soirs où une table est libre au Rooftop des Voiles (Toulon), sur une période donnée. '
+      + 'Dit pour chaque soir s’il est réservable, et sinon si le rooftop est FERMÉ ou COMPLET — '
+      + 'les deux ne se disent pas de la même façon à un client. '
+      + `Le rooftop accueille jusqu’à ${COUVERTS_MAX} personnes par table.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        start_date: { type: 'string', description: 'Premier soir regardé, AAAA-MM-JJ.' },
+        end_date: { type: 'string', description: 'Dernier soir regardé, AAAA-MM-JJ.' },
+        party_size: { type: 'integer', description: 'Nombre de couverts. 2 par défaut.' },
+      },
+      required: ['start_date', 'end_date'],
+    },
+  },
+  {
+    name: 'create_rooftop_reservation',
+    description:
+      'Réserve une table au Rooftop des Voiles. La table est tenue IMMÉDIATEMENT et fermement : '
+      + 'il n’y a rien à confirmer ensuite, et aucun paiement n’est demandé. '
+      + 'Rend une erreur claire si le rooftop est fermé, complet, ou si le service du soir est passé.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Le soir, AAAA-MM-JJ.' },
+        time: { type: 'string', description: 'Créneau, par exemple « 19h30 ». Le premier possible si absent.' },
+        party_size: { type: 'integer', description: `Nombre de couverts, ${COUVERTS_MAX} au maximum.` },
+        name: { type: 'string', description: 'Nom au nom duquel la table est tenue.' },
+        phone: { type: 'string' },
+        email: { type: 'string' },
+        note: { type: 'string', description: 'Allergies, occasion, demande particulière.' },
+      },
+      required: ['date', 'party_size', 'name'],
+    },
+  },
 ] as const;
 
 /** Un contenu d'outil MCP : le texte pour l'humain, la donnée pour la machine. */
@@ -163,6 +205,39 @@ export async function POST(req: Request) {
           return ok(corps.id, contenu(session.booking));
         }
 
+        if (nom === 'get_rooftop_availability') {
+          const liste = await soirs({
+            du: String(args.start_date ?? ''), au: String(args.end_date ?? ''),
+            couverts: Number(args.party_size ?? 2),
+          });
+          return ok(corps.id, contenu({
+            property: PROPRIETE.name,
+            max_party_size: COUVERTS_MAX,
+            nights: liste.map((s) => ({
+              date: s.date,
+              available: s.reservable,
+              ...(s.motif ? { reason: s.motif === 'ferme' ? 'closed' : 'full' } : {}),
+              ...(s.reservable ? { times: creneauxDe(s.date) } : {}),
+            })),
+          }));
+        }
+
+        if (nom === 'create_rooftop_reservation') {
+          const t = await reserverTable({
+            date: String(args.date ?? ''), heure: args.time ? String(args.time) : undefined,
+            couverts: Number(args.party_size ?? 0), nom: String(args.name ?? ''),
+            telephone: args.phone ? String(args.phone) : undefined,
+            email: args.email ? String(args.email) : undefined,
+            message: args.note ? String(args.note) : undefined,
+          });
+          return ok(corps.id, contenu({
+            status: 'confirmed',
+            id: t.id, date: t.date, time: t.heure, party_size: t.couverts, table: t.table,
+            property: PROPRIETE.name,
+            note: 'Table tenue. Aucun paiement n’est demandé ; le règlement se fait sur place.',
+          }));
+        }
+
         return ko(corps.id, -32601, `Outil inconnu : ${nom}`);
       }
 
@@ -170,6 +245,9 @@ export async function POST(req: Request) {
         return ko(corps.id, -32601, `Méthode inconnue : ${corps.method}`);
     }
   } catch (e) {
+    if (e instanceof ErreurRooftop) {
+      return ko(corps.id, e.code === 'unavailable' ? -32003 : -32602, e.message);
+    }
     if (e instanceof ErreurUcp) {
       /* `unavailable` n'est pas une panne : complet ou fermé se disent, et
          l'agent doit pouvoir le rapporter au client tel quel. */

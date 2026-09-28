@@ -33,6 +33,22 @@ export function GET() {
             endpoint: `${SITE_URL}/ucp/mcp`,
           },
         ],
+        /* ⚠️ LE ROOFTOP N'EST PAS DU « LODGING », ET ON NE FAIT PAS SEMBLANT.
+         * UCP n'a pas encore de verticale restauration — elle est annoncée,
+         * pas publiée. Ranger une table sous `dev.ucp.lodging` ferait qu'un
+         * agent strict la lirait comme une chambre. On la déclare donc pour ce
+         * qu'elle est : un service à nous, sur le même transport MCP, dont les
+         * outils se découvrent par `tools/list`. Le jour où la verticale
+         * existe, ce bloc devient standard et l'endpoint ne bouge pas. */
+        'htbm.rooftop': [
+          {
+            version: UCP_VERSION,
+            transport: 'mcp',
+            endpoint: `${SITE_URL}/ucp/mcp`,
+            tools: ['get_rooftop_availability', 'create_rooftop_reservation'],
+            note: 'Réservation de table au Rooftop des Voiles. Table tenue fermement, sans paiement.',
+          },
+        ],
       },
       capabilities: {
         'dev.ucp.lodging.booking': [
