@@ -26,6 +26,7 @@ import { lireJeton, verifierJeton, debiter, rembourser, ErreurPaiement } from '@
 import {
   poserReservation, folioDe, consignerPaiement, annulerReservation, type ClientAgent,
 } from '@/lib/ucp/reservationMews';
+import { ajouterNote, noteDeControle } from '@/lib/mewsConnector';
 import { SITE_URL } from '@/lib/site';
 import { supabaseServer } from '@/lib/supabase-server';
 
@@ -81,7 +82,7 @@ export type Session = {
   demande: DemandeSejour;
   booking: Record<string, unknown>;
   /** De quoi poser la réservation sans réinterroger la disponibilité. */
-  choix: { categorieId: string; tarifId: string; centimes: number };
+  choix: { categorieId: string; tarifId: string; centimes: number; taxe: number; chambre: string };
   /** Qui réserve. Donné à la création ou par `update`, jamais à la complétion. */
   client?: ClientAgent;
   /** Ce qui a été fait, pour ne pas le refaire sur une reprise. */
@@ -327,7 +328,10 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
 
   const session: Session = {
     id, cree: Date.now(), demande: d, booking,
-    choix: { categorieId: choisi.categorieId, tarifId: choisi.tarifId, centimes: centimes(aPayer) },
+    choix: {
+      categorieId: choisi.categorieId, tarifId: choisi.tarifId,
+      centimes: centimes(aPayer), taxe, chambre: cat?.nom || 'Chambre',
+    },
     ...(d.client ? { client: d.client } : {}),
   };
   ranger(session);
@@ -434,6 +438,47 @@ export async function completerSession(
     console.error('[ucp] REGLEMENT NON CONSIGNE DANS MEWS — a rattraper au comptoir.',
       { reservation: posee.numero, paymentIntent: paiement, montant: centimesDus / 100 },
       e instanceof Error ? e.message : e);
+  }
+
+  /* ── 5. ce que lira la réception ───────────────────────────────────────
+   * Martin, 28/09/2026 : « notes dans la resa selon le protocole habituel plus
+   * mention resa IA ». Même grammaire que le tunnel — la réception n'a pas à
+   * apprendre une seconde forme — avec la provenance changée.
+   *
+   * ⚠️ ELLE NE FAIT JAMAIS ÉCHOUER LA RÉSERVATION : elle se rattrape en
+   * ouvrant le dossier, alors qu'une chambre annulée ne se rattrape pas. */
+  try {
+    await ajouterNote(posee.reservationId, noteDeControle({
+      chambre: session.choix.chambre,
+      prepaye: true,
+      total: centimesDus / 100,
+      taxe: session.choix.taxe,
+      source: 'AGENT IA',
+    }));
+  } catch (e) {
+    console.error('[ucp] note de reception non posee', posee.numero, e instanceof Error ? e.message : e);
+  }
+
+  /* ── 6. de quoi la compter dans Distribution ────────────────────────────
+   * ⚠️ SANS CETTE LIGNE, LA VENTE EST COMPTÉE EN « GROUPES & MARIAGES ». Une
+   * réservation posée par le Connector arrive chez Mews en `Origin:
+   * 'Connector'`, la même porte que les groupes : rien ne l'en distingue
+   * là-bas. C'est notre trace, et elle seule, qui permet à `canalDe()` de la
+   * reconnaître (migration 346). Elle ne fait pas échouer non plus — mais une
+   * ligne manquante ici fausse une statistique en silence, alors on la crie. */
+  try {
+    const { error } = await supabaseServer.from('resa_agent').insert({
+      hotel_id: HOTEL_NWH,
+      mews_reservation_id: posee.reservationId,
+      mews_numero: posee.numero,
+      session_ucp: session.id,
+      montant: centimesDus / 100,
+      paiement_ref: paiement,
+    });
+    if (error) throw new Error(error.message);
+  } catch (e) {
+    console.error('[ucp] VENTE AGENT NON TRACEE — elle sera comptee en Groupes & mariages.',
+      { reservation: posee.numero }, e instanceof Error ? e.message : e);
   }
 
   session.fait = { ...posee, paiement };

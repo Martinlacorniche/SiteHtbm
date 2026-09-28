@@ -317,12 +317,18 @@ export async function annulerDemandePaiement(id: string): Promise<void> {
  * solde ZÉRO — chambre, petit-déjeuner et taxe compris.
  */
 export function noteDeControle(
-  { chambre, prepaye, total, taxe, langueClient }:
-  { chambre: string; prepaye: boolean; total: number; taxe: number; langueClient?: string },
+  { chambre, prepaye, total, taxe, langueClient, source }:
+  { chambre: string; prepaye: boolean; total: number; taxe: number; langueClient?: string; source?: string },
 ): string {
   const eur = (n: number) => `${n.toFixed(2).replace('.', ',')}€`;
   const bloc: string[] = [`#${codeChambre(chambre)}`, prepaye ? 'NANR' : 'FLEX'];
-  bloc.push('/ DIRECT DÉPART 12H OK');
+  /* ⚠️ LA PROVENANCE SE LIT AU COMPTOIR, ET « DIRECT » ÉTAIT EN DUR. Une
+   * réservation prise par un agent IA reste du direct — même tunnel, même
+   * tarif, même encaissement — mais la réception doit pouvoir le voir : c'est
+   * elle qui reçoit un client qui n'a jamais parlé à un humain, et qui posera
+   * ses questions à l'arrivée. Un seul mot change, la grammaire reste la
+   * même : ni la note ni l'œil qui la lit n'ont à apprendre deux formes. */
+  bloc.push(`/ ${source || 'DIRECT'} DÉPART 12H OK`);
   bloc.push(prepaye
     ? `/ TOUT PRÉPAYÉ ${eur(total)} — CHAMBRE + PDJ + TAXE — RIEN À ENCAISSER`
     : `/ RSP ${eur(total)} DONT TS ${eur(taxe)}`);
