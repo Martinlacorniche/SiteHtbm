@@ -146,6 +146,16 @@ export async function reserverTable(d: DemandeTable): Promise<TableTenue> {
      pouvoir les rapporter au client sans croire que le serveur est cassé. */
   if (r.status === 'closed') throw new ErreurRooftop('Le rooftop est fermé ce soir-là.', 'unavailable');
   if (r.status === 'full') throw new ErreurRooftop('Plus aucune table pour ce soir-là.', 'unavailable');
+  if (r.status === 'rate_limited') {
+    /* 🔴 Le garde posé DANS la fonction (migration 355) : il vaut pour tous
+     * les chemins, pas seulement le nôtre. Dix créations en dix minutes ne
+     * gênent aucun soir normal — trois par jour en moyenne — et arrêtent net
+     * un balayage du calendrier. */
+    throw new ErreurRooftop(
+      'Trop de réservations viennent d’être prises. Réessayez dans quelques minutes, '
+      + 'ou appelez l’hôtel au +33 4 94 41 36 23.', 'unavailable',
+    );
+  }
   if (r.status === 'blacklisted') {
     /* ⚠️ ON NE DIT PAS POURQUOI, ET SÛREMENT PAS À UNE MACHINE. Le motif
      * regarde l'hôtel et le client, pas l'agent qui transmettra la réponse. */
