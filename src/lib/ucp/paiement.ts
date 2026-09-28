@@ -208,3 +208,11 @@ export async function paiementDuLien(checkout: string): Promise<string | null> {
   if (!s || s.payment_status !== 'paid') return null;
   return typeof s.payment_intent === 'string' ? s.payment_intent : null;
 }
+
+/** L'adresse d'un lien encore ouvert, ou `null` s'il ne vaut plus. */
+export async function urlDuLien(checkout: string): Promise<string | null> {
+  const s = await stripe<{ url?: string | null; status?: string }>(`checkout/sessions/${checkout}`)
+    .catch(() => null);
+  if (!s || s.status !== 'open' || !s.url) return null;
+  return s.url;
+}

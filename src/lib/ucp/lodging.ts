@@ -573,6 +573,30 @@ export async function completerSession(
 }
 
 /**
+ * 🔴 UN SEUL APPELANT CONCLUT UNE VENTE.
+ *
+ * Le client revient de Stripe et son agent relit la session au même instant :
+ * les deux voient la même attente, lisent le MÊME paiement, et concluent en
+ * parallèle. Résultat sans ce verrou — deux règlements posés au folio (le
+ * client apparaît créditeur), deux clés valides pour une réservation, et la
+ * statistique comptée double.
+ *
+ * ⚠️ LA CONDITION ET L'ÉCRITURE SONT LA MÊME INSTRUCTION (migration 357) :
+ * c'est Postgres qui tranche, pas une lecture suivie d'une écriture — il y a
+ * toujours une fenêtre entre les deux, et c'est là que ça se joue.
+ *
+ * ⚠️ Le verrou expire tout seul au bout de deux minutes : un processus qui
+ * meurt en cours ne doit pas bloquer à jamais une vente déjà payée.
+ */
+async function prendreLaMain(id: string): Promise<boolean> {
+  const { data, error } = await supabaseServer.rpc('ucp_verrouiller', { p_id: id });
+  /* Une RPC qui ne répond pas ne doit pas bloquer une vente : on laisse
+     passer, le risque de double est plus faible que celui de ne pas conclure. */
+  if (error) return true;
+  return data !== false;
+}
+
+/**
  * Ce qui se fait une fois l'argent encaissé, et seulement là.
  *
  * Appelée par la vente directe comme par le retour d'un lien de paiement : les
@@ -585,6 +609,13 @@ async function finaliser(
   { reservationId: string; customerId: string; numero: string | null;
     paiement: string; centimes: number; carte?: string | null },
 ): Promise<Record<string, unknown>> {
+  if (!await prendreLaMain(session.id)) {
+    /* Quelqu'un d'autre conclut cette vente à l'instant. On ne fait rien, et
+       on rend ce qu'on sait — l'autre écrira la version définitive. */
+    const relue = await lireSession(session.id);
+    return relue?.booking ?? session.booking;
+  }
+
   /* ── 4. la chambre est vendue ──────────────────────────────────────────── */
   await confirmerReservation(reservationId);
 

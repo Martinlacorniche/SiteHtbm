@@ -461,6 +461,10 @@ export async function POST(req: Request) {
               total: Math.round(note.total * 100),
               paid: Math.round(note.regle * 100),
               balance_due: Math.round(note.solde * 100),
+              ...(note.enAttente
+                ? { note: 'Un règlement vient d’être encaissé et n’apparaît pas encore au folio. '
+                    + 'Ce solde sera à jour dans quelques instants — ne le faites pas régler une seconde fois.' }
+                : {}),
             }));
           }
 
@@ -468,6 +472,11 @@ export async function POST(req: Request) {
           const centimes = Math.round(note.solde * 100);
           if (centimes <= 0) {
             return ko(corps.id, -32602, 'Cette note est déjà soldée — il n’y a rien à régler.');
+          }
+          if (note.enAttente) {
+            return ko(corps.id, -32602,
+              'Un règlement vient d’être encaissé et n’apparaît pas encore au folio. '
+              + 'Attendez quelques instants avant de relire la note — ne payez pas une seconde fois.');
           }
           const r = await ouvrirReglement({
             jeton: String(args.stay_key), hotelId: ouvert.hotelId,

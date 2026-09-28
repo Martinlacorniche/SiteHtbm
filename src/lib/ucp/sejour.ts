@@ -16,7 +16,7 @@
 import { callMews } from '@/lib/mewsConnector';
 import { supabaseServer } from '@/lib/supabase-server';
 import { SITE_URL } from '@/lib/site';
-import { lienDePaiement, paiementDuLien, LIEN_MINUTES } from '@/lib/ucp/paiement';
+import { lienDePaiement, paiementDuLien, urlDuLien, LIEN_MINUTES } from '@/lib/ucp/paiement';
 import { consignerPaiement } from '@/lib/ucp/reservationMews';
 
 export type LigneNote = { date: string; libelle: string; montant: number };
@@ -26,6 +26,8 @@ export type Note = {
   regle: number;
   solde: number;
   devise: string;
+  /** 🔴 Un règlement que NOUS avons posé et que Mews n'expose pas encore. */
+  enAttente: boolean;
 };
 
 /** Un libellé Mews arrive parfois multilingue. */
@@ -88,12 +90,37 @@ export async function noteDuSejour(
   }
 
   const arrondi = (n: number) => Math.round(n * 100) / 100;
+  const solde = arrondi(total - regle);
+
+  /* 🔴 MEWS MET QUELQUES SECONDES À EXPOSER UN RÈGLEMENT QU'ON VIENT DE POSER.
+   * Mesuré le 28/09/2026 : la page du séjour, ouverte dans la foulée d'une
+   * vente, affichait « Déjà réglé 0,00 € · Reste à régler 315,44 € » — alors
+   * que le client venait de payer, et que le règlement était bien au folio
+   * quelques secondes plus tard.
+   *
+   * Un client qui lit ça paie une seconde fois. On regarde donc NOS propres
+   * écritures : si nous avons encaissé pour cette réservation dans les trois
+   * dernières minutes, le solde affiché n'est pas fiable, et on le dit au lieu
+   * de proposer de payer. */
+  let enAttente = false;
+  if (solde > 0) {
+    const recemment = new Date(Date.now() - 3 * 60_000).toISOString();
+    const [vente, reglement] = await Promise.all([
+      supabaseServer.from('resa_agent').select('id')
+        .eq('mews_reservation_id', reservationId).gt('cree_le', recemment).limit(1),
+      supabaseServer.from('sejour_paiement').select('checkout')
+        .eq('mews_reservation_id', reservationId).gt('consigne_le', recemment).limit(1),
+    ]);
+    enAttente = Boolean((vente.data ?? []).length || (reglement.data ?? []).length);
+  }
+
   return {
     lignes,
     total: arrondi(total),
     regle: arrondi(regle),
-    solde: arrondi(total - regle),
+    solde,
     devise,
+    enAttente,
   };
 }
 
@@ -153,6 +180,29 @@ export async function ouvrirReglement(
   { jeton: string; hotelId: string; reservationId: string; accountId: string | null;
     centimes: number; libelle: string; email?: string },
 ): Promise<ReglementOuvert> {
+  /* 🔴 ON N'OUVRE PAS DE RÈGLEMENT SUR UN SOLDE QU'ON SAIT FAUX — voir
+   * `noteDuSejour` : Mews met quelques secondes à exposer ce qu'on vient de
+   * poser, et c'est exactement là qu'un client paierait deux fois. */
+
+  /* ⚠️ UN SEUL LIEN VIVANT À LA FOIS. Chaque appel créait une session Stripe
+   * de plus : dix appels, dix liens pour le même solde — et si le client en
+   * paie deux, `consignerReglements` pose les deux au folio. Il a payé deux
+   * fois. On rend donc celui qui court encore. */
+  const { data: deja } = await supabaseServer.from('sejour_paiement')
+    .select('checkout, centimes, expire_le')
+    .eq('jeton', jeton).eq('centimes', centimes).is('consigne_le', null)
+    .gt('expire_le', new Date().toISOString())
+    .order('cree_le', { ascending: false }).limit(1).maybeSingle();
+  if (deja?.checkout) {
+    const url = await urlDuLien(String(deja.checkout));
+    if (url) {
+      return {
+        url, checkout: String(deja.checkout),
+        montant: Number(deja.centimes) / 100, expire: String(deja.expire_le),
+      };
+    }
+  }
+
   const lien = await lienDePaiement({
     centimes, description: libelle, email,
     retour: `${SITE_URL}/sejour/${jeton}?paye=1`,

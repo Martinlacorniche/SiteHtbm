@@ -193,11 +193,36 @@ export async function annulerReservation(reservationId: string, motif: string): 
  * personne ne s'en aperçoit avant son arrivée.
  */
 export async function confirmerReservation(reservationId: string): Promise<void> {
-  await callMews('reservations/confirm', { ReservationIds: [reservationId] });
-  const etat = await etatReservation(reservationId);
-  if (etat !== 'Confirmed' && etat !== 'Started') {
-    throw new Error(`Mews n’a pas confirmé la réservation (état : ${etat ?? 'inconnu'}).`);
+  /* ⚠️ MEWS REFUSE DE CONFIRMER UNE RÉSERVATION QU'IL VIENT DE CRÉER, avec un
+   * message trompeur : `403 ReservationIdDuplicityErrorMessage`. Le même appel,
+   * isolé et quelques minutes plus tard, passe sans broncher — mesuré le
+   * 28/09/2026 sur la résa 30311. Il tient visiblement la réservation le temps
+   * de constituer son folio.
+   *
+   * 🔴 Et l'enjeu n'est pas mince : à cet instant, L'ARGENT EST DÉJÀ ENCAISSÉ.
+   * Abandonner sur cette erreur laisserait une chambre `Optional` payée, que
+   * Mews relâcherait une demi-heure plus tard — le client sans chambre, et
+   * personne ne s'en apercevant avant son arrivée.
+   *
+   * On réessaie donc, avec des pauses qui s'allongent. Et on relit l'état à
+   * chaque tour, parce que sur cette API un 200 ne prouve rien. */
+  let dernier: unknown = null;
+  for (const pause of [0, 2_000, 4_000, 8_000]) {
+    if (pause) await new Promise((r) => setTimeout(r, pause));
+    try {
+      await callMews('reservations/confirm', { ReservationIds: [reservationId] });
+    } catch (e) {
+      dernier = e;
+      continue;
+    }
+    const etat = await etatReservation(reservationId).catch(() => null);
+    if (etat === 'Confirmed' || etat === 'Started') return;
+    dernier = new Error(`état ${etat ?? 'inconnu'}`);
   }
+  throw new Error(
+    'Mews n’a pas confirmé la réservation : '
+    + (dernier instanceof Error ? dernier.message : String(dernier)),
+  );
 }
 
 /** L'état d'une chambre tenue : est-elle encore à nous ? */
