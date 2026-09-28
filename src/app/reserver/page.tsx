@@ -47,35 +47,40 @@ export default async function Page() {
           qui lit la page — machine ou humain qui fait défiler. Pas de cartes,
           pas de couleur, pas d'appel à l'action. */}
       {chambres.length > 0 && (
-        <section className="mx-auto max-w-3xl px-6 pb-20 pt-4">
-          <h2 className="font-serif text-lg text-slate-700">Les chambres</h2>
-          <dl className="mt-4 divide-y divide-slate-100 border-t border-slate-100">
-            {chambres.map((c) => (
-              <div key={c.id} className="py-4">
-                <dt className="flex items-baseline justify-between gap-4">
-                  <span className="font-medium text-slate-800">{c.nom}</span>
-                  {c.aPartirDe !== null && (
-                    <span className="shrink-0 tabular-nums text-sm text-slate-500">
-                      dès {c.aPartirDe}&nbsp;€ la nuit
-                    </span>
-                  )}
-                </dt>
-                <dd className="mt-1 text-sm leading-relaxed text-slate-500">
-                  {c.description}
-                  {(c.surface || c.couchages) && (
-                    <span className="block text-slate-400">
-                      {[c.surface ? `${c.surface} m²` : null,
-                        c.couchages ? `${c.couchages} personne${c.couchages > 1 ? 's' : ''}` : null]
-                        .filter(Boolean).join(' · ')}
-                    </span>
-                  )}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-4 text-xs text-slate-400">
-            Prix tout compris, petit-déjeuner et taxe de séjour inclus.
-          </p>
+        <section className="mx-auto max-w-3xl px-6 pb-16 pt-2">
+          {/* ⚠️ REPLIÉ, PAS CACHÉ — et la nuance est tout le sujet.
+              Masquer en CSS ce qu'on écrit pour les robots est du cloaking :
+              le texte reste dans le HTML brut, mais il disparaît de l'arbre
+              d'accessibilité et des captures — les deux autres façons dont un
+              agent regarde une page — et ça tombe sous les règles anti-spam.
+              Un bloc dépliable, lui, est un motif d'interface légitime,
+              indexé normalement depuis le passage au mobile-first.
+
+              À l'écran il ne reste qu'une ligne. Dans le HTML, tout y est —
+              et c'est la seule chose qu'une machine trouve de nos chambres,
+              le moteur au-dessus étant rendu en JavaScript qu'aucun crawler
+              IA n'exécute. */}
+          <details className="group">
+            <summary className="cursor-pointer list-none text-xs uppercase tracking-[0.12em] text-slate-400 hover:text-slate-500">
+              Les chambres
+              <span className="ml-1 inline-block transition-transform group-open:rotate-90">›</span>
+            </summary>
+            <ul className="mt-3 space-y-2">
+              {chambres.map((c) => (
+                <li key={c.id} className="text-xs leading-relaxed text-slate-400">
+                  <span className="text-slate-500">{c.nom}</span>
+                  {[c.surface ? `${c.surface} m²` : null,
+                    c.couchages ? `${c.couchages} pers.` : null,
+                    c.aPartirDe !== null ? `dès ${c.aPartirDe} €` : null]
+                    .filter(Boolean).map((x) => <span key={x as string}> · {x}</span>)}
+                  {c.description ? <span className="block">{c.description}</span> : null}
+                </li>
+              ))}
+              <li className="text-xs text-slate-400">
+                Prix tout compris, petit-déjeuner et taxe de séjour inclus.
+              </li>
+            </ul>
+          </details>
         </section>
       )}
     </>

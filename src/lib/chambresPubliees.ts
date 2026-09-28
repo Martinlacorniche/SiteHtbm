@@ -19,6 +19,23 @@
 
 import { chercherDisponibilite, chargerCategories, estPrepaye, surfaceDe, type CategorieChambre } from './mewsBooking';
 
+/* ⚠️ LA PREMIÈRE PHRASE, ET RIEN DE PLUS.
+ *
+ * Les descriptions Mews sont des notes d'exploitation empilées au fil des
+ * années : la Supérieure annonce encore « possibilité d'ajouter un lit
+ * d'appoint et lit bébé » alors que l'hôtel ne les propose plus depuis le
+ * 25/08/2026. Publier ça, c'est promettre ce qu'on ne fait plus — à des
+ * humains comme à des machines qui le recopieront.
+ *
+ * La première phrase porte l'essentiel : la surface, la vue, le calme. Le
+ * reste est du commentaire interne. ⚠️ Ce n'est qu'un garde-fou d'affichage :
+ * la vraie correction est dans le back-office Mews. */
+const premierePhrase = (t: string): string => {
+  const propre = t.replace(/\s+/g, ' ').trim();
+  const fin = propre.search(/\.\s|\.$/);
+  return fin > 0 ? propre.slice(0, fin + 1) : propre;
+};
+
 export type ChambrePubliee = {
   id: string;
   nom: string;
@@ -73,7 +90,7 @@ export async function chambresPubliees(): Promise<ChambrePubliee[]> {
     out.push({
       id,
       nom,
-      description: (c.description ?? '').trim(),
+      description: premierePhrase(c.description ?? ''),
       surface: c.surface ?? surfaceDe(c.description ?? ''),
       couchages: c.couchages ?? null,
       aPartirDe: prix === undefined ? null : Math.round(prix),
