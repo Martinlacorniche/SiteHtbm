@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ReserverClient from "../../reserver/ReserverClient";
 import { alternatesFor } from "@/lib/site";
+import { balisageReserver } from "@/lib/balisageReserver";
 
 export const metadata: Metadata = {
   title: "Book Hôtel-Rooftop Les Voiles — Toulon, Mourillon beach",
@@ -9,6 +10,18 @@ export const metadata: Metadata = {
   alternates: alternatesFor("/en/book"),
 };
 
-export default function Page() {
-  return <ReserverClient langue="en" />;
+/* Même cache que la version française : le prix vient du même moteur. */
+export const revalidate = 3600;
+
+export default async function Page() {
+  const balisage = await balisageReserver("en", "/en/book");
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(balisage) }}
+      />
+      <ReserverClient langue="en" />
+    </>
+  );
 }
