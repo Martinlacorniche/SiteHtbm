@@ -286,7 +286,7 @@ export async function POST(req: Request) {
         const booking = (args.booking ?? {}) as Record<string, unknown>;
 
         if (nom === 'get_booking_session') {
-          const s = lireSession(String(booking.id ?? ''));
+          const s = await lireSession(String(booking.id ?? ''));
           /* ⚠️ Une session expirée n'est pas une erreur de l'agent : elle se dit,
              pour qu'il en rouvre une plutôt que d'insister sur un identifiant mort. */
           if (!s) return ko(corps.id, -32004, 'Session inconnue ou expirée — ouvrez-en une nouvelle.');
@@ -319,7 +319,7 @@ export async function POST(req: Request) {
         }
 
         if (nom === 'update_booking_session') {
-          return ok(corps.id, contenu(majSession(
+          return ok(corps.id, contenu(await majSession(
             String(args.id ?? booking.id ?? ''),
             lireBooker(booking.booker),
           )));

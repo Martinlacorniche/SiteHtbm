@@ -93,27 +93,60 @@ export type Session = {
   fait?: { reservationId: string; customerId: string; numero: string | null; paiement: string };
 };
 
-/* ⚠️ LES SESSIONS VIVENT EN MÉMOIRE, ET C'EST ASSUMÉ POUR CE PREMIER JALON.
- * Une session de réservation dure quelques minutes ; la perdre au redéploiement
- * fait retomber l'agent sur une erreur claire, pas sur une réservation
- * fantôme. Le jour où l'on complète des paiements ici, elle ira en base — mais
- * pas avant, parce qu'une table de sessions à moitié utilisée est une table
- * qu'on oublie de purger. */
-const SESSIONS = new Map<string, Session>();
+/* 🔴 LES SESSIONS VIVENT EN BASE, ET IL A FALLU UNE MESURE POUR L'ADMETTRE.
+ *
+ * Elles tenaient dans une `Map` en mémoire, ce qui était assumé : « une
+ * session dure quelques minutes, la perdre au redéploiement fait retomber
+ * l'agent sur une erreur claire ». Le raisonnement supposait UN processus.
+ *
+ * Il n'y en a pas un. Le site est servi par des fonctions, plusieurs instances
+ * répondent en parallèle, et celle qui reçoit la complétion n'est pas celle
+ * qui a ouvert la session. Mesuré en production le 28/09/2026 : sur douze
+ * lectures SIMULTANÉES d'une session qui venait d'être créée, DEUX ne l'ont
+ * pas trouvée. Un agent se serait vu refuser la vente après avoir transmis le
+ * jeton de paiement de son client — et l'erreur aurait été mise sur le compte
+ * d'un caprice, parce qu'elle ne se reproduit pas à la main.
+ *
+ * ⚠️ C'EST UN CACHE, PAS UNE ARCHIVE (migration 348). Ce qui doit survivre —
+ * la vente, son canal, la clé du séjour — vit ailleurs. */
 const DUREE_SESSION_MS = 30 * 60_000;
 
-export function lireSession(id: string): Session | null {
-  const s = SESSIONS.get(id);
-  if (!s) return null;
-  if (Date.now() - s.cree > DUREE_SESSION_MS) { SESSIONS.delete(id); return null; }
-  return s;
+/** Relit une session ouverte, ou `null` si elle n'existe plus. */
+export async function lireSession(id: string): Promise<Session | null> {
+  if (!id) return null;
+  const { data } = await supabaseServer.from('ucp_session')
+    .select('id, demande, choix, client, booking, fait, cree_le, expire_le')
+    .eq('id', id).maybeSingle();
+  if (!data) return null;
+  if (Date.parse(String(data.expire_le)) < Date.now()) return null;
+  return {
+    id: String(data.id),
+    cree: Date.parse(String(data.cree_le)),
+    demande: data.demande as DemandeSejour,
+    choix: data.choix as Session['choix'],
+    client: (data.client ?? undefined) as ClientAgent | undefined,
+    booking: data.booking as Record<string, unknown>,
+    fait: (data.fait ?? undefined) as Session['fait'],
+  };
 }
 
-function ranger(s: Session) {
-  /* Ménage opportuniste : sans lui, une carte en mémoire ne fait que grandir. */
-  for (const [k, v] of SESSIONS) if (Date.now() - v.cree > DUREE_SESSION_MS) SESSIONS.delete(k);
-  SESSIONS.set(s.id, s);
+/** Écrit ou réécrit une session. */
+async function ranger(s: Session): Promise<void> {
+  const { error } = await supabaseServer.from('ucp_session').upsert({
+    id: s.id, hotel_id: HOTEL_NWH,
+    demande: s.demande, choix: s.choix, client: s.client ?? null,
+    booking: s.booking, fait: s.fait ?? null,
+    expire_le: new Date(s.cree + DUREE_SESSION_MS).toISOString(),
+  });
+  if (error) throw new ErreurUcp(`Session non enregistrée : ${error.message}`, 'unavailable');
+
+  /* Ménage opportuniste : sans lui, la table ne fait que grandir. Il ne bloque
+     jamais la réponse — une purge ratée se rattrape au passage suivant. */
+  void supabaseServer.from('ucp_session')
+    .delete().lt('expire_le', new Date(Date.now() - 86_400_000).toISOString())
+    .then(undefined, () => {});
 }
+
 
 /** Un libellé Mews, qui arrive parfois en chaîne et parfois par langue. */
 function aplatir(v: unknown): string {
@@ -360,7 +393,7 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     },
     ...(d.client ? { client: d.client } : {}),
   };
-  ranger(session);
+  await ranger(session);
   return session;
 }
 
@@ -383,7 +416,7 @@ export async function completerSession(
   { id, instruments, cleIdempotence }:
   { id: string; instruments: Record<string, unknown>[]; cleIdempotence?: string },
 ): Promise<Record<string, unknown>> {
-  const session = lireSession(id);
+  const session = await lireSession(id);
   /* ⚠️ LES SESSIONS VIVENT EN MÉMOIRE. Un redéploiement entre l'ouverture et
    * la complétion la fait disparaître — l'agent doit alors rouvrir, et non
    * croire que sa réservation est perdue quelque part. Rien n'a été posé ni
@@ -556,12 +589,16 @@ export async function completerSession(
     /* `continue_url` n'a plus de sens : il n'y a plus rien à finir ailleurs. */
     continue_url: undefined,
   };
+  /* ⚠️ ENREGISTRÉE AVANT DE RÉPONDRE. C'est `fait` qui rend la complétion
+   * idempotente : un agent dont la réponse se perd en route réessaie, et doit
+   * retrouver SA réservation — pas en poser une seconde, déjà payée. */
+  await ranger(session);
   return session.booking;
 }
 
 /** Complète la session avec ce que l'agent apprend en chemin (le client). */
-export function majSession(id: string, client?: ClientAgent): Record<string, unknown> {
-  const session = lireSession(id);
+export async function majSession(id: string, client?: ClientAgent): Promise<Record<string, unknown>> {
+  const session = await lireSession(id);
   if (!session) throw new ErreurUcp('Session inconnue ou expirée — ouvrez-en une nouvelle.', 'unavailable');
   if (client?.nom?.trim()) session.client = client;
   session.booking = {
@@ -577,6 +614,7 @@ export function majSession(id: string, client?: ClientAgent): Record<string, unk
       } }
       : {}),
   };
+  await ranger(session);
   return session.booking;
 }
 
