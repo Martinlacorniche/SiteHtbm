@@ -22,6 +22,7 @@ import {
   ErreurUcp, ErreurPaiement, UCP_VERSION, PROPRIETE,
 } from '@/lib/ucp/lodging';
 import { soirs, reserverTable, creneauxDe, ErreurRooftop, COUVERTS_MAX } from '@/lib/ucp/rooftop';
+import { ficheHotel } from '@/lib/ucp/hotel';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -186,6 +187,16 @@ const OUTILS = [
       required: ['booking'],
     },
   },
+  {
+    name: 'get_property_details',
+    description:
+      'Tout ce qu’il faut savoir pour DÉCRIRE l’Hôtel-Rooftop Les Voiles à un client : '
+      + 'situation, étoiles, horaires d’arrivée et de départ, équipements compris (et ce qui ne l’est pas), '
+      + 'petit-déjeuner, rooftop, catégories de chambres, conditions tarifaires et taxe de séjour. '
+      + 'À appeler avant de présenter l’hôtel ; les prix et disponibilités, eux, viennent de '
+      + '`create_booking_session`.',
+    inputSchema: { type: 'object', properties: {} },
+  },
   /* ── LE ROOFTOP ──────────────────────────────────────────────────────────
    * Une table se réserve sans payer, et fermement : il n'y a donc ni session
    * ni escalade ici, contrairement aux chambres. Deux outils suffisent —
@@ -323,6 +334,8 @@ export async function POST(req: Request) {
             cleIdempotence: meta['idempotency-key'] ? String(meta['idempotency-key']) : undefined,
           })));
         }
+
+        if (nom === 'get_property_details') return ok(corps.id, contenu(ficheHotel()));
 
         if (nom === 'get_rooftop_availability') {
           const liste = await soirs({

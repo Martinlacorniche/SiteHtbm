@@ -340,7 +340,12 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     ],
     links: [
       { type: 'terms_of_service', url: `${SITE_URL}/cgv` },
-      { type: 'privacy_policy', url: `${SITE_URL}/confidentialite` },
+      /* ⚠️ CE LIEN ÉTAIT MORT, ET IL PARTAIT À CHAQUE SESSION. `/confidentialite`
+       * n'existe pas sur ce site — jamais créée. Tout agent qui suivait le lien
+       * pour vérifier ce qu'on fait des données de son client tombait sur un
+       * 404, en production, depuis la mise en ligne du protocole. La politique
+       * de traitement des données vit dans les mentions légales (§ 4). */
+      { type: 'privacy_policy', url: `${SITE_URL}/mentions` },
     ],
     continue_url: `${SITE_URL}/reserver?arrivee=${d.arrivee}&depart=${d.depart}&adultes=${d.adultes}&ucp=${id}`,
     expires_at: new Date(Date.now() + DUREE_SESSION_MS).toISOString(),

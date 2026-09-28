@@ -48,6 +48,19 @@ export function GET() {
             note: 'Réservation de table au Rooftop des Voiles. Table tenue fermement, sans paiement.',
           },
         ],
+        /* 🔑 DE QUOI PARLER DE L'HÔTEL, ET PAS SEULEMENT LE VENDRE. UCP décrit
+         * une propriété par son nom, son adresse et ses photos : rien pour les
+         * horaires, les équipements ou le petit-déjeuner. Un agent qui ne peut
+         * rien raconter ne convainc personne. */
+        'htbm.hotel': [
+          {
+            version: UCP_VERSION,
+            transport: 'mcp',
+            endpoint: `${SITE_URL}/ucp/mcp`,
+            tools: ['get_property_details'],
+            note: 'La fiche de l’hôtel : situation, horaires, équipements, conditions.',
+          },
+        ],
       },
       capabilities: {
         'dev.ucp.lodging.booking': [
