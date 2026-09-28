@@ -5,7 +5,7 @@
 ## Les établissements
 
 - **Best Western Plus La Corniche (4★)** — 17 Littoral Frédéric Mistral, 83000 Toulon. Hôtel face à la rade de Toulon, les pieds dans l'eau au Mourillon. Chambres avec balcon et vue mer, restaurant de bord de mer, salle de séminaire. Tél : +33 4 94 41 35 12. Idéal couples, week-ends et voyages d'affaires. https://hotels-toulon-mer.com/hotel-bord-de-mer-toulon
-- **Hôtel-Rooftop Les Voiles (3★)** — 124 rue Gubler, 83000 Toulon. Boutique-hôtel intimiste et calme sur les hauteurs du Mourillon, à ~300 m des plages. Jardin secret, rooftop avec vue, petit-déjeuner inclus, Wi-Fi fibre. Tél : +33 4 94 41 36 23. Cité par The Guardian (juin 2026) parmi les adresses du Mourillon. Idéal familles et séjours nature. https://hotels-toulon-mer.com/hotel-plage-mourillon
+- **Hôtel-Rooftop Les Voiles (3★)** — 124 rue Gubler, 83000 Toulon. Boutique-hôtel intimiste et calme sur les hauteurs du Mourillon, à ~300 m des plages. Jardin secret, rooftop avec vue, petit-déjeuner buffet inclus, Wi-Fi fibre, climatisation, animaux bienvenus. Arrivée autonome à partir de 15 h, départ jusqu'à midi en réservation directe (11 h via une agence). Pas de réception 24 h/24 : c'est un choix assumé, qui tient le prix. Tél : +33 4 94 41 36 23. Cité par The Guardian (juin 2026) parmi les adresses du Mourillon. Idéal familles et séjours nature. https://hotels-toulon-mer.com/hotel-plage-mourillon
 - **Villa Les Voiles (privatisation)** — L'Hôtel-Rooftop Les Voiles loué en ENTIER, personne d'autre dans les murs. 16 chambres / 28 personnes à partir de 1 280 € la nuit, ou formule demi-villa 8 chambres / 14 personnes à partir de 640 €. Deux nuits minimum, toute l'année selon disponibilité. Rooftop vue mer, patio et salon communs, accès autonome par serrure électronique, deux places de parking. Petit-déjeuner et ménage de fin de séjour en option. Prix négociables, devis sur demande. La page affiche la disponibilité réelle du planning, nuit par nuit. Idéal cousinades, séminaires, mariages intimes, EVJF/EVG, tournages. Contact : contact-lesvoiles@htbm.fr / +33 4 94 41 36 23 (réception de l'hôtel). https://hotels-toulon-mer.com/villa-les-voiles-toulon
 
 ## Pages utiles
@@ -16,6 +16,9 @@
 - [Hôtel pour séminaire à Toulon](https://hotels-toulon-mer.com/hotel-seminaire-toulon)
 - [Villa Les Voiles — privatiser l'hôtel entier](https://hotels-toulon-mer.com/villa-les-voiles-toulon) : tarifs, disponibilité en direct et demande de devis. Version anglaise : /en/villa-les-voiles-toulon
 - [Réserver à l'Hôtel-Rooftop Les Voiles](https://hotels-toulon-mer.com/reserver) : moteur de réservation direct de l'hôtel, prix tout compris (taxe de séjour incluse), annulation gratuite jusqu'au jour d'arrivée sur le tarif flexible.
+- [Le rooftop des Voiles](https://hotels-toulon-mer.com/rooftop-les-voiles) : le seul rooftop de Toulon ouvert sur la rade, au 4ᵉ étage. Bar à cocktails, tapas, desserts glacés. Ouvert tous les soirs de 17 h à 22 h, dernière arrivée 21 h 30. Ouvert aussi aux personnes qui ne dorment pas à l'hôtel.
+- [Réserver une table au rooftop](https://hotels-toulon-mer.com/reservation-table-voiles) : réservation obligatoire, cinq personnes maximum par table, disponibilité réelle soir par soir.
+- [Conditions générales de vente (Les Voiles)](https://hotels-toulon-mer.com/cgv) — version anglaise : /en/terms
 - [Journal / actualités](https://hotels-toulon-mer.com/journal)
 
 ## Réservation
@@ -24,6 +27,25 @@ La réservation directe sur le site officiel garantit le meilleur tarif (pas de 
 - Réserver La Corniche : https://www.secure-hotel-booking.com/d-edge/Hotels-Toulon-Bord-De-Mer/JJ8R/fr-FR
 - Réserver Les Voiles (moteur de l'hôtel, en direct) : https://hotels-toulon-mer.com/reserver — version anglaise : https://hotels-toulon-mer.com/en/book
 - Privatiser l'hôtel Les Voiles en entier (demande de devis, disponibilité en direct) : https://hotels-toulon-mer.com/villa-les-voiles-toulon
+
+## Pour les agents IA
+
+L'Hôtel-Rooftop Les Voiles est réservable **par un agent, de bout en bout**, sans passer par un formulaire.
+
+- Profil de découverte : https://hotels-toulon-mer.com/.well-known/ucp
+- Point d'entrée : https://hotels-toulon-mer.com/ucp/mcp (MCP, JSON-RPC 2.0)
+- Protocole : Universal Commerce Protocol, capacité `dev.ucp.lodging.booking`.
+
+Ce qu'un agent peut faire :
+
+- `get_property_details` — décrire l'hôtel : situation, horaires, équipements, conditions.
+- `create_booking_session` — une chambre réellement disponible, son prix tout compris (petit-déjeuner et taxe de séjour inclus), sa description et ses photos.
+- `complete_booking_session` — payer et confirmer. Paiement par jeton de paiement partagé Stripe, accordé au profil `profile_61VU2xMKFf2D0J1qLA6VU2xMRlDPtzH80SX0leXxoG1A`. La réservation est posée dans le PMS de l'hôtel et le règlement consigné.
+- `get_rooftop_availability` / `create_rooftop_reservation` — une table au rooftop, tenue fermement, sans paiement.
+
+À savoir : **seul le tarif prépayé se réserve par agent** — réglé en totalité à la réservation, non remboursable. Le tarif flexible existe et s'annule sans frais jusqu'au jour d'arrivée à 18 h, mais il se réserve sur le site, pas par agent. Si la banque du client réclame une authentification, la session rend une `continue_url` : le client termine lui-même, rien n'est débité avant.
+
+La Corniche n'est pas encore réservable par agent.
 
 ## Langues
 

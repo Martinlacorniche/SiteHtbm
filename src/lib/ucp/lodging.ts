@@ -30,6 +30,7 @@ import {
   poserReservation, folioDe, consignerPaiement, annulerReservation, type ClientAgent,
 } from '@/lib/ucp/reservationMews';
 import { ajouterNote, noteDeControle } from '@/lib/mewsConnector';
+import { ouvrirAcces } from '@/lib/ucp/acces';
 import { SITE_URL } from '@/lib/site';
 import { supabaseServer } from '@/lib/supabase-server';
 
@@ -506,6 +507,28 @@ export async function completerSession(
       { reservation: posee.numero }, e instanceof Error ? e.message : e);
   }
 
+  /* ── 7. la clé du séjour, préparée MAINTENANT ──────────────────────────
+   * Martin, 28/09/2026 : « le lien unique se prépare dès la vente ». Tout ce
+   * qui touchera ce séjour plus tard — la note, l'heure d'arrivée, un code de
+   * porte — passera par ce jeton et par rien d'autre : l'endpoint est public,
+   * et un numéro de réservation se devine.
+   *
+   * ⚠️ CELLE-CI FAIT ÉCHOUER LA COMPLÉTION SI ELLE ÉCHOUE, contrairement à la
+   * note et à la trace. Une réservation sans clé serait un séjour que personne
+   * ne peut plus rouvrir — ni le client, ni l'agent — alors que l'argent est
+   * pris. Mieux vaut ne pas conclure : rien n'est perdu, puisque la chambre
+   * est alors défaite et le paiement remboursé. */
+  let acces;
+  try {
+    acces = await ouvrirAcces({
+      hotelId: HOTEL_NWH, reservationId: posee.reservationId, depart: session.demande.depart,
+    });
+  } catch (e) {
+    await rembourser(paiement).catch(() => {});
+    await annulerReservation(posee.reservationId, 'Agent : accès au séjour impossible à ouvrir').catch(() => {});
+    throw e;
+  }
+
   session.fait = { ...posee, paiement };
   session.booking = {
     ...session.booking,
@@ -517,7 +540,12 @@ export async function completerSession(
     confirmation: {
       id: posee.numero ?? posee.reservationId,
       label: `Réservation ${posee.numero ?? ''}`.trim(),
-      permalink_url: `${SITE_URL}/reserver`,
+      /* 🔑 LA CLÉ DU SÉJOUR PART ICI, et le protocole a prévu la place. C'est
+         par cette URL que le client — ou son agent — retrouvera sa note, son
+         heure d'arrivée et, un jour, son code de porte. Le `pincode` est sa
+         version lisible à voix haute, au comptoir ou au téléphone. */
+      permalink_url: acces.url,
+      pincode: acces.code,
     },
     payment: {
       instruments: [{
