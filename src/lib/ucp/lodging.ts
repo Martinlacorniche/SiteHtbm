@@ -406,12 +406,10 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     policies: conditions(SITE_URL, await taxeSejourParNuitee()),
     links: [
       { type: 'terms_of_service', url: `${SITE_URL}/cgv` },
-      /* ⚠️ CE LIEN ÉTAIT MORT, ET IL PARTAIT À CHAQUE SESSION. `/confidentialite`
-       * n'existe pas sur ce site — jamais créée. Tout agent qui suivait le lien
-       * pour vérifier ce qu'on fait des données de son client tombait sur un
-       * 404, en production, depuis la mise en ligne du protocole. La politique
-       * de traitement des données vit dans les mentions légales (§ 4). */
-      { type: 'privacy_policy', url: `${SITE_URL}/mentions` },
+      /* Le lien était mort — `/confidentialite` n'avait jamais été écrite, et
+         partait pourtant à chaque session. La page existe désormais, et elle
+         décrit ce que le code fait réellement. */
+      { type: 'privacy_policy', url: `${SITE_URL}/confidentialite` },
     ],
     continue_url: `${SITE_URL}/reserver?arrivee=${d.arrivee}&depart=${d.depart}&adultes=${d.adultes}&ucp=${id}`,
     expires_at: new Date(Date.now() + DUREE_SESSION_MS).toISOString(),

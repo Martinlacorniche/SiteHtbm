@@ -1,0 +1,13 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "com.hotels-toulon-mer/booking",
+  "description": "Hôtel-Rooftop Les Voiles, Toulon (Mourillon). Disponibilité et tarifs réels en direct, description de l'établissement, réservation de table au rooftop. Prix tout compris, petit-déjeuner et taxe de séjour inclus.",
+  "version": "1.0.0",
+  "websiteUrl": "https://hotels-toulon-mer.com",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://hotels-toulon-mer.com/mcp"
+    }
+  ]
+}

@@ -305,13 +305,99 @@ function lireBooker(v: unknown) {
   };
 }
 
+/* 🔑 CE QU'UN AGENT DOIT SAVOIR AVANT D'APPELER.
+ *
+ * Les annuaires de connecteurs — celui d'Anthropic en particulier — exigent que
+ * chaque outil porte un `title` lisible et dise s'il LIT ou s'il ÉCRIT. Ce
+ * n'est pas une formalité : c'est ce qui permet à un agent de décider seul
+ * qu'il peut appeler `get_folio` sans rien demander, et qu'il doit confirmer
+ * avant `create_rooftop_reservation`.
+ *
+ * ⚠️ `destructiveHint` est FAUX partout, et c'est vrai : rien ici ne détruit.
+ * Il n'y a ni annulation ni modification — le tarif vendu par agent est
+ * prépayé, et une porte absente ne s'ouvre pas par erreur.
+ *
+ * ⚠️ `openWorldHint` est VRAI partout : chaque appel interroge le PMS de
+ * l'hôtel ou son moteur, pas une base figée. Deux appels identiques à une
+ * minute d'écart peuvent légitimement différer — une chambre a pu se vendre. */
+const ANNOTATIONS: Record<string, {
+  title: string; readOnlyHint: boolean; destructiveHint: boolean;
+  idempotentHint?: boolean; openWorldHint: boolean;
+}> = {
+  create_booking_session: {
+    title: 'Chercher une chambre et son prix',
+    /* Ouvre une session et rend un prix. Rien n'est tenu, rien n'est vendu. */
+    readOnlyHint: true, destructiveHint: false, openWorldHint: true,
+  },
+  get_booking_session: {
+    title: 'Relire une recherche en cours',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
+  update_booking_session: {
+    title: 'Indiquer qui réserve',
+    readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
+  complete_booking_session: {
+    title: 'Payer et confirmer la réservation',
+    /* ⚠️ Le seul outil qui débite. Idempotent par la clé fournie : un agent
+       qui réessaie retrouve SA réservation, il n'en pose pas une seconde. */
+    readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
+  get_property_details: {
+    title: 'Décrire l’hôtel',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
+  get_stay: {
+    title: 'Relire un séjour réservé',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
+  get_check_in: {
+    title: 'Obtenir les codes d’arrivée',
+    readOnlyHint: true, destructiveHint: false, openWorldHint: true,
+  },
+  get_folio: {
+    title: 'Lire la note du séjour',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
+  pay_folio: {
+    title: 'Ouvrir un lien pour régler la note',
+    readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
+  get_rooftop_availability: {
+    title: 'Voir les soirs libres au rooftop',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
+  create_rooftop_reservation: {
+    title: 'Réserver une table au rooftop',
+    /* Tient une table fermement. Sans paiement, mais ce n'est pas anodin. */
+    readOnlyHint: false, destructiveHint: false, openWorldHint: true,
+  },
+};
+
 /** Un contenu d'outil MCP : le texte pour l'humain, la donnée pour la machine. */
 const contenu = (donnee: unknown) => ({
   content: [{ type: 'text', text: JSON.stringify(donnee) }],
   structuredContent: donnee,
 });
 
-export async function POST(req: Request) {
+/* 🔴 CE QU'UN ANNUAIRE DE CONNECTEURS ACCEPTE, ET CE QU'IL REFUSE.
+ *
+ * Anthropic interdit nommément les connecteurs qui « transfèrent de l'argent
+ * ou exécutent des transactions financières au nom des utilisateurs » ; chez
+ * OpenAI, le commerce est limité aux biens physiques et les services de voyage
+ * sont explicitement exclus. Le modèle autorisé est : chercher, montrer,
+ * renvoyer.
+ *
+ * On ne renonce pas pour autant à encaisser : les deux portes servent le MÊME
+ * serveur, et seule celle qui est publiée dans les annuaires cache les outils
+ * qui débitent. Un agent qui connaît notre profil UCP garde l'accès complet.
+ *
+ * ⚠️ DEUX PORTES, UN SEUL CODE. Dupliquer la logique aurait produit deux
+ * serveurs qui divergent — et le jour où l'un corrige un prix, l'autre le
+ * ment. */
+const OUTILS_QUI_DEBITENT = new Set(['complete_booking_session', 'pay_folio']);
+
+export async function traiter(req: Request, sansPaiement = false) {
   const corps = await req.json().catch(() => null) as Rpc | null;
   if (!corps || corps.jsonrpc !== '2.0' || !corps.method) {
     return ko(corps?.id, -32600, 'Requête JSON-RPC invalide.');
@@ -330,7 +416,14 @@ export async function POST(req: Request) {
         return new NextResponse(null, { status: 204, headers: CORS });
 
       case 'tools/list':
-        return ok(corps.id, { tools: OUTILS });
+        return ok(corps.id, {
+          tools: OUTILS
+            .filter((o) => !(sansPaiement && OUTILS_QUI_DEBITENT.has(o.name)))
+            .map((o) => ({
+              ...o,
+              ...(ANNOTATIONS[o.name] ? { annotations: ANNOTATIONS[o.name] } : {}),
+            })),
+        });
 
       case 'tools/call': {
         const nom = String((corps.params as { name?: string } | undefined)?.name ?? '');
@@ -338,6 +431,16 @@ export async function POST(req: Request) {
          * suffisaient à bloquer le rooftop jusqu'en mai. Le plafond global
          * protège la facture et nos jetons d'API ; les plafonds par action,
          * plus bas, protègent l'inventaire — et ce sont eux qui comptent. */
+        /* ⚠️ CACHÉ NE SUFFIT PAS : un outil absent de la liste doit aussi être
+         * refusé quand on l'appelle directement. Sans ça, la porte « sans
+         * paiement » n'en serait pas une. */
+        if (sansPaiement && OUTILS_QUI_DEBITENT.has(nom)) {
+          return ko(corps.id, -32601,
+            'Le paiement ne se fait pas par ce connecteur. '
+            + 'Terminez la réservation sur https://hotels-toulon-mer.com/reserver, '
+            + 'ou passez par le profil UCP de l’hôtel (/.well-known/ucp).');
+        }
+
         const qui = appelant(req);
         await compter({
           cle: `ucp:${qui}`, ...PLAFONDS.global,
@@ -578,3 +681,7 @@ export function GET() {
     note: 'Transport MCP (JSON-RPC 2.0) en POST sur cette adresse.',
   }, { headers: CORS });
 }
+
+
+/** La porte complète : celle qu'annonce le profil UCP. */
+export const POST = (req: Request) => traiter(req);
