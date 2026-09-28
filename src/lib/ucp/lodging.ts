@@ -36,6 +36,7 @@ import {
 import { ajouterNote, noteDeControle } from '@/lib/mewsConnector';
 import { ouvrirAcces } from '@/lib/ucp/acces';
 import { conditions } from '@/lib/ucp/conditions';
+import { randomBytes } from 'node:crypto';
 import { SITE_URL } from '@/lib/site';
 import { supabaseServer } from '@/lib/supabase-server';
 
@@ -187,8 +188,16 @@ function aplatir(v: unknown): string {
  * et on garde le nom. */
 const sansDecor = (t: string) => t.replace(/^[^\p{L}\p{N}]+/u, '').trim();
 
+/* 🔴 `Math.random()` NE FAIT PAS UN IDENTIFIANT. C'est le xorshift128+ de V8 :
+ * chaque `create_booking_session` en rendait DEUX tirages consécutifs (celui
+ * du séjour et celui de la session), et l'endpoint est ouvert — de quoi
+ * moissonner ce qu'il faut pour reconstituer l'état du générateur. Le
+ * timestamp ne compense rien, il est connu à la seconde près.
+ *
+ * La remarque valait déjà pour la clé du séjour (`acces.ts`) ; elle vaut ici
+ * pour la même raison, puisque cet identifiant DONNE accès à la session. */
 const identifiant = (prefixe: string) =>
-  `${prefixe}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  `${prefixe}_${randomBytes(12).toString('base64url')}`;
 
 export class ErreurUcp extends Error {
   constructor(message: string, readonly code = 'invalid_request') { super(message); }
@@ -657,9 +666,25 @@ async function finaliser(
   };
   /* ⚠️ ENREGISTRÉE AVANT DE RÉPONDRE : c'est `fait` qui rend la complétion
    * idempotente, et un agent dont la réponse se perd doit retrouver SA
-   * réservation, pas en poser une seconde, déjà payée. */
+   * réservation, pas en poser une seconde, déjà payée.
+   *
+   * 🔴 MAIS LA CLÉ NE SE RANGE PAS AVEC. `get_booking_session` n'exige aucune
+   * preuve — c'est normal, une session n'est qu'un devis. Si la confirmation
+   * rangée en base contenait `permalink_url` et `pincode`, il suffirait de
+   * connaître l'identifiant de session pour obtenir la clé du séjour, donc les
+   * codes d'entrée. Or cet identifiant voyage dans des URL : `continue_url`
+   * ouverte dans le navigateur, `success_url` gardée par Stripe et affichée
+   * dans la barre d'adresse.
+   *
+   * La clé est donc rendue UNE SEULE FOIS, à celui qui vient de payer, et la
+   * version rangée n'en garde pas la trace. */
+  const pourLAppelant = session.booking;
+  session.booking = {
+    ...session.booking,
+    confirmation: { id: numero ?? reservationId, label: `Réservation ${numero ?? ''}`.trim() },
+  };
   await ranger(session);
-  return session.booking;
+  return pourLAppelant;
 }
 
 /**

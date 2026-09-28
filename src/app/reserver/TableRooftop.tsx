@@ -133,6 +133,7 @@ export async function prendreTable(
     });
     if (error || (data as { status?: string })?.status !== "ok") return null;
     const table = (data as { table?: string })?.table ?? null;
+    const resaId = (data as { id?: string })?.id ?? null;
 
     /* ⚠️ PAS DEUX COURRIELS POUR UN MÊME SÉJOUR. `source: 'tunnel'` coupe la
      * confirmation client côté route : il vient d'en recevoir une pour sa
@@ -140,11 +141,11 @@ export async function prendreTable(
     void fetch("/api/rooftop-reservation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nom: nomComplet, telephone: client.telephone, email: client.email,
-        date: choix.date, heure: choix.heure, couverts: pax,
-        message: "", table, source: "tunnel",
-      }),
+      /* ⚠️ L'IDENTIFIANT, ET RIEN D'AUTRE. La route relit la réservation en
+         base : elle n'écrit dans le courriel que ce qui y est enregistré, et
+         n'envoie qu'à l'adresse de la ligne. Voir son en-tête — elle était un
+         relais ouvert. */
+      body: JSON.stringify({ id: resaId, source: "tunnel" }),
     }).catch(() => {});
 
     return { table, heure: choix.heure, date: choix.date };

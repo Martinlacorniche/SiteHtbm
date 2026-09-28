@@ -170,10 +170,10 @@ export async function reserverTable(d: DemandeTable): Promise<TableTenue> {
   try {
     await fetch(`${SITE_URL}/api/rooftop-reservation`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nom: d.nom, telephone: d.telephone, email: d.email, date: d.date,
-        heure, couverts: d.couverts, message: d.message, table: r.table, source: 'agent',
-      }),
+      /* La route relit la réservation en base — on ne lui transmet que son
+         identifiant. Voir son en-tête : elle était un relais de courriel
+         ouvert, et tout ce qu'on lui passait finissait brut dans le HTML. */
+      body: JSON.stringify({ id: r.id, source: 'agent' }),
     });
   } catch (e) {
     console.error('[rooftop] notification equipe', e instanceof Error ? e.message : e);

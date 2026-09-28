@@ -71,6 +71,19 @@ export type Arrivee =
   };
 
 const jourParis = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+
+/* ⚠️ LE DÉCALAGE DE PARIS N'EST PAS `+02:00`. Il était codé en dur : juste de
+ * fin mars à fin octobre, faux le reste de l'année — un agent aurait annoncé
+ * « à partir de 15 h » en donnant un instant qui vaut 14 h en novembre. On le
+ * demande à `Intl`, qui connaît les changements d'heure. */
+function instantParis(jour: string): string {
+  const [a, m, j] = jour.split('-').map(Number);
+  const repere = new Date(Date.UTC(a, m - 1, j, 12));
+  const rendu = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', timeZoneName: 'longOffset' }).format(repere);
+  const t = rendu.match(/GMT([+-])(\d{2}):(\d{2})/);
+  const decalage = t ? `${t[1]}${t[2]}:${t[3]}` : '+01:00';
+  return `${jour}T${String(HEURE_ARRIVEE).padStart(2, '0')}:00:00${decalage}`;
+}
 const heureParis = () => Number(new Intl.DateTimeFormat('fr-FR', {
   timeZone: 'Europe/Paris', hour: '2-digit', hour12: false,
 }).format(new Date()));
@@ -91,6 +104,25 @@ export async function arrivee(
     return { pret: false, raison: 'Cette réservation a été annulée.' };
   }
 
+  /* 🔴 IL MANQUAIT LA BORNE DE FIN, ET ELLE COÛTAIT CHER. On vérifiait que le
+   * séjour avait COMMENCÉ, jamais qu'il n'était pas fini. Or la clé vaut
+   * jusqu'à départ + 30 jours (le temps de réclamer une facture).
+   *
+   * Un client parti depuis trois semaines rappelait donc `get_check_in` : sa
+   * réservation n'est pas annulée, le jour d'arrivée est passé, il est plus de
+   * 15 h, et sa chambre — relouée entre-temps — est repassée en `Clean` pour
+   * l'occupant suivant. Il recevait le numéro d'une chambre occupée par
+   * quelqu'un d'autre, ET les codes du portail et de la porte d'entrée, qui
+   * sont statiques et communs à tout l'immeuble. Accès continu pendant un
+   * mois.
+   *
+   * Le code de sa chambre, lui, expirait bien sur la serrure. C'est ce qui
+   * rendait le trou discret. */
+  const jourDepart = String(resa.EndUtc ?? '').slice(0, 10);
+  if (resa.State === 'Processed' || (jourDepart && jourParis() > jourDepart)) {
+    return { pret: false, raison: 'Ce séjour est terminé.' };
+  }
+
   /* ⚠️ LE BON JOUR, ET PAS LA VEILLE. `StartUtc` porte l'heure d'arrivée
    * prévue ; seule la DATE compte ici, comparée à celle de Toulon — un client
    * à New York ne doit pas obtenir son code avec six heures d'avance. */
@@ -101,7 +133,7 @@ export async function arrivee(
     return {
       pret: false,
       raison: `Les codes sont délivrés le jour de l’arrivée, le ${jourArrivee}, à partir de ${HEURE_ARRIVEE} h.`,
-      a_partir_de: `${jourArrivee}T${String(HEURE_ARRIVEE).padStart(2, '0')}:00:00+02:00`,
+      a_partir_de: instantParis(jourArrivee),
     };
   }
 
@@ -109,7 +141,7 @@ export async function arrivee(
     return {
       pret: false,
       raison: `La chambre se libère à ${HEURE_ARRIVEE} h. Les bagages peuvent être déposés avant, à l’hôtel.`,
-      a_partir_de: `${jourArrivee}T${String(HEURE_ARRIVEE).padStart(2, '0')}:00:00+02:00`,
+      a_partir_de: instantParis(jourArrivee),
     };
   }
 

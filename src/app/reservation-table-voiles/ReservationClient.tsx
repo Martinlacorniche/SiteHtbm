@@ -199,8 +199,16 @@ export default function ReservationClient() {
       setError("Oups, ce jour vient d'être complet — choisissez-en un autre.");
       setSelectedDate(null); setReloadKey(k => k + 1); setSending(false); return;
     }
+    if (status === "rate_limited") {
+      /* Le garde posé dans `rooftop_book` (migration 355) : il vaut pour tous
+         les chemins, y compris cette page. */
+      setError("Trop de réservations viennent d'être prises. Réessayez dans quelques minutes, "
+        + `ou appelez-nous au ${VOILES_PHONE}.`);
+      setSending(false); return;
+    }
     if (status === "ok") {
       const tbl = (data as { table?: string })?.table ?? null;
+      const resaId = (data as { id?: string })?.id ?? null;
       setBookedTable(tbl);
       setSent(true);
       setSending(false);
@@ -208,7 +216,7 @@ export default function ReservationClient() {
       fetch("/api/rooftop-reservation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom, telephone, email, date: selectedDate, heure, couverts: pax, message, table: tbl }),
+        body: JSON.stringify({ id: resaId }),
       }).catch(() => {});
       return;
     }

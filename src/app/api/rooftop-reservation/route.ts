@@ -1,14 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { SITE_URL } from '@/lib/site';
+import { supabaseServer } from '@/lib/supabase-server';
+
+/* 🔴 CETTE ROUTE ÉTAIT UN RELAIS DE COURRIEL OUVERT. Pas d'authentification,
+ * pas de secret, pas de vérification d'origine — et tous les champs étaient
+ * interpolés BRUTS dans le HTML des deux messages, dont l'un part à l'adresse
+ * fournie par l'appelant, depuis un domaine signé SPF/DKIM.
+ *
+ * Un `nom` valant `</td></tr></table><h1>Votre réservation est annulée,
+ * cliquez ici…` suffisait à faire recevoir à n'importe qui un courriel
+ * authentifié au nom du Rooftop des Voiles, contenant le HTML de l'attaquant.
+ * Du hameçonnage avec la réputation d'envoi de l'hôtel — et, accessoirement,
+ * de quoi inonder `contact-lesvoiles@` en boucle.
+ *
+ * Deux verrous, pas un :
+ *   · LES DONNÉES VIENNENT DE LA BASE, plus du corps de la requête. On exige
+ *     l'identifiant de la réservation, on la relit, et on n'écrit dans le
+ *     courriel que ce que `rooftop_book` a réellement enregistré. Le
+ *     destinataire est celui de la ligne, pas celui qu'on nous demande.
+ *   · TOUT EST ÉCHAPPÉ quand même. Le champ `message` est saisi par un client,
+ *     donc il peut contenir n'importe quoi de bonne foi — une apostrophe, un
+ *     chevron — et une défense en profondeur ne coûte rien. */
+const echapper = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 // Réservation de table au Rooftop des Voiles.
 // - notifie l'équipe (contact-lesvoiles@htbm.fr)
 // - envoie une confirmation au client (si email fourni) avec un lien "Ajouter à mon agenda"
 // L'enregistrement en base est fait via la RPC rooftop_book côté client.
 export async function POST(req: NextRequest) {
+  /* ⚠️ ON VALIDE AVANT DE CONSTRUIRE QUOI QUE CE SOIT. `new Resend()` lève
+   * quand la clé manque : la route rendait donc 500 sur toute requête, y
+   * compris celles qu'elle aurait dû refuser proprement — et un 500 ne dit pas
+   * la même chose qu'un refus, ni à un appelant ni dans un journal. */
+  const recu = await req.json().catch(() => ({})) as { id?: string; source?: string };
+  const source = recu.source;
+
+  /* ⚠️ SANS IDENTIFIANT, RIEN NE PART. C'est ce qui distingue une vraie
+   * réservation d'un inconnu qui veut faire envoyer un courriel par nous. */
+  const id = String(recu.id ?? '').trim();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+    return NextResponse.json({ ok: false, error: 'Réservation inconnue' }, { status: 400 });
+  }
+  const { data: ligne } = await supabaseServer
+    .from('rooftop_reservations')
+    .select('nom, telephone, email, date_resa, heure, couverts, message, statut, table_id')
+    .eq('id', id).maybeSingle();
+  if (!ligne || ligne.statut === 'annulee') {
+    return NextResponse.json({ ok: false, error: 'Réservation inconnue' }, { status: 404 });
+  }
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { nom, telephone, email, date, heure, couverts, message, table, source } = await req.json();
+  const { data: laTable } = ligne.table_id
+    ? await supabaseServer.from('rooftop_tables').select('nom').eq('id', ligne.table_id).maybeSingle()
+    : { data: null };
+
+  const nom = echapper(ligne.nom);
+  const telephone = echapper(ligne.telephone);
+  const message = echapper(ligne.message);
+  const couverts = Number(ligne.couverts) || 1;
+  const heure = echapper(ligne.heure);
+  const table = echapper(laTable?.nom ?? '');
+  const date = String(ligne.date_resa ?? '');
+  /* Le destinataire est celui de la LIGNE. On ne poste jamais à une adresse
+     que l'appelant a choisie. */
+  const email = String(ligne.email ?? '').trim();
 
   /* ⚠️ PAS DEUX COURRIELS POUR UN MÊME SÉJOUR.
    *
