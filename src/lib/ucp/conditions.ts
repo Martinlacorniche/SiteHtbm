@@ -35,7 +35,11 @@ export function conditions(site: string, taxeParNuitee: number): Politique[] {
         plain:
           'Tarif prépayé : le séjour est réglé en totalité à la réservation. '
           + 'Il n’est NI ANNULABLE, NI MODIFIABLE, NI REMBOURSABLE — les dates ne peuvent pas être changées. '
-          + 'Ces conditions doivent être présentées au client AVANT le paiement. '
+          /* ⚠️ UN FAIT, PAS UN ORDRE. « Ces conditions doivent être présentées
+             au client avant le paiement » était une instruction adressée au
+             modèle ; l'obligation est réelle, mais elle se dit mieux comme ce
+             qu'elle est — une condition de vente opposable. */
+          + 'Le client est réputé les avoir acceptées en réglant. '
           + 'Un tarif flexible, annulable sans frais jusqu’au jour d’arrivée à 18 h (heure de Paris), '
           + 'existe mais ne se réserve pas par agent : il est disponible sur le site de l’hôtel.',
       },

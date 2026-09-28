@@ -117,8 +117,13 @@ const OUTILS = [
   {
     name: 'update_booking_session',
     description:
-      'Complète une session ouverte avec le client qui réserve (`booker`). '
-      + 'À appeler avant de conclure si le nom n’a pas été donné à l’ouverture.',
+      /* ⚠️ ON DÉCRIT, ON NE COMMANDE PAS. La politique des annuaires interdit
+         qu'une description d'outil porte « des instructions concernant le
+         comportement du modèle ». « À appeler avant de… » en était une, même
+         anodine : le fait se dit aussi bien, et il se vérifie. */
+      'Enregistre le client qui réserve (`booker`) sur une session ouverte. '
+      + 'Le nom du client est nécessaire pour conclure une réservation ; '
+      + 'cet outil permet de le fournir après l’ouverture de la session.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -197,8 +202,7 @@ const OUTILS = [
       'Tout ce qu’il faut savoir pour DÉCRIRE l’Hôtel-Rooftop Les Voiles à un client : '
       + 'situation, étoiles, horaires d’arrivée et de départ, équipements compris (et ce qui ne l’est pas), '
       + 'petit-déjeuner, rooftop, catégories de chambres, conditions tarifaires et taxe de séjour. '
-      + 'À appeler avant de présenter l’hôtel ; les prix et disponibilités, eux, viennent de '
-      + '`create_booking_session`.',
+      + 'Ne contient ni prix ni disponibilité : ceux-ci viennent de `create_booking_session`.',
     inputSchema: { type: 'object', properties: {} },
   },
   /* ── LE SÉJOUR, UNE FOIS VENDU ───────────────────────────────────────────
