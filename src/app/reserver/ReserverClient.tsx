@@ -122,6 +122,8 @@ const TEXTES = {
     surBooking: ["Sur ", ", ce séjour est à ", "."] as const,
     rooftopAjouter: "Ajouter une table au rooftop",
     rooftopChoisie: (h: string) => `Table au rooftop · ${h}`,
+    rooftopSous: "Un verre face à la mer, le soir venu",
+    rooftopModifier: "Modifier le créneau",
     gainDirect: (m: string) => `Bien vu — vous gardez ${m} en réservant ici.`,
     /* Ce qui arrive a la carte. Court sur la carte de tarif — il y a deux
      * cartes cote a cote et la place est comptee — entier sur l'ecran de
@@ -218,6 +220,8 @@ const TEXTES = {
     surBooking: ["On ", ", this stay is ", "."] as const,
     rooftopAjouter: "Add a rooftop table",
     rooftopChoisie: (h: string) => `Rooftop table · ${h}`,
+    rooftopSous: "A drink facing the sea, come evening",
+    rooftopModifier: "Change the time",
     gainDirect: (m: string) => `Nice move — you keep ${m} by booking direct.`,
     empreinteCourt: (m: string) => `Card as guarantee · ${m} held`,
     debitCourt: (m: string) => `Charged now · ${m}`,
@@ -2580,17 +2584,25 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                  blocs dorés empilés, dont le secondaire pesait autant que le
                  principal. Le seul or de cette colonne appartient au règlement.
                  Sans boîte, la ligne s'efface derrière lui, et le texte peut
-                 redevenir explicite — la place ne se paie plus. */
+                 redevenir explicite — la place ne se paie plus.
+                 ⚠️ MAIS LE LIEN NU PASSAIT INAPERÇU (Martin, 17/09/2026).
+                 D'où une tuile crème, pastille marine et deux lignes : elle
+                 se voit sans emprunter l'or, qui reste au seul règlement. */
               <button
                 type="button"
                 onClick={() => { pulse(); setDosRooftop(true); }}
-                className="mb-2 flex w-full items-center gap-2 py-0.5 text-left text-[13.5px] font-semibold text-navy transition-colors hover:text-gold-ink"
+                className="group mb-3 flex w-full items-center gap-3 rounded-xl border border-gold/50 bg-[#faf7f1] px-3 py-2.5 text-left transition-colors hover:border-gold hover:bg-[#f5efe3]"
               >
-                <span aria-hidden className="text-[15px] leading-none">🍸</span>
-                <span className="min-w-0 flex-1 underline decoration-gold/60 underline-offset-4">
-                  {tableChoix ? T.rooftopChoisie(heureLisible(tableChoix.heure, langue)) : T.rooftopAjouter}
+                <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-[17px] leading-none">🍸</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold leading-tight text-navy">
+                    {tableChoix ? `✓ ${T.rooftopChoisie(heureLisible(tableChoix.heure, langue))}` : T.rooftopAjouter}
+                  </span>
+                  <span className="mt-0.5 block text-[12.5px] leading-tight text-[#6b7280]">
+                    {tableChoix ? T.rooftopModifier : T.rooftopSous}
+                  </span>
                 </span>
-                <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-gold-ink" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-gold-ink transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 6l6 6-6 6" />
                 </svg>
               </button>

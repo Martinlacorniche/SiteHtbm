@@ -17,6 +17,8 @@
  * l'annonce leboncoin relue par Martin le 28/08/2026.
  */
 
+import { ETABLISSEMENTS } from './site';
+
 export type LangueVilla = 'fr' | 'en';
 
 export const CONTENU = {
@@ -210,29 +212,24 @@ export const CONTENU = {
   },
 } as const;
 
-/** Le contact commercial de la privatisation. Ce n'est PAS la réception : une
- *  demande de privatisation qui atterrit au standard se perd.
+/** Le contact de la privatisation : la réception des Voiles.
  *
- *  ⚠️ LE SITE AFFICHAIT UN FAUX NUMÉRO. `CONFIG.villa.phone` portait
- *  `07 59 91 63 54` — un chiffre de travers, en ligne depuis des mois sur la
- *  carte d'accueil. Le bon est celui de la plaquette, confirmé par Martin le
- *  28/08/2026 : `07 56 91 63 54`. Corrigé des deux côtés le même jour. */
+ *  ⚠️ PLUS LE COMMERCIAL (Martin, 17/09/2026). Jusque-là la page affichait
+ *  `commercial2@htbm.fr` et le portable commercial `07 56 91 63 54` ; tout
+ *  passe désormais par les Voiles, qui décrochent et savent ce qui se passe
+ *  dans l'hôtel. Les coordonnées viennent de `ETABLISSEMENTS` (`site.ts`) :
+ *  un seul endroit, le même que le pied de page. */
+const VOILES = ETABLISSEMENTS.find((e) => e.hotel === 'voiles')!;
 export const CONTACT = {
-  email: 'commercial2@htbm.fr',
-  telephone: '07 56 91 63 54',
+  email: VOILES.email,
+  telephone: VOILES.telephone,
 };
 
-/** Qui reçoit l'alerte quand une demande arrive (Martin, 28/08/2026).
+/** Qui reçoit l'alerte quand une demande arrive — une seule boîte, celle des
+ *  Voiles (Martin, 17/09/2026 : « tout dans contact »).
  *
- *  ⚠️ DEUX ADRESSES, ET LA SECONDE N'EST PAS UNE COPIE DE COURTOISIE. Le
- *  commercial vend la privatisation, mais c'est la réception des Voiles qui
- *  sait ce qui se passe dans l'hôtel cette semaine-là — et qui décroche quand
- *  le prospect rappelle avant qu'on l'ait rappelé. Une demande connue d'un
- *  seul des deux, c'est un client qui s'entend dire « je ne suis pas au
- *  courant ».
- *
- *  ⚠️ PLUS D'`ALERT_EMAIL` ICI. Cette variable d'environnement sert aux
+ *  ⚠️ PAS D'`ALERT_EMAIL` ICI. Cette variable d'environnement sert aux
  *  demandes séminaire et rooftop ; la faire recevoir aussi la privatisation
  *  aurait ajouté un destinataire invisible depuis le code. La liste se lit
  *  ici, en clair, et s'allonge ici. */
-export const ALERTES = ['commercial2@htbm.fr', 'contact-lesvoiles@htbm.fr'];
+export const ALERTES = [CONTACT.email];

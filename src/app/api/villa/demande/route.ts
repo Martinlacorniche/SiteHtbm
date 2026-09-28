@@ -127,9 +127,9 @@ export async function POST(req: NextRequest) {
  * vitesse de réponse — le prospect a écrit aux deux ou trois adresses qu'il a
  * trouvées, le premier qui rappelle prend l'affaire.
  *
- * ⚠️ DEUX DESTINATAIRES : le commercial ET la réception des Voiles (`ALERTES`,
- * dans `villaContenu.ts`). Le premier vend, la seconde sait ce qui se passe
- * dans l'hôtel cette semaine-là et décroche quand le prospect rappelle.
+ * Le destinataire est la réception des Voiles (`ALERTES`, dans
+ * `villaContenu.ts`) : elle sait ce qui se passe dans l'hôtel cette semaine-là
+ * et décroche quand le prospect rappelle.
  *
  * ⚠️ LE MAIL DIT SI LA DATE ÉTAIT LIBRE, et c'est le renseignement le plus
  * utile de l'alerte : « 16 chambres libres » veut dire qu'on peut rappeler pour

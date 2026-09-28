@@ -34,7 +34,11 @@ const CONFIG = {
       reopening_may1: "Réouverture ce 1er Mai",
       villa_push: "Disponible en Villa (Privatisation)",
       pro_title: "Professionnels",
-      pro_desc: "Un cadre inspirant pour vos équipes. Séminaires, journées d'étude ou coworking face à la mer."
+      pro_desc: "Un cadre inspirant pour vos équipes. Séminaires, journées d'étude ou coworking face à la mer.",
+      pro_voir: "Ce qu'on met à votre disposition",
+      pro_retour: "Retour",
+      pro_seminaire: ["Salle vue mer, jusqu'à 40 personnes", "Matériel de projection", "Visioconférence (Kandao Meeting)", "Patio pour les pauses et les repas", "Wifi haut débit"],
+      pro_cowork: ["Multi-espaces, selon votre humeur", "Casques pour s'isoler", "Imprimante à disposition", "Wifi haut débit", "Soft & grignotage inclus"]
     },
     en: {
       subtitle: "Welcome Home. Toulon, Mourillon ",
@@ -49,7 +53,11 @@ const CONFIG = {
       reopening_may1: "Reopening May 1st",
       villa_push: "Available as Villa (Private Rental)",
       pro_title: "Business & Events",
-      pro_desc: "An inspiring setting for your teams. Seminars, study days or coworking facing the sea."
+      pro_desc: "An inspiring setting for your teams. Seminars, study days or coworking facing the sea.",
+      pro_voir: "What we provide",
+      pro_retour: "Back",
+      pro_seminaire: ["Sea-view room, up to 40 people", "Projection equipment", "Video conferencing (Kandao Meeting)", "Patio for breaks and meals", "High-speed wifi"],
+      pro_cowork: ["Several spaces to suit your mood", "Headphones to focus", "Printer available", "High-speed wifi", "Soft drinks & snacks included"]
     }
   },
 
@@ -140,10 +148,10 @@ const CONFIG = {
       fr: "L'expérience unique d'un hôtel rien que pour vous (de mi-octobre à mi-mai). Une adresse secrète du Mourillon à 300m des plages.",
       en: "The unique experience of a hotel just for you (from mid-October to mid-May). A secret address in Mourillon, 300m from the beaches."
     },
-    // ⚠️ Corrigé le 28/08/2026 : le site affichait « 07 59 », un chiffre de
-    // travers. Le bon numéro commercial est celui de la plaquette, « 07 56 ».
-    phone: "07 56 91 63 54",
-    email: "commercial2@htbm.fr", 
+    // Le contact de la Villa, c'est la réception des Voiles (17/09/2026) —
+    // plus le portable ni l'adresse du commercial.
+    phone: "04 94 41 36 23",
+    email: "contact-lesvoiles@htbm.fr",
     
     /* ⚠️ LA CARTE MENAIT SUR LEBONCOIN, ET LA PAGE VILLA SUR AIRBNB.
        Deux places de marché différentes pour le même bien, aucune réservation
@@ -173,6 +181,8 @@ export default function PageUltimeV15() {
   const [weather, setWeather] = useState<{ air: number | null; sea: number | null }>({ air: null, sea: null });
   // Le bouton "Découvrir le Rooftop" suit la visibilité de la tuile Rooftop (wifi_tiles).
   const [rooftopOn, setRooftopOn] = useState(true);
+  // La carte Pros se retourne pour lister l'équipement, comme sur /reserver.
+  const [proDos, setProDos] = useState(false);
 
   // --- POPUP STATE ---
   const [showPopup, setShowPopup] = useState(false);
@@ -879,21 +889,47 @@ export default function PageUltimeV15() {
                       <div className="absolute inset-0 bg-slate-900/10 mix-blend-multiply" />
                   </div>
 
-                  {/* COLONNE CONTENU */}
-                  <div className="flex-1 p-8 md:p-12 flex flex-col justify-center gap-8">
-                      <div>
-                          <div className="flex items-center gap-3 mb-4">
-                             <Building2 className="w-5 h-5 text-slate-400" />
-                             <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">{t.pro_title}</span>
-                          </div>
-                          <h3 className="font-serif text-3xl md:text-4xl text-slate-900 mb-4 leading-tight">
-                             Des espaces qui inspirent.
-                          </h3>
-                          <p className="text-slate-600 text-base md:text-lg max-w-xl leading-relaxed">
-                             {t.pro_desc}
-                          </p>
-                      </div>
-                      
+                  {/* COLONNE CONTENU — elle se retourne.
+                      Devant, la promesse ; derrière, ce qu'on a vraiment
+                      (Martin, 17/09/2026 : « on ne liste nulle part ce qu'on
+                      a »). Les deux faces sont empilées dans la MÊME case de
+                      grille : la colonne prend la hauteur de la plus haute, et
+                      rien ne saute quand on la retourne. `invisible` + `inert`
+                      en plus de `backface-visibility`, qui seul laisse
+                      transparaître la face cachée sur certains navigateurs. */}
+                  <div className="flex-1 p-8 md:p-12 [perspective:1600px]">
+                    <div className={cn(
+                      "grid h-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d]",
+                      proDos && "[transform:rotateY(180deg)]",
+                    )}>
+                      <div
+                        inert={proDos ? true : undefined}
+                        className={cn(
+                          "col-start-1 row-start-1 flex flex-col justify-center gap-8 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transition:visibility_0s_linear_350ms]",
+                          proDos && "invisible",
+                        )}
+                      >
+                        <div>
+                            <div className="flex items-center gap-3 mb-4">
+                               <Building2 className="w-5 h-5 text-slate-400" />
+                               <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">{t.pro_title}</span>
+                            </div>
+                            <h3 className="font-serif text-3xl md:text-4xl text-slate-900 mb-4 leading-tight">
+                               Des espaces qui inspirent.
+                            </h3>
+                            <p className="text-slate-600 text-base md:text-lg max-w-xl leading-relaxed">
+                               {t.pro_desc}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setProDos(true)}
+                              aria-expanded={proDos}
+                              className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:border-slate-900 hover:bg-slate-50 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" /> {t.pro_voir}
+                            </button>
+                        </div>
+
                       <div className="flex flex-col sm:flex-row gap-4 w-full pt-4 border-t border-slate-100">
                          <button onClick={openSeminarForm} className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
                             {t.seminar} <ArrowRight className="w-4 h-4 opacity-50 group-hover/btn:translate-x-1 transition-transform"/>
@@ -902,6 +938,51 @@ export default function PageUltimeV15() {
                             {t.cowork} <ArrowRight className="w-4 h-4 opacity-50 group-hover/btn:translate-x-1 transition-transform"/>
                         </button>
                       </div>
+                      </div>
+
+                      <div
+                        inert={proDos ? undefined : true}
+                        className={cn(
+                          "col-start-1 row-start-1 flex flex-col justify-center gap-6 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)] [transition:visibility_0s_linear_350ms]",
+                          !proDos && "invisible",
+                        )}
+                      >
+                        <div className="grid sm:grid-cols-2 gap-6">
+                          {[
+                            { titre: t.seminar, liste: t.pro_seminaire },
+                            { titre: t.cowork, liste: t.pro_cowork },
+                          ].map((bloc) => (
+                            <div key={bloc.titre}>
+                              <p className="text-xs font-bold tracking-widest text-slate-400 uppercase mb-3">{bloc.titre}</p>
+                              <ul className="space-y-2">
+                                {bloc.liste.map((item) => (
+                                  <li key={item} className="flex items-start gap-2 text-sm md:text-base text-slate-700">
+                                    <span aria-hidden className="text-amber-600 font-bold">✓</span>{item}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 w-full pt-4 border-t border-slate-100">
+                         <button onClick={openSeminarForm} className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
+                            {t.seminar} <ArrowRight className="w-4 h-4 opacity-50 group-hover/btn:translate-x-1 transition-transform"/>
+                        </button>
+                        <button onClick={() => setShowCoworkModal(true)} className="flex-1 flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-slate-700 border border-slate-100 group/btn">
+                            {t.cowork} <ArrowRight className="w-4 h-4 opacity-50 group-hover/btn:translate-x-1 transition-transform"/>
+                        </button>
+                      </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setProDos(false)}
+                          className="self-start inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+                        >
+                          <ArrowRight className="w-4 h-4 rotate-180" /> {t.pro_retour}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
              </div>
