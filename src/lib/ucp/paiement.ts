@@ -144,3 +144,67 @@ export async function debiter(
 export async function rembourser(paymentIntent: string): Promise<void> {
   await stripe('refunds', { payment_intent: paymentIntent });
 }
+
+/* ═══════════ QUAND L'AGENT NE PEUT PAS PAYER : UN LIEN, ET UNE HORLOGE ══════
+ *
+ * 🔑 Martin, 28/09/2026 : « s'il peut pas payer avec agent on peut lui envoyer
+ * un lien de paiement valable 15 mn (réservation valable 15 mn aussi du coup) ».
+ *
+ * C'est la sortie du cas `requires_action` : la banque du client réclame une
+ * authentification que l'agent ne peut pas lever. Plutôt que de renvoyer le
+ * client vers un tunnel où il refera tout, on lui donne UN lien pour payer
+ * exactement ce qui a été convenu — et la chambre reste tenue pendant ce
+ * temps, ni plus ni moins.
+ *
+ * ⚠️ LES DEUX HORLOGES DOIVENT DIRE LA MÊME HEURE. La session Stripe expire à
+ * 15 minutes, la chambre est relâchée par Mews à 15 minutes. Un lien qui vit
+ * plus longtemps que la chambre encaisserait un séjour déjà repris par
+ * quelqu'un d'autre.
+ */
+
+/* ⚠️ QUINZE MINUTES ÉTAIENT VOULUES, STRIPE EN IMPOSE TRENTE. Mesuré le
+ * 28/09/2026 : « The `expires_at` timestamp must be at least 30 minutes from
+ * Checkout Session creation ». On ne peut donc pas faire plus court côté
+ * paiement — autant l'assumer des deux côtés plutôt que de bricoler.
+ *
+ * 🔑 ET LE LIEN MEURT AVANT LA CHAMBRE, jamais l'inverse. Cinq minutes de
+ * marge : un client qui paie à la vingt-neuvième minute trouve encore sa
+ * chambre tenue. Si l'ordre était inversé, on encaisserait une nuit que Mews
+ * aurait déjà remise en vente. */
+export const LIEN_MINUTES = 30;
+export const TENUE_MINUTES = 35;
+
+export type LienPaiement = { url: string; checkout: string; expire: string };
+
+export async function lienDePaiement(
+  { centimes, description, email, retour }:
+  { centimes: number; description: string; email?: string; retour: string },
+): Promise<LienPaiement> {
+  const expire = Math.floor(Date.now() / 1000) + LIEN_MINUTES * 60;
+  const corps: Record<string, string> = {
+    mode: 'payment',
+    'line_items[0][quantity]': '1',
+    'line_items[0][price_data][currency]': 'eur',
+    'line_items[0][price_data][unit_amount]': String(centimes),
+    'line_items[0][price_data][product_data][name]': description,
+    success_url: retour,
+    cancel_url: retour,
+    /* ⚠️ SANS CETTE LIGNE, STRIPE DONNE 24 h À LA SESSION. La chambre, elle,
+     * est relâchée dans un quart d'heure : le client paierait une nuit vendue
+     * à quelqu'un d'autre. */
+    expires_at: String(expire),
+  };
+  if (email) corps.customer_email = email;
+
+  const s = await stripe<{ id: string; url: string }>('checkout/sessions', corps);
+  return { url: s.url, checkout: s.id, expire: new Date(expire * 1000).toISOString() };
+}
+
+/** Ce lien a-t-il été payé ? Rend l'identifiant du paiement, ou `null`. */
+export async function paiementDuLien(checkout: string): Promise<string | null> {
+  const s = await stripe<{ payment_status?: string; payment_intent?: string | null }>(
+    `checkout/sessions/${checkout}`,
+  ).catch(() => null);
+  if (!s || s.payment_status !== 'paid') return null;
+  return typeof s.payment_intent === 'string' ? s.payment_intent : null;
+}

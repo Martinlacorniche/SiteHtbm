@@ -25,12 +25,17 @@ import {
   chercherDisponibilite, chargerCategories, estPrepaye, urlPhoto,
   HOTEL_ID, type CategorieChambre,
 } from '@/lib/mewsBooking';
-import { lireJeton, verifierJeton, debiter, rembourser, ErreurPaiement } from '@/lib/ucp/paiement';
 import {
-  poserReservation, folioDe, consignerPaiement, annulerReservation, type ClientAgent,
+  lireJeton, verifierJeton, debiter, rembourser, ErreurPaiement,
+  lienDePaiement, paiementDuLien, TENUE_MINUTES, LIEN_MINUTES,
+} from '@/lib/ucp/paiement';
+import {
+  poserReservation, confirmerReservation, etatReservation, folioDe, consignerPaiement,
+  annulerReservation, type ClientAgent,
 } from '@/lib/ucp/reservationMews';
 import { ajouterNote, noteDeControle } from '@/lib/mewsConnector';
 import { ouvrirAcces } from '@/lib/ucp/acces';
+import { conditions } from '@/lib/ucp/conditions';
 import { SITE_URL } from '@/lib/site';
 import { supabaseServer } from '@/lib/supabase-server';
 
@@ -91,6 +96,11 @@ export type Session = {
   client?: ClientAgent;
   /** Ce qui a été fait, pour ne pas le refaire sur une reprise. */
   fait?: { reservationId: string; customerId: string; numero: string | null; paiement: string };
+  /** Une chambre tenue, et un paiement qu'on attend. Vidé dès qu'il arrive. */
+  attente?: {
+    checkout: string; reservationId: string; customerId: string;
+    numero: string | null; centimes: number; expire: string;
+  };
 };
 
 /* 🔴 LES SESSIONS VIVENT EN BASE, ET IL A FALLU UNE MESURE POUR L'ADMETTRE.
@@ -115,7 +125,7 @@ const DUREE_SESSION_MS = 30 * 60_000;
 export async function lireSession(id: string): Promise<Session | null> {
   if (!id) return null;
   const { data } = await supabaseServer.from('ucp_session')
-    .select('id, demande, choix, client, booking, fait, cree_le, expire_le')
+    .select('id, demande, choix, client, booking, fait, attente, cree_le, expire_le')
     .eq('id', id).maybeSingle();
   if (!data) return null;
   if (Date.parse(String(data.expire_le)) < Date.now()) return null;
@@ -127,6 +137,7 @@ export async function lireSession(id: string): Promise<Session | null> {
     client: (data.client ?? undefined) as ClientAgent | undefined,
     booking: data.booking as Record<string, unknown>,
     fait: (data.fait ?? undefined) as Session['fait'],
+    attente: (data.attente ?? undefined) as Session['attente'],
   };
 }
 
@@ -135,8 +146,15 @@ async function ranger(s: Session): Promise<void> {
   const { error } = await supabaseServer.from('ucp_session').upsert({
     id: s.id, hotel_id: HOTEL_NWH,
     demande: s.demande, choix: s.choix, client: s.client ?? null,
-    booking: s.booking, fait: s.fait ?? null,
-    expire_le: new Date(s.cree + DUREE_SESSION_MS).toISOString(),
+    booking: s.booking, fait: s.fait ?? null, attente: s.attente ?? null,
+    /* ⚠️ UNE SESSION QUI ATTEND UN PAIEMENT NE DOIT PAS EXPIRER AVANT LUI.
+     * Trente minutes suffisent d'ordinaire ; mais si une chambre est tenue et
+     * un lien ouvert, la session doit vivre au moins aussi longtemps, sinon on
+     * perdrait la trace de ce qu'on tient. */
+    expire_le: new Date(Math.max(
+      s.cree + DUREE_SESSION_MS,
+      s.attente ? Date.parse(s.attente.expire) + 5 * 60_000 : 0,
+    )).toISOString(),
   });
   if (error) throw new ErreurUcp(`Session non enregistrée : ${error.message}`, 'unavailable');
 
@@ -372,6 +390,11 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
       { type: 'tax', amount: centimes(taxe) },
       { type: 'total', amount: centimes(aPayer) },
     ],
+    /* 🔑 LES CONDITIONS VOYAGENT AVEC L'OFFRE, pas derrière un lien. Un agent
+     * ne suit pas les liens ; il répète ce qu'on lui donne. La première dit
+     * que le séjour n'est ni annulable ni modifiable — c'est celle qu'un
+     * client doit entendre avant de payer, pas après. */
+    policies: conditions(SITE_URL, await taxeSejourParNuitee()),
     links: [
       { type: 'terms_of_service', url: `${SITE_URL}/cgv` },
       /* ⚠️ CE LIEN ÉTAIT MORT, ET IL PARTAIT À CHAQUE SESSION. `/confidentialite`
@@ -417,15 +440,14 @@ export async function completerSession(
   { id: string; instruments: Record<string, unknown>[]; cleIdempotence?: string },
 ): Promise<Record<string, unknown>> {
   const session = await lireSession(id);
-  /* ⚠️ LES SESSIONS VIVENT EN MÉMOIRE. Un redéploiement entre l'ouverture et
-   * la complétion la fait disparaître — l'agent doit alors rouvrir, et non
-   * croire que sa réservation est perdue quelque part. Rien n'a été posé ni
-   * débité à ce stade : une session absente ne coûte rien à personne. */
   if (!session) throw new ErreurUcp('Session inconnue ou expirée — ouvrez-en une nouvelle.', 'unavailable');
 
   /* Reprise : si tout était déjà fait, on rend le même résultat plutôt que de
      reposer une seconde chambre. */
   if (session.fait) return session.booking;
+  /* Une chambre déjà tenue, et un lien déjà envoyé : on ne recommence pas, on
+     redonne le lien. Deux liens pour un séjour, c'est un double débit. */
+  if (session.attente) return session.booking;
 
   const client = session.client;
   if (!client?.nom?.trim()) {
@@ -438,7 +460,11 @@ export async function completerSession(
   const jeton = await lireJeton(spt);
   verifierJeton(jeton, session.choix.centimes, session.demande.arrivee);
 
-  /* ── 1. la chambre ─────────────────────────────────────────────────────── */
+  /* ── 1. TENIR la chambre, sans la vendre ────────────────────────────────
+   * Elle est posée `Optional` avec une échéance : Mews la relâche tout seul au
+   * bout d'un quart d'heure, même si notre code ne repasse jamais. Aucune
+   * chambre n'est donc jamais confirmée sans avoir été payée. */
+  const tenirJusqua = new Date(Date.now() + TENUE_MINUTES * 60_000).toISOString();
   const posee = await poserReservation({
     client,
     categorieId: session.choix.categorieId,
@@ -446,6 +472,7 @@ export async function completerSession(
     arrivee: session.demande.arrivee,
     depart: session.demande.depart,
     adultes: session.demande.adultes,
+    tenirJusqua,
   });
 
   /* ── 2. ce qu'elle coûte vraiment ──────────────────────────────────────── */
@@ -456,7 +483,7 @@ export async function completerSession(
     if (centimesDus <= 0) throw new Error('folio vide');
     /* ⚠️ ON NE DÉBITE JAMAIS PLUS QUE LE PRIX ANNONCÉ À L'AGENT. Le client a
      * accepté un montant ; si le folio en dit un plus élevé, c'est un écart
-     * qu'on ne peut pas lui imposer par surprise. On défait et on le dit. */
+     * qu'on ne peut pas lui imposer par surprise. */
     if (centimesDus > session.choix.centimes) {
       throw new ErreurUcp(
         `Le prix a changé depuis l'ouverture de la session (${(centimesDus / 100).toFixed(2)} € `
@@ -479,121 +506,210 @@ export async function completerSession(
     });
     paiement = d.id;
   } catch (e) {
-    /* La chambre ne reste pas tenue sur un paiement qui n'est pas venu. */
-    await annulerReservation(posee.reservationId, 'Agent : paiement non abouti').catch(() => {});
+    /* 🔑 LA BANQUE RÉCLAME UNE AUTHENTIFICATION : CE N'EST PAS UN ÉCHEC.
+     *
+     * Martin, 28/09/2026 : « s'il peut pas payer avec agent on peut lui envoyer
+     * un lien de paiement valable 15 mn (réservation valable 15 mn aussi du
+     * coup) ». L'agent ne peut pas lever un 3-D Secure — mais le client, lui,
+     * le peut en trente secondes. On lui donne donc UN lien pour payer
+     * exactement ce qui a été convenu, plutôt que de le renvoyer refaire sa
+     * recherche dans notre tunnel.
+     *
+     * La chambre reste tenue pendant ces quinze minutes, ni plus ni moins :
+     * les deux horloges — celle de Mews et celle de Stripe — disent la même
+     * heure, sinon on encaisserait une nuit déjà revendue. */
+    if (e instanceof ErreurPaiement && e.code === 'requires_action') {
+      const lien = await lienDePaiement({
+        centimes: centimesDus,
+        description: `${PROPRIETE.name} — ${session.demande.arrivee} → ${session.demande.depart}`,
+        email: client.email,
+        retour: `${SITE_URL}/ucp/retour?s=${session.id}`,
+      });
+      session.attente = {
+        checkout: lien.checkout, reservationId: posee.reservationId, customerId: posee.customerId,
+        numero: posee.numero, centimes: centimesDus, expire: lien.expire,
+      };
+      session.booking = {
+        ...session.booking,
+        status: 'requires_escalation',
+        continue_url: lien.url,
+        expires_at: lien.expire,
+        totals: [
+          { type: 'subtotal', amount: centimesDus },
+          { type: 'total', amount: centimesDus },
+        ],
+        messages: [{
+          type: 'info',
+          content: {
+            plain: 'La banque du client demande une authentification. La chambre est tenue '
+              + `${LIEN_MINUTES} minutes : transmettez-lui ce lien pour qu'il règle `
+              + `${(centimesDus / 100).toFixed(2)} €. Passé ce délai, la chambre est relâchée `
+              + 'et rien n\'est débité.',
+          },
+        }],
+      };
+      await ranger(session);
+      return session.booking;
+    }
+    /* Tout autre refus : la chambre ne reste pas tenue pour rien. */
+    await annulerReservation(posee.reservationId, 'Agent : paiement refusé').catch(() => {});
     throw e;
   }
 
-  /* ── 4. le dire au PMS ─────────────────────────────────────────────────── */
+  return finaliser(session, {
+    reservationId: posee.reservationId, customerId: posee.customerId,
+    numero: posee.numero, paiement, centimes: centimesDus,
+    carte: jeton.carte,
+  });
+}
+
+/**
+ * Ce qui se fait une fois l'argent encaissé, et seulement là.
+ *
+ * Appelée par la vente directe comme par le retour d'un lien de paiement : les
+ * deux chemins doivent produire exactement le même séjour, sinon l'un des deux
+ * finira par oublier la note, la clé ou la statistique.
+ */
+async function finaliser(
+  session: Session,
+  { reservationId, customerId, numero, paiement, centimes, carte }:
+  { reservationId: string; customerId: string; numero: string | null;
+    paiement: string; centimes: number; carte?: string | null },
+): Promise<Record<string, unknown>> {
+  /* ── 4. la chambre est vendue ──────────────────────────────────────────── */
+  await confirmerReservation(reservationId);
+
+  /* ── 5. le dire au PMS ─────────────────────────────────────────────────── */
   try {
     await consignerPaiement({
-      accountId: posee.customerId, reservationId: posee.reservationId,
-      montant: centimesDus / 100, reference: paiement,
+      accountId: customerId, reservationId, montant: centimes / 100, reference: paiement,
     });
   } catch (e) {
     /* ⚠️ ON NE DÉFAIT RIEN ICI, ET SURTOUT PAS LA CHAMBRE. L'argent est pris,
      * le client a sa réservation : une écriture manquante se rattrape au
      * comptoir, une chambre annulée ne se rattrape pas. */
     console.error('[ucp] REGLEMENT NON CONSIGNE DANS MEWS — a rattraper au comptoir.',
-      { reservation: posee.numero, paymentIntent: paiement, montant: centimesDus / 100 },
+      { reservation: numero, paymentIntent: paiement, montant: centimes / 100 },
       e instanceof Error ? e.message : e);
   }
 
-  /* ── 5. ce que lira la réception ───────────────────────────────────────
-   * Martin, 28/09/2026 : « notes dans la resa selon le protocole habituel plus
-   * mention resa IA ». Même grammaire que le tunnel — la réception n'a pas à
-   * apprendre une seconde forme — avec la provenance changée.
-   *
-   * ⚠️ ELLE NE FAIT JAMAIS ÉCHOUER LA RÉSERVATION : elle se rattrape en
-   * ouvrant le dossier, alors qu'une chambre annulée ne se rattrape pas. */
+  /* ── 6. ce que lira la réception ───────────────────────────────────────── */
   try {
-    await ajouterNote(posee.reservationId, noteDeControle({
-      chambre: session.choix.chambre,
-      prepaye: true,
-      total: centimesDus / 100,
-      taxe: session.choix.taxe,
-      source: 'AGENT IA',
+    await ajouterNote(reservationId, noteDeControle({
+      chambre: session.choix.chambre, prepaye: true,
+      total: centimes / 100, taxe: session.choix.taxe, source: 'AGENT IA',
     }));
   } catch (e) {
-    console.error('[ucp] note de reception non posee', posee.numero, e instanceof Error ? e.message : e);
+    console.error('[ucp] note de reception non posee', numero, e instanceof Error ? e.message : e);
   }
 
-  /* ── 6. de quoi la compter dans Distribution ────────────────────────────
-   * ⚠️ SANS CETTE LIGNE, LA VENTE EST COMPTÉE EN « GROUPES & MARIAGES ». Une
-   * réservation posée par le Connector arrive chez Mews en `Origin:
-   * 'Connector'`, la même porte que les groupes : rien ne l'en distingue
-   * là-bas. C'est notre trace, et elle seule, qui permet à `canalDe()` de la
-   * reconnaître (migration 346). Elle ne fait pas échouer non plus — mais une
-   * ligne manquante ici fausse une statistique en silence, alors on la crie. */
+  /* ── 7. de quoi la compter dans Distribution ───────────────────────────── */
   try {
     const { error } = await supabaseServer.from('resa_agent').insert({
-      hotel_id: HOTEL_NWH,
-      mews_reservation_id: posee.reservationId,
-      mews_numero: posee.numero,
-      session_ucp: session.id,
-      montant: centimesDus / 100,
-      paiement_ref: paiement,
+      hotel_id: HOTEL_NWH, mews_reservation_id: reservationId, mews_numero: numero,
+      session_ucp: session.id, montant: centimes / 100, paiement_ref: paiement,
     });
     if (error) throw new Error(error.message);
   } catch (e) {
     console.error('[ucp] VENTE AGENT NON TRACEE — elle sera comptee en Groupes & mariages.',
-      { reservation: posee.numero }, e instanceof Error ? e.message : e);
+      { reservation: numero }, e instanceof Error ? e.message : e);
   }
 
-  /* ── 7. la clé du séjour, préparée MAINTENANT ──────────────────────────
-   * Martin, 28/09/2026 : « le lien unique se prépare dès la vente ». Tout ce
-   * qui touchera ce séjour plus tard — la note, l'heure d'arrivée, un code de
-   * porte — passera par ce jeton et par rien d'autre : l'endpoint est public,
-   * et un numéro de réservation se devine.
-   *
-   * ⚠️ CELLE-CI FAIT ÉCHOUER LA COMPLÉTION SI ELLE ÉCHOUE, contrairement à la
-   * note et à la trace. Une réservation sans clé serait un séjour que personne
-   * ne peut plus rouvrir — ni le client, ni l'agent — alors que l'argent est
-   * pris. Mieux vaut ne pas conclure : rien n'est perdu, puisque la chambre
-   * est alors défaite et le paiement remboursé. */
+  /* ── 8. la clé du séjour ───────────────────────────────────────────────── */
   let acces;
   try {
     acces = await ouvrirAcces({
-      hotelId: HOTEL_NWH, reservationId: posee.reservationId, depart: session.demande.depart,
+      hotelId: HOTEL_NWH, reservationId, depart: session.demande.depart,
     });
   } catch (e) {
+    /* ⚠️ SEULE ÉTAPE QUI DÉFAIT TOUT. Une réservation sans clé est un séjour
+     * que plus personne ne peut rouvrir alors que l'argent est pris. */
     await rembourser(paiement).catch(() => {});
-    await annulerReservation(posee.reservationId, 'Agent : accès au séjour impossible à ouvrir').catch(() => {});
+    await annulerReservation(reservationId, 'Agent : accès au séjour impossible à ouvrir').catch(() => {});
     throw e;
   }
 
-  session.fait = { ...posee, paiement };
+  session.fait = { reservationId, customerId, numero, paiement };
+  session.attente = undefined;
   session.booking = {
     ...session.booking,
     status: 'completed',
     totals: [
-      { type: 'subtotal', amount: centimesDus },
-      { type: 'total', amount: centimesDus },
+      { type: 'subtotal', amount: centimes },
+      { type: 'total', amount: centimes },
     ],
     confirmation: {
-      id: posee.numero ?? posee.reservationId,
-      label: `Réservation ${posee.numero ?? ''}`.trim(),
+      id: numero ?? reservationId,
+      label: `Réservation ${numero ?? ''}`.trim(),
       /* 🔑 LA CLÉ DU SÉJOUR PART ICI, et le protocole a prévu la place. C'est
          par cette URL que le client — ou son agent — retrouvera sa note, son
-         heure d'arrivée et, un jour, son code de porte. Le `pincode` est sa
-         version lisible à voix haute, au comptoir ou au téléphone. */
+         heure d'arrivée et, le jour venu, son code de porte. */
       permalink_url: acces.url,
       pincode: acces.code,
     },
     payment: {
       instruments: [{
         id: paiement, handler_id: HANDLER_ID, type: 'tokenized_card', selected: true,
-        ...(jeton.carte ? { display: { label: jeton.carte } } : {}),
+        ...(carte ? { display: { label: carte } } : {}),
       }],
     },
-    /* `continue_url` n'a plus de sens : il n'y a plus rien à finir ailleurs. */
     continue_url: undefined,
   };
-  /* ⚠️ ENREGISTRÉE AVANT DE RÉPONDRE. C'est `fait` qui rend la complétion
-   * idempotente : un agent dont la réponse se perd en route réessaie, et doit
-   * retrouver SA réservation — pas en poser une seconde, déjà payée. */
+  /* ⚠️ ENREGISTRÉE AVANT DE RÉPONDRE : c'est `fait` qui rend la complétion
+   * idempotente, et un agent dont la réponse se perd doit retrouver SA
+   * réservation, pas en poser une seconde, déjà payée. */
   await ranger(session);
   return session.booking;
+}
+
+/**
+ * Le lien de paiement a-t-il été réglé ? Si oui, la vente se termine ici.
+ *
+ * 🔑 APPELÉE PAR LES DEUX BOUTS, et c'est voulu : par la page de retour quand
+ * le client revient de Stripe, et par toute relecture de la session. Sans
+ * webhook, c'est ce qui garantit qu'un paiement fini n'attende pas un geste
+ * précis pour devenir une réservation. L'opération est idempotente : elle ne
+ * fait rien si la vente est déjà conclue, ou si rien n'a été payé.
+ */
+export async function finaliserSiPaye(id: string): Promise<Record<string, unknown> | null> {
+  const session = await lireSession(id);
+  if (!session) return null;
+  if (session.fait) return session.booking;
+  if (!session.attente) return session.booking;
+
+  const paiement = await paiementDuLien(session.attente.checkout);
+  if (!paiement) return session.booking;
+
+  /* ⚠️ LA CHAMBRE EST-ELLE ENCORE À NOUS ? Le lien meurt cinq minutes avant
+   * elle, donc le cas est rare — mais rare n'est pas jamais, et un paiement
+   * encaissé sur une nuit déjà revendue est le pire résultat possible. On
+   * vérifie, et on rend l'argent plutôt que de vendre deux fois. */
+  const etat = await etatReservation(session.attente.reservationId).catch(() => null);
+  if (etat && etat !== 'Optional' && etat !== 'Confirmed') {
+    await rembourser(paiement).catch(() => {});
+    session.attente = undefined;
+    session.booking = {
+      ...session.booking,
+      status: 'canceled',
+      messages: [{
+        type: 'error',
+        content: {
+          plain: 'La chambre a été relâchée avant que le paiement n’aboutisse. '
+            + 'Le montant a été intégralement remboursé ; aucune réservation n’a été prise.',
+        },
+      }],
+    };
+    await ranger(session);
+    return session.booking;
+  }
+
+  return finaliser(session, {
+    reservationId: session.attente.reservationId,
+    customerId: session.attente.customerId,
+    numero: session.attente.numero,
+    paiement,
+    centimes: session.attente.centimes,
+  });
 }
 
 /** Complète la session avec ce que l'agent apprend en chemin (le client). */

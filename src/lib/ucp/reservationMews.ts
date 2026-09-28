@@ -92,10 +92,23 @@ async function profilClient(client: ClientAgent): Promise<string> {
 
 export type ResaPosee = { reservationId: string; customerId: string; numero: string | null };
 
-/** Crée le client et la réservation, confirmée, sans carte. */
+/**
+ * Crée le client et TIENT la chambre, sans la confirmer.
+ *
+ * 🔑 TENUE D'ABORD, CONFIRMÉE APRÈS PAIEMENT. On la posait `Confirmed` avant
+ * de débiter : entre les deux, une chambre était vendue sans être payée, et il
+ * fallait la défaire si le paiement échouait. Mews sait faire mieux —
+ * `State: 'Optional'` avec un `ReleasedUtc` : il la relâche TOUT SEUL à
+ * l'heure dite, même si notre code ne repasse jamais.
+ *
+ * ⚠️ Et le folio existe DÈS CE MOMENT, avec son montant définitif — vérifié le
+ * 28/09/2026 : six lignes, 315,44 €, sur une réservation encore optionnelle.
+ * C'est ce qui permet de débiter le bon montant avant d'avoir rien vendu.
+ */
 export async function poserReservation(
-  { client, categorieId, tarifId, arrivee, depart, adultes }:
-  { client: ClientAgent; categorieId: string; tarifId: string; arrivee: string; depart: string; adultes: number },
+  { client, categorieId, tarifId, arrivee, depart, adultes, tenirJusqua }:
+  { client: ClientAgent; categorieId: string; tarifId: string; arrivee: string; depart: string;
+    adultes: number; tenirJusqua?: string },
 ): Promise<ResaPosee> {
   const customerId = await profilClient(client);
 
@@ -111,7 +124,9 @@ export async function poserReservation(
         RequestedCategoryId: categorieId,
         RateId: tarifId,
         PersonCounts: [{ AgeCategoryId: await categorieAdulte(), Count: Math.max(1, adultes) }],
-        State: 'Confirmed',
+        ...(tenirJusqua
+          ? { State: 'Optional', ReleasedUtc: tenirJusqua }
+          : { State: 'Confirmed' }),
       }],
     },
   );
@@ -158,4 +173,20 @@ export async function consignerPaiement(
 /** Défait une réservation qu'on n'a pas pu encaisser. */
 export async function annulerReservation(reservationId: string, motif: string): Promise<void> {
   await callMews('reservations/cancel', { ReservationIds: [reservationId], Notes: motif });
+}
+
+/** Confirme une chambre tenue — à n'appeler qu'une fois l'argent encaissé. */
+export async function confirmerReservation(reservationId: string): Promise<void> {
+  await callMews('reservations/update', {
+    ReservationUpdates: [{ ReservationId: reservationId, State: { Value: 'Confirmed' } }],
+  });
+}
+
+/** L'état d'une chambre tenue : est-elle encore à nous ? */
+export async function etatReservation(reservationId: string): Promise<string | null> {
+  const r = await callMews<{ Reservations?: { State?: string }[] }>(
+    'reservations/getAll/2023-06-06',
+    { ReservationIds: [reservationId], Extent: { Reservations: true }, Limitation: { Count: 1 } },
+  );
+  return (r.Reservations ?? [])[0]?.State ?? null;
 }

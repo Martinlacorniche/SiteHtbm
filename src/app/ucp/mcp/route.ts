@@ -18,7 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import {
-  creerSession, lireSession, majSession, completerSession,
+  creerSession, lireSession, majSession, completerSession, finaliserSiPaye,
   ErreurUcp, ErreurPaiement, UCP_VERSION, PROPRIETE,
 } from '@/lib/ucp/lodging';
 import { soirs, reserverTable, creneauxDe, ErreurRooftop, COUVERTS_MAX } from '@/lib/ucp/rooftop';
@@ -286,6 +286,12 @@ export async function POST(req: Request) {
         const booking = (args.booking ?? {}) as Record<string, unknown>;
 
         if (nom === 'get_booking_session') {
+          /* 🔑 RELIRE, C'EST AUSSI RATTRAPER. Si un lien de paiement a été
+           * envoyé et réglé entre-temps, c'est ici que la vente se conclut —
+           * sans attendre que le client revienne sur la page de retour.
+           * L'opération ne fait rien quand il n'y a rien à faire. */
+          const rattrape = await finaliserSiPaye(String(booking.id ?? '')).catch(() => null);
+          if (rattrape) return ok(corps.id, contenu(rattrape));
           const s = await lireSession(String(booking.id ?? ''));
           /* ⚠️ Une session expirée n'est pas une erreur de l'agent : elle se dit,
              pour qu'il en rouvre une plutôt que d'insister sur un identifiant mort. */
