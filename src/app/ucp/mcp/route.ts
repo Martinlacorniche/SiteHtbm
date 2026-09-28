@@ -23,6 +23,7 @@ import {
 } from '@/lib/ucp/lodging';
 import { soirs, reserverTable, creneauxDe, ErreurRooftop, COUVERTS_MAX } from '@/lib/ucp/rooftop';
 import { ficheHotel } from '@/lib/ucp/hotel';
+import { appelant, compter, PLAFONDS, TropDAppels } from '@/lib/ucp/debit';
 import { reconnaitre } from '@/lib/ucp/acces';
 import { arrivee, HEURE_ARRIVEE } from '@/lib/ucp/checkin';
 import { lireSejour, noteDuSejour, ouvrirReglement, consignerReglements } from '@/lib/ucp/sejour';
@@ -333,6 +334,15 @@ export async function POST(req: Request) {
 
       case 'tools/call': {
         const nom = String((corps.params as { name?: string } | undefined)?.name ?? '');
+        /* 🔴 RIEN N'ÉTAIT COMPTÉ. Voir `debit.ts` : quatre-vingt-dix requêtes
+         * suffisaient à bloquer le rooftop jusqu'en mai. Le plafond global
+         * protège la facture et nos jetons d'API ; les plafonds par action,
+         * plus bas, protègent l'inventaire — et ce sont eux qui comptent. */
+        const qui = appelant(req);
+        await compter({
+          cle: `ucp:${qui}`, ...PLAFONDS.global,
+          message: 'Trop d’appels — réessayez dans quelques minutes.',
+        });
         const args = ((corps.params as { arguments?: Record<string, unknown> } | undefined)?.arguments ?? {});
         const booking = (args.booking ?? {}) as Record<string, unknown>;
 
@@ -383,6 +393,10 @@ export async function POST(req: Request) {
         }
 
         if (nom === 'complete_booking_session') {
+          await compter({
+            cle: `vente:${qui}`, ...PLAFONDS.vente,
+            message: 'Trop de tentatives de paiement — réessayez plus tard.',
+          });
           const paiement = (booking.payment ?? {}) as { instruments?: Record<string, unknown>[] };
           const meta = (args.meta ?? {}) as Record<string, unknown>;
           return ok(corps.id, contenu(await completerSession({
@@ -399,7 +413,17 @@ export async function POST(req: Request) {
           const ouvert = await reconnaitre(String(args.stay_key ?? ''));
           /* ⚠️ UN REFUS NE SE MOTIVE PAS : inconnue, expirée ou révoquée se
              répondent de la même façon, sinon on renseigne qui tâtonne. */
-          if (!ouvert) return ko(corps.id, -32001, 'Clé de séjour invalide.');
+          if (!ouvert) {
+            /* 🔑 ET ON NE COMPTE QUE LES ÉCHECS. Une clé valide s'utilise
+             * souvent — c'est normal. Une clé invalide répétée, non : c'est
+             * une énumération, et dix essais par dix minutes la rendent
+             * absurde face à trente-deux octets d'aléa. */
+            await compter({
+              cle: `cle:${qui}`, ...PLAFONDS.cleInvalide,
+              message: 'Trop de tentatives.',
+            });
+            return ko(corps.id, -32001, 'Clé de séjour invalide.');
+          }
 
           const sejour = await lireSejour(ouvert.reservationId);
           if (!sejour) return ko(corps.id, -32001, 'Clé de séjour invalide.');
@@ -473,6 +497,20 @@ export async function POST(req: Request) {
         }
 
         if (nom === 'create_rooftop_reservation') {
+          /* 🔴 UNE TABLE TENUE EST UNE TABLE PERDUE POUR UN VRAI CLIENT. Deux
+           * par jour et par appelant laisse passer une famille qui réserve
+           * deux soirs, et arrête net un balayage du calendrier.
+           *
+           * ⚠️ ON NE COMPTE QUE LES TABLES RÉELLEMENT PRISES. Compter aussi
+           * les refus — un soir fermé, un créneau passé — bloquerait un client
+           * qui tâtonne sur les dates après deux essais, ce qui est le
+           * comportement normal de quelqu'un qui cherche. Le martèlement sans
+           * effet, lui, est déjà arrêté par le plafond global. */
+          await compter({
+            cle: `rooftop:${qui}`, ...PLAFONDS.rooftop, consommer: false,
+            message: 'Deux réservations de table par jour au maximum. '
+              + 'Pour un groupe ou plusieurs soirs, appelez l’hôtel au +33 4 94 41 36 23.',
+          });
           const t = await reserverTable({
             date: String(args.date ?? ''), heure: args.time ? String(args.time) : undefined,
             couverts: Number(args.party_size ?? 0), nom: String(args.name ?? ''),
@@ -480,6 +518,8 @@ export async function POST(req: Request) {
             email: args.email ? String(args.email) : undefined,
             message: args.note ? String(args.note) : undefined,
           });
+          /* La table est prise : c'est maintenant qu'un droit se consomme. */
+          await compter({ cle: `rooftop:${qui}`, ...PLAFONDS.rooftop, message: '' });
           return ok(corps.id, contenu({
             status: 'confirmed',
             id: t.id, date: t.date, time: t.heure, party_size: t.couverts, table: t.table,
@@ -495,6 +535,11 @@ export async function POST(req: Request) {
         return ko(corps.id, -32601, `Méthode inconnue : ${corps.method}`);
     }
   } catch (e) {
+    if (e instanceof TropDAppels) {
+      /* -32029 : hors de la plage réservée par JSON-RPC, et stable côté
+         appelant. Un agent doit pouvoir distinguer « trop vite » d'une panne. */
+      return ko(corps.id, -32029, e.message);
+    }
     if (e instanceof ErreurPaiement) {
       /* ⚠️ UN REFUS N'EST PAS UNE PANNE. L'agent doit pouvoir dire au client
          « votre banque a refusé » ou « votre banque demande une confirmation »,
