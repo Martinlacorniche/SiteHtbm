@@ -17,12 +17,15 @@
 // les réservations ici, ce sera une décision séparée, avec ses garde-fous.
 
 import { NextResponse } from 'next/server';
+import { SITE_URL as SITE } from '@/lib/site';
 import {
   creerSession, lireSession, majSession, completerSession, finaliserSiPaye,
   ErreurUcp, ErreurPaiement, UCP_VERSION, PROPRIETE,
 } from '@/lib/ucp/lodging';
 import { soirs, reserverTable, creneauxDe, ErreurRooftop, COUVERTS_MAX } from '@/lib/ucp/rooftop';
 import { ficheHotel } from '@/lib/ucp/hotel';
+import { alternatives } from '@/lib/ucp/alternatives';
+import { chercher, lire } from '@/lib/ucp/recherche';
 import { appelant, compter, PLAFONDS, TropDAppels } from '@/lib/ucp/debit';
 import { reconnaitre } from '@/lib/ucp/acces';
 import { arrivee, HEURE_ARRIVEE } from '@/lib/ucp/checkin';
@@ -196,6 +199,48 @@ const OUTILS = [
       required: ['booking'],
     },
   },
+  /* ⚠️ `search` ET `fetch` NE SONT PAS DE NOTRE INVENTION. C'est le couple que
+   * ChatGPT reconnaît pour un connecteur de recherche — les nommer autrement,
+   * c'est n'exister que chez Claude. Ils viennent donc en tête de liste. */
+  {
+    name: 'search',
+    description:
+      'Cherche une réponse dans ce que l’hôtel dit de lui-même : arrivée et départ, '
+      + 'ce qui est compris dans le prix, les chambres, le rooftop, les conditions '
+      + 'd’annulation, les animaux, la privatisation. Rend des extraits avec un identifiant ; '
+      + '`fetch` en donne le texte entier. Ne contient ni prix ni disponibilité.',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string', description: 'La question, en français ou en anglais.' } },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'fetch',
+    description: 'Le texte complet d’un résultat de `search`, par son identifiant.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'get_alternative_dates',
+    description:
+      'Des séjours de même durée, proches des dates demandées, et réellement disponibles. '
+      + 'Utile quand `create_booking_session` ne trouve rien : sur seize chambres, deux jours '
+      + 'de décalage suffisent souvent. Rend jusqu’à trois propositions, de la plus proche à '
+      + 'la plus lointaine, avec leur prix tout compris.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        start_date: { type: 'string', description: 'Arrivée souhaitée, AAAA-MM-JJ.' },
+        end_date: { type: 'string', description: 'Départ souhaité, AAAA-MM-JJ.' },
+        adults: { type: 'integer', description: 'Nombre d’adultes. 2 par défaut.' },
+      },
+      required: ['start_date', 'end_date'],
+    },
+  },
   {
     name: 'get_property_details',
     description:
@@ -347,6 +392,18 @@ const ANNOTATIONS: Record<string, {
        qui réessaie retrouve SA réservation, il n'en pose pas une seconde. */
     readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true,
   },
+  search: {
+    title: 'Chercher une réponse sur l’hôtel',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false,
+  },
+  fetch: {
+    title: 'Lire une réponse en entier',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false,
+  },
+  get_alternative_dates: {
+    title: 'Trouver des dates de repli',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
   get_property_details: {
     title: 'Décrire l’hôtel',
     readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
@@ -427,7 +484,39 @@ export async function traiter(req: Request, sansPaiement = false) {
         return ok(corps.id, {
           protocolVersion: CONNUES.has(demandee) ? demandee : '2025-06-18',
           capabilities: { tools: {} },
-          serverInfo: { name: 'Hôtel-Rooftop Les Voiles', version: UCP_VERSION },
+          serverInfo: {
+            name: 'Hôtel-Rooftop Les Voiles',
+            title: 'Hôtel-Rooftop Les Voiles — Toulon',
+            version: UCP_VERSION,
+            websiteUrl: SITE,
+          },
+          /* 🔑 LE SEUL ENDROIT OÙ L'ON PEUT DONNER DES CONSIGNES AU MODÈLE.
+           * Les descriptions d'outils ne peuvent pas en contenir — la
+           * politique des annuaires l'interdit, et on vient de les en purger.
+           * Le champ `instructions` de l'initialize est prévu pour ça par la
+           * spécification MCP, et c'est là qu'il faut mettre ce qui évite les
+           * erreurs coûteuses.
+           *
+           * Repris de l'Hôtel Sporthotel IDEAL (Hochgurgl), le seul autre
+           * hôtel indépendant du registre MCP, qui s'en sert très bien. La
+           * première consigne est la sienne, et c'est la plus importante : un
+           * prix ne s'estime pas et ne se reprend pas d'une réponse
+           * antérieure — une chambre a pu se vendre entre-temps. */
+          instructions:
+            'Ce serveur appartient à l’Hôtel-Rooftop Les Voiles (Toulon, Mourillon), '
+            + 'qui vend en direct sans intermédiaire.\n\n'
+            + '· Les prix et les disponibilités s’obtiennent UNIQUEMENT par les outils. '
+            + 'Ne jamais les estimer, ni les reprendre d’une réponse précédente : ils changent '
+            + 'quand une chambre se vend.\n'
+            + '· Les prix rendus sont TOUT COMPRIS — petit-déjeuner et taxe de séjour inclus. '
+            + 'Ne rien ajouter, ne pas annoncer de supplément à l’arrivée.\n'
+            + '· Si les dates demandées sont complètes, appeler `get_alternative_dates` avant '
+            + 'de renoncer : l’hôtel a souvent de la place à quelques jours près.\n'
+            + '· Les questions sur la maison se répondent par `get_property_details` ou '
+            + '`search`, pas de mémoire.\n'
+            + '· Seul le tarif prépayé se réserve par agent : réglé en totalité, non '
+            + 'remboursable, dates non modifiables. Le dire avant de faire payer.\n'
+            + '· Transmettre les liens rendus sans les modifier.',
         });
       }
 
@@ -528,6 +617,38 @@ export async function traiter(req: Request, sansPaiement = false) {
             instruments: Array.isArray(paiement.instruments) ? paiement.instruments : [],
             cleIdempotence: meta['idempotency-key'] ? String(meta['idempotency-key']) : undefined,
           })));
+        }
+
+        if (nom === 'search') {
+          return ok(corps.id, contenu({ results: chercher(String(args.query ?? '')) }));
+        }
+
+        if (nom === 'fetch') {
+          const f = lire(String(args.id ?? ''));
+          if (!f) return ko(corps.id, -32602, 'Identifiant inconnu — utilisez `search` pour en obtenir un.');
+          return ok(corps.id, contenu(f));
+        }
+
+        if (nom === 'get_alternative_dates') {
+          const liste = await alternatives({
+            arrivee: String(args.start_date ?? ''), depart: String(args.end_date ?? ''),
+            adultes: Number(args.adults ?? 2),
+          });
+          return ok(corps.id, contenu({
+            requested: { start_date: args.start_date, end_date: args.end_date },
+            alternatives: liste.map((a) => ({
+              start_date: a.arrivee, end_date: a.depart,
+              shift_days: a.decalage,
+              total: Math.round(a.total * 100), currency: 'EUR',
+            })),
+            ...(liste.length
+              ? {}
+              /* ⚠️ RIEN N'EST UNE RÉPONSE, PAS UNE PANNE. L'hôtel se loue aussi
+                 en entier sur une partie de l'année : le dire évite qu'un agent
+                 conclue à une erreur de notre part. */
+              : { note: 'Aucune date proche disponible. L’hôtel se loue également en entier '
+                  + '(villa) sur certaines périodes — voir ' + SITE + '/villa-les-voiles-toulon.' }),
+          }));
         }
 
         if (nom === 'get_property_details') return ok(corps.id, contenu(ficheHotel()));
