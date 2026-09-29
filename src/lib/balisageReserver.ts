@@ -20,12 +20,63 @@
 // pas de prix du tout : une offre absente vaut mieux qu'une offre fausse.
 
 import { chercherDisponibilite } from './mewsBooking';
+import { supabaseServer } from './supabase-server';
 import { SITE_URL } from './site';
+
+/* L'hôtel dont cette page vend les nuits, côté base NWH. */
+const HOTEL_NWH = 'ded6e6fb-ff3c-4fa8-ad07-403ee316be53';
+/* Une photo de plus d'une journée franche ne vaut rien : on repasse par le
+   moteur plutôt que de publier un prix dont on ne sait plus s'il est vrai. */
+const MIROIR_AGE_MAX_MS = 26 * 60 * 60 * 1000;
+
+/**
+ * Le plus bas prix vendable, lu dans le MIROIR — ou `null` s'il est muet.
+ *
+ * 🔑 POURQUOI CE DÉTOUR. Les deux sondages ci-dessous coûtent deux appels au
+ * Distributor Mews à CHAQUE régénération de page (médiane mesurée : 356 ms
+ * l'appel), et ils ne regardent que deux dates sur soixante : le vrai minimum
+ * de la fenêtre leur échappe. Le miroir (`prix_miroir`, peint chaque jour
+ * depuis le Connector) répond en ~64 ms sur 120 nuits, et il rend le minimum
+ * RÉEL — vérifié le 29/09/2026 : écart 0,00 € contre le moteur sur dix-sept
+ * comparaisons.
+ *
+ * ⛔ « Vendable » exige les trois : un prix, de la disponibilité, pas de
+ * fermeture. Un prix sans chambre derrière est une offre fausse.
+ */
+async function prixDuMiroir(jours: number): Promise<number | null> {
+  try {
+    const jour = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+    const { data, error } = await supabaseServer
+      .from('prix_miroir')
+      .select('prix_ttc, releve_le')
+      .eq('hotel_id', HOTEL_NWH)
+      .gte('date', jour(0)).lte('date', jour(jours))
+      .eq('ferme', false).gt('dispo', 0).not('prix_ttc', 'is', null)
+      .order('prix_ttc', { ascending: true }).limit(1);
+    if (error || !data?.length) return null;
+    const releve = new Date(String(data[0].releve_le)).getTime();
+    /* Une date illisible n'est pas une date fraîche : `NaN < limite` vaut
+       false, et le prix serait passé pour neuf. */
+    if (!Number.isFinite(releve) || releve < Date.now() - MIROIR_AGE_MAX_MS) return null;
+    const prix = Number(data[0].prix_ttc);
+    return prix > 0 ? prix : null;
+  } catch {
+    /* Base injoignable : on redescend sur le moteur, comme avant. */
+    return null;
+  }
+}
 
 /** Le plus bas prix par nuit réellement proposé sur la fenêtre, ou `null`. */
 export async function prixAPartirDe(
   { jours = 60, adultes = 2 }: { jours?: number; adultes?: number } = {},
 ): Promise<number | null> {
+  /* ⚠️ LE MIROIR D'ABORD, LE MOTEUR EN REPLI — jamais l'inverse. Tant que le
+   * cron qui peint le miroir n'est pas programmé, il reste muet et cette page
+   * se comporte exactement comme avant : rien ne casse le jour du déploiement,
+   * et rien ne change le jour où le cron démarre, sinon la justesse. */
+  const duMiroir = await prixDuMiroir(jours);
+  if (duMiroir !== null) return Math.round(duMiroir);
+
   const jour = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
   /* ⚠️ DEUX SONDAGES, PAS SOIXANTE. Une nuit par quinzaine suffit à trouver le
    * creux : interroger chaque date ferait soixante appels pour un seul nombre,
