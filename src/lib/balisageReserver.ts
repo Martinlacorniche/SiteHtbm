@@ -48,7 +48,7 @@ async function prixDuMiroir(jours: number): Promise<number | null> {
     const jour = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
     const { data, error } = await supabaseServer
       .from('prix_miroir')
-      .select('prix_ttc, releve_le')
+      .select('prix_ttc, prix_prepaye, releve_le')
       .eq('hotel_id', HOTEL_NWH)
       .gte('date', jour(0)).lte('date', jour(jours))
       .eq('ferme', false).gt('dispo', 0).not('prix_ttc', 'is', null)
@@ -58,7 +58,13 @@ async function prixDuMiroir(jours: number): Promise<number | null> {
     /* Une date illisible n'est pas une date fraîche : `NaN < limite` vaut
        false, et le prix serait passé pour neuf. */
     if (!Number.isFinite(releve) || releve < Date.now() - MIROIR_AGE_MAX_MS) return null;
-    const prix = Number(data[0].prix_ttc);
+    /* 🔑 LE PRÉPAYÉ, LE PLUS BAS — c'est le prix qu'un client peut réellement
+     * obtenir sur cette page, et celui que le tunnel agent vend. Publier le
+     * flexible nous déclarait 9 € plus cher que notre meilleure offre, sur un
+     * balisage lu par des machines qui comparent. Le flexible reste le repli
+     * quand la remise n'a pas pu être mesurée. */
+    const prepaye = data[0].prix_prepaye == null ? null : Number(data[0].prix_prepaye);
+    const prix = prepaye != null && prepaye > 0 ? prepaye : Number(data[0].prix_ttc);
     return prix > 0 ? prix : null;
   } catch {
     /* Base injoignable : on redescend sur le moteur, comme avant. */
