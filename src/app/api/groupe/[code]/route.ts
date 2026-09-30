@@ -122,6 +122,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
       // | 'plan' (coupe de l'hôtel palier par palier, l'organisatrice remplit tout).
       // Repli sur 'simple' pour toute valeur inconnue (migration 82, puis 134).
       mode_vue: ["pro", "plan"].includes(g.mode_vue) ? g.mode_vue : "simple",
+      /* ⚠️ LE SÉJOUR MINIMUM DOIT ATTEINDRE L'ÉCRAN, pas seulement la route qui enregistre. La
+       * colonne existait, l'API ne la transmettait pas : les champs de dates n'étaient donc
+       * bornés par rien, et l'invité choisissait deux nuits pour se faire refuser à l'envoi. */
+      nuits_min: g.nuits_min == null ? null : Number(g.nuits_min),
       // Pilote deux choses côté page : l'email redevient obligatoire si un règlement en ligne
       // est attendu (Stripe l'envoie au client), et 'aucun' masque les tarifs.
       mode_paiement: g.mode_paiement || (g.paiement_obligatoire ? "immediat" : "aucun"),

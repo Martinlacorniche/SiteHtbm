@@ -60,6 +60,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   const dd = date_depart || g.date_depart;
   if (da < g.date_arrivee || dd > g.date_depart || dd <= da) return NextResponse.json({ ok: false, error: "Dates hors des bornes du séjour." }, { status: 400 });
 
+  /* 🔴 LE SÉJOUR MINIMUM, ET IL MANQUAIT ICI SEULEMENT.
+   *
+   * Linus Kinzel, 29/09/2026, pour son mariage : « only allow bookings with a minimum of 3
+   * nights ». La règle a été posée côté NWH.os — colonne `groupes.nuits_min`, contrôle dans sa
+   * route de réservation — et elle tenait : l'API de NWH refuse bien deux nuits.
+   *
+   * ⛔ MAIS CE FICHIER EST UNE SECONDE COPIE DE LA MÊME ROUTE, et les deux écrivent dans LA MÊME
+   * BASE. La page de groupe servie depuis le site vitrine passait donc à côté du contrôle : une
+   * réservation de deux nuits a bien été créée le 30/09/2026 par cette porte-là, pendant que
+   * l'autre la refusait. Une règle métier posée dans un seul des deux dépôts n'est pas posée.
+   *
+   * ⚠️ ET C'EST À VÉRIFIER À CHAQUE RÈGLE AJOUTÉE LÀ-BAS, tant que les deux copies existent. */
+  const nuits = (a: string, b: string) =>
+    Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+  const minimum = Number(g.nuits_min) || 0;
+  if (minimum > 0 && nuits(da, dd) < minimum) {
+    return NextResponse.json({ ok: false, error: `Ce séjour se réserve pour ${minimum} nuits au minimum.` }, { status: 400 });
+  }
+
   // Vérifie que chaque chambre appartient au groupe + capacité
   const ids = rooms.map((r: { groupe_chambre_id: string }) => r.groupe_chambre_id);
   const { data: gcs } = await supabaseServer
@@ -80,6 +99,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     const rdd = r.date_depart || dd;
     if (rda < g.date_arrivee || rdd > g.date_depart || rdd <= rda)
       return NextResponse.json({ ok: false, error: "Dates hors des bornes du séjour." }, { status: 400 });
+    /* ⚠️ ET CHAMBRE PAR CHAMBRE. En mode « pro », chacune porte ses propres dates : contrôler le
+     * seul séjour d'ensemble laisserait passer une chambre posée sur une nuit au milieu d'un
+     * panier par ailleurs conforme. */
+    if (minimum > 0 && nuits(rda, rdd) < minimum) {
+      return NextResponse.json({ ok: false, error: `Chaque chambre se réserve pour ${minimum} nuits au minimum.` }, { status: 400 });
+    }
     // …et sur des nuits réellement OFFERTES (migration 86) : une chambre du bloc peut
     // être retirée certaines nuits, y compris au milieu du séjour.
     const exclues: string[] = gc.nuits_exclues || [];

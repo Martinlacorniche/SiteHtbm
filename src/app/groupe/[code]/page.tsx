@@ -68,6 +68,8 @@ interface Room {
 interface GroupeMeta {
   nom: string; date_arrivee: string; date_depart: string; date_limite: string;
   conditions_annulation: string | null; plan_visible: boolean;
+  /** Le séjour minimum voulu par l'organisateur, en nuits. */
+  nuits_min?: number | null;
   cover_image_url: string | null; message_accueil: string | null; closed: boolean;
   mode_paiement?: string | null;
   // Réglages staff (migration 84).
@@ -129,6 +131,15 @@ function ymd(d: Date): string {
 
 // Liste des nuits d'une plage : « 18/10 → 21/10 » = les nuits du 18, 19 et 20.
 // Le départ n'est PAS une nuit (bornes [from, to)).
+/** Une date ISO décalée de `n` jours (négatif pour reculer).
+ *
+ * ⚠️ MIDI EN UTC, PAS MINUIT. À minuit, un décalage d'heure d'été fait basculer la date d'un jour
+ * dans un sens ou dans l'autre selon la saison — et une traite ou une nuit se retrouve la veille. */
+function decaleJours(iso: string, n: number): string {
+  const t = Date.parse(`${iso}T12:00:00Z`);
+  return Number.isFinite(t) ? new Date(t + n * 86_400_000).toISOString().slice(0, 10) : iso;
+}
+
 function nightsBetween(from: string, to: string): string[] {
   const out: string[] = [];
   const d = new Date(from + "T00:00:00");
@@ -1088,6 +1099,16 @@ function PlanSheet({ code, groupe, room, onClose, onDone }: {
   // sans ces deux dates il fallait ressortir par la page de gestion pour corriger.
   const [da, setDa] = useState(groupe.date_arrivee);
   const [dd, setDd] = useState(groupe.date_depart);
+  const nuitsMin = Math.max(0, Number(groupe.nuits_min) || 0);
+
+  /* ⚠️ LE DÉPART SUIT L'ARRIVÉE. Sans ça, avancer l'arrivée laisse un séjour trop court affiché
+   * comme valide jusqu'au refus du serveur — l'invité comprend qu'il a mal fait, pas que la règle
+   * existe. */
+  useEffect(() => {
+    if (!nuitsMin) return;
+    const mini = decaleJours(da, nuitsMin);
+    if (dd < mini) setDd(mini > groupe.date_depart ? groupe.date_depart : mini);
+  }, [da, dd, nuitsMin, groupe.date_depart]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -1141,17 +1162,25 @@ function PlanSheet({ code, groupe, room, onClose, onDone }: {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>{t.arrival}</Label>
-            <input type="date" value={da} min={groupe.date_arrivee} max={groupe.date_depart}
+            <input type="date" value={da} min={groupe.date_arrivee}
+              max={nuitsMin ? decaleJours(groupe.date_depart, -nuitsMin) : groupe.date_depart}
               onChange={(e) => setDa(e.target.value)}
               className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400" />
           </div>
           <div>
             <Label>{t.departure}</Label>
-            <input type="date" value={dd} min={groupe.date_arrivee} max={groupe.date_depart}
+            <input type="date" value={dd} max={groupe.date_depart}
+              min={nuitsMin ? decaleJours(da, nuitsMin) : groupe.date_arrivee}
               onChange={(e) => setDd(e.target.value)}
               className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400" />
           </div>
         </div>
+
+        {nuitsMin > 0 && (
+          <p className="text-xs text-slate-500">
+            Séjour de {nuitsMin} nuits minimum.
+          </p>
+        )}
 
         {err && <p className="text-sm text-red-600">{err}</p>}
 
