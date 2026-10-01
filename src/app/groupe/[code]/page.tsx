@@ -1214,6 +1214,17 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
   const emailRequis = !isPro || groupe.mode_paiement === "immediat" || groupe.mode_paiement === "differe";
   const [da, setDa] = useState(initRange?.from || groupe.date_arrivee);
   const [dd, setDd] = useState(initRange?.to || groupe.date_depart);
+  /* 🔴 LE SÉJOUR MINIMUM N'ÉTAIT PAS DANS CE FORMULAIRE. En mode « simple »,
+   * c'est pourtant le seul écran où l'invité choisit ses dates : les champs
+   * n'étaient bornés par rien, il posait deux nuits, et ne découvrait la règle
+   * qu'au refus du serveur — s'il allait jusqu'au bout. Le serveur refusait
+   * bien ; l'écran, lui, disait oui. */
+  const nuitsMin = Math.max(0, Number(groupe.nuits_min) || 0);
+  useEffect(() => {
+    if (!nuitsMin) return;
+    const mini = decaleJours(da, nuitsMin);
+    if (dd < mini) setDd(mini > groupe.date_depart ? groupe.date_depart : mini);
+  }, [da, dd, nuitsMin, groupe.date_depart]);
   const [pin, setPin] = useState(""); const [pin2, setPin2] = useState("");
   const [cgv, setCgv] = useState(false);
   const [cfg, setCfg] = useState<Record<string, { lit: "double" | "twin"; pax: number }>>(
@@ -1372,9 +1383,15 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
         <FInput label={t.phone} value={tel} onChange={setTel} placeholder="06 12 34 56 78" type="tel" />
         {!isPro && (
           <div className="grid grid-cols-2 gap-3">
-            <FDate label={t.arrival} value={da} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDa} />
-            <FDate label={t.departure} value={dd} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDd} />
+            <FDate label={t.arrival} value={da} min={groupe.date_arrivee}
+              max={nuitsMin ? decaleJours(groupe.date_depart, -nuitsMin) : groupe.date_depart} onChange={setDa} />
+            <FDate label={t.departure} value={dd}
+              min={nuitsMin ? decaleJours(da, nuitsMin) : groupe.date_arrivee}
+              max={groupe.date_depart} onChange={setDd} />
           </div>
+        )}
+        {!isPro && nuitsMin > 0 && (
+          <p className="text-xs text-slate-500 -mt-1">Séjour de {nuitsMin} nuits minimum.</p>
         )}
 
         {/* Détail par chambre */}
@@ -1586,6 +1603,9 @@ function ManageView({ token }: { token: string }) {
   const [resas, setResas] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [groupe, setGroupe] = useState<any>(null);
+  /* Le séjour minimum vaut aussi sur l'écran de gestion : sans cette borne,
+   * l'invité réserve trois nuits puis revient n'en garder que deux. */
+  const nuitsMin = Math.max(0, Number(groupe?.nuits_min) || 0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -1809,8 +1829,11 @@ function ManageView({ token }: { token: string }) {
                           <FInput label={t.lastName} value={eNom} onChange={setENom} placeholder="Dupont" />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                          <FDate label="Arrivée" value={da} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDa} />
-                          <FDate label="Départ" value={dd} min={groupe.date_arrivee} max={groupe.date_depart} onChange={setDd} />
+                          <FDate label="Arrivée" value={da} min={groupe.date_arrivee}
+                            max={nuitsMin ? decaleJours(groupe.date_depart, -nuitsMin) : groupe.date_depart} onChange={setDa} />
+                          <FDate label="Départ" value={dd}
+                            min={nuitsMin ? decaleJours(da, nuitsMin) : groupe.date_arrivee}
+                            max={groupe.date_depart} onChange={setDd} />
                         </div>
                         {r.twinable && (
                           <div>

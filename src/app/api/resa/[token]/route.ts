@@ -50,7 +50,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, statut, code_pin, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, nom, prenom, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url, mode_paiement, paiement_obligatoire)")
+    .select("id, statut, code_pin, stripe_checkout_id, date_arrivee, date_depart, config_lit, nb_personnes, nom, prenom, groupe_chambres(tarif_nuit, room_units(numero, pax_max, twinable, room_types(nom))), groupes(nom, code_acces, date_arrivee, date_depart, date_limite, conditions_annulation, statut, cover_image_url, mode_paiement, paiement_obligatoire, nuits_min)")
     .eq("booking_ref", ref);
 
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable" }, { status: 404 });
@@ -113,6 +113,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     groupe: {
       nom: g?.nom, code: g?.code_acces, date_arrivee: g?.date_arrivee, date_depart: g?.date_depart, date_limite: g?.date_limite,
       conditions_annulation: g?.conditions_annulation, cover_image_url: g?.cover_image_url,
+      // Sans ça, l'écran de gestion ne connaît pas la règle et ses champs de
+      // dates ne sont bornés par rien : la borne doit voyager avec la page.
+      nuits_min: g?.nuits_min ?? null,
       locked: g?.statut !== "actif" || today > g?.date_limite,
     },
   });
@@ -127,7 +130,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
 
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
-    .select("id, code_pin, statut, date_arrivee, date_depart, config_lit, nb_personnes, nom, prenom, email, tel, groupes(nom, date_arrivee, date_depart, date_limite, statut), groupe_chambres(hotel_id, room_units(numero, pax_max, twinable))")
+    .select("id, code_pin, statut, date_arrivee, date_depart, config_lit, nb_personnes, nom, prenom, email, tel, groupes(nom, date_arrivee, date_depart, date_limite, statut, nuits_min), groupe_chambres(hotel_id, room_units(numero, pax_max, twinable))")
     .eq("booking_ref", ref);
   if (!rows || rows.length === 0) return NextResponse.json({ ok: false, error: "Réservation introuvable" }, { status: 404 });
 
@@ -176,6 +179,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     const da = body.date_arrivee || target.date_arrivee;
     const dd = body.date_depart || target.date_depart;
     if (da < g.date_arrivee || dd > g.date_depart || dd <= da) return NextResponse.json({ ok: false, error: "Dates hors des bornes du séjour." }, { status: 400 });
+
+    /* 🔑 LE SÉJOUR MINIMUM VAUT AUSSI APRÈS COUP, ET IL MANQUAIT ICI.
+     * Le 30/09/2026 on l'a posé à la RÉSERVATION, dans les deux dépôts. Mais un
+     * invité qui a réservé trois nuits revient ensuite sur SA page de gestion et
+     * passe à deux : cette route-là ne lisait même pas `nuits_min`. La règle
+     * tenait au premier clic et se vidait par la petite porte — trois fois de
+     * suite sur le mariage Gwenn & Linus.
+     * ⚠️ C'est la TROISIÈME fois que le même oubli se produit au même endroit :
+     * une règle posée dans NWH.os n'existe pas tant qu'elle n'est pas recopiée
+     * dans ce dépôt, qui sert les mêmes pages depuis la même base. */
+    const minimum = Number(g.nuits_min) || 0;
+    const nuitsDemandees = Math.round((Date.parse(`${dd}T00:00:00Z`) - Date.parse(`${da}T00:00:00Z`)) / 86_400_000);
+    if (minimum > 0 && nuitsDemandees < minimum) {
+      return NextResponse.json({ ok: false, error: `Ce séjour se réserve pour ${minimum} nuits au minimum.` }, { status: 400 });
+    }
     const lit = ru?.twinable ? (body.config_lit === "twin" ? "twin" : "double") : target.config_lit;
     const pax = body.nb_personnes != null ? Math.max(1, parseInt(body.nb_personnes) || 1) : target.nb_personnes;
     if (ru && pax > ru.pax_max) return NextResponse.json({ ok: false, error: `Cette chambre accueille ${ru.pax_max} personne(s) max.` }, { status: 400 });
