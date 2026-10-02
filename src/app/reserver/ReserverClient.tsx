@@ -128,7 +128,7 @@ const TEXTES = {
      * était utile quand la phrase était seule ; avec deux barres au-dessus,
      * c'est une redite qui coûtait une ligne — et cette ligne, c'était la barre
      * de défilement de toute la colonne. */
-    gainDirect: (m: string) => `Bien vu, vous gardez ${m}.`,
+    gainDirect: (m: string) => `Vous gagnez ${m}`,
     ecartIci: "Ici",
     /* Ce qui arrive a la carte. Court sur la carte de tarif — il y a deux
      * cartes cote a cote et la place est comptee — entier sur l'ecran de
@@ -228,7 +228,7 @@ const TEXTES = {
     rooftopChoisie: (h: string) => `Rooftop table · ${h}`,
     rooftopSous: "A drink facing the sea, come evening",
     rooftopModifier: "Change the time",
-    gainDirect: (m: string) => `Nice move, you keep ${m}.`,
+    gainDirect: (m: string) => `You win ${m}`,
     empreinteCourt: (m: string) => `Card as guarantee · ${m} held`,
     debitCourt: (m: string) => `Charged now · ${m}`,
     empreinteLong: (m: string, pc: string) =>
@@ -1686,7 +1686,12 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * haut en grand écran et sous le titre en petit : deux copies du même JSX
    * auraient divergé à la première retouche. */
   const bandeau = PRIVILEGES.voiles[langue].length > 0 ? (
-    <div className="bandeau-or mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-1.5 rounded-3xl bg-gold px-4 py-2 text-[12.5px] font-bold text-navy-deep sm:gap-x-5 sm:rounded-full lg:px-5 lg:py-2 lg:text-[14px]">
+    <div /* ⚠️ RESSERRÉ SUR TÉLÉPHONE. En 12,5 px avec des écarts de 16, les trois
+          promesses prenaient trois lignes et cent quatre-vingts pixels d'en-tête
+          — avant la première chambre, sur l'écran où la place manque le plus.
+          Martin : « un peu serré sur mobile ». La graisse et le fond suffisent
+          à le faire exister ; c'est la taille du texte qui le faisait déborder. */
+        className="bandeau-or mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2.5 gap-y-1 rounded-2xl bg-gold px-3 py-1.5 text-[11.5px] font-bold text-navy-deep sm:gap-x-5 sm:rounded-full sm:px-4 sm:py-2 sm:text-[12.5px] lg:px-5 lg:text-[14px]">
       {/* L'étiquette « Exclu direct » ne se répète pas : elle est posée UNE
           fois, en tête, et couvre les avantages marqués `exclusif` qui la
           suivent. Un séparateur la referme, et ce qui vient après — le
@@ -2538,38 +2543,33 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   // Sous un euro, l'écart ne vaut pas une ligne — et un « vous
                   // économisez 0,40 € » dessert plus qu'il ne sert.
                   if (gain < 1) return null;
-                  /* 🔑 DEUX BARRES PLUTÔT QUE DEUX PHRASES. Une phrase demande
-                     de lire deux montants et de faire la soustraction soi-même ;
-                     deux barres la font sous les yeux. La barre de Booking pousse
-                     d'abord, puis la nôtre s'arrête avant — et le morceau qui
-                     dépasse, c'est l'argent gardé. C'est lui qu'on colore et
-                     qu'on nomme, parce que c'est lui le sujet.
-                     ⚠️ LES LONGUEURS SONT EXACTES, elles ne sont pas forcées
-                     pour « faire joli » : l'écart est de 9 %, la barre le dit.
-                     Exagérer la différence sur une page de vente, c'est mentir
-                     avec un dessin — et le client a les deux chiffres sous les
-                     yeux pour le vérifier. */
-                  const part = Math.max(0, Math.min(1, (choix.total + taxe) / ailleurs));
-                  return (
-                    <div className="mt-2 rounded-lg bg-[#f4f8f5] px-3 py-2 text-[12px] leading-snug">
-                      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1">
-                        <span className="font-semibold text-navy">{T.ecartIci}</span>
-                        <span className="h-2.5 overflow-hidden rounded-full bg-black/[0.06]">
-                          <span className="ecart-ici block h-full rounded-full bg-navy"
-                            style={{ "--part": `${(part * 100).toFixed(1)}%` } as React.CSSProperties} />
-                        </span>
-                        <span className="tabular-nums font-semibold text-navy">{montant(choix.total + taxe, langue)}</span>
+                  /* 🔑 UN DUEL, PAS UN GRAPHIQUE. Idée de Martin : « un truc
+                     de l'imaginaire jeu de combat, nous VS Booking, un de chaque
+                     côté avec son prix, puis nous seul en grand, vous gagnez la
+                     somme ». Les deux barres étaient justes et parfaitement
+                     froides ; l'écart de 9 % y faisait une languette que
+                     personne ne regardait. Un duel, lui, ne dépend pas de la
+                     taille de l'écart : c'est la MISE EN SCÈNE qui porte, et le
+                     chiffre tombe à la fin, en toutes lettres.
 
-                        <span className="text-[#6b7a82]">Booking</span>
-                        <span className="flex h-2.5 overflow-hidden rounded-full bg-black/[0.06]">
-                          <span className="ecart-ailleurs h-full rounded-l-full border-r-2 border-white bg-[#b9c4ca]"
-                            style={{ "--part": `${(part * 100).toFixed(1)}%` } as React.CSSProperties} />
-                          {/* Le morceau qui dépasse : c'est l'argent gardé. */}
-                          <span className="ecart-gain h-full flex-1 rounded-r-full bg-[#2d6a4f]" />
+                     ⚠️ ET LE PERDANT NE SE FAIT PAS HUMILIER. Booking s'efface,
+                     il n'explose pas : on vend une chambre à quelqu'un qui a
+                     peut-être réservé là-bas le mois dernier. Le ton est celui
+                     d'un clin d'œil, pas d'une victoire. */
+                  return (
+                    <div className="mt-2 overflow-hidden rounded-lg bg-[#f4f8f5] px-3 py-2.5 text-[12px] leading-snug">
+                      <div className="flex items-stretch gap-2">
+                        <span className="vs-nous min-w-0 flex-1 rounded-md bg-navy px-2.5 py-1.5 text-white">
+                          <span className="block text-[10px] uppercase tracking-wider text-white/60">{T.ecartIci}</span>
+                          <span className="block text-[14px] font-bold tabular-nums">{montant(choix.total + taxe, langue)}</span>
                         </span>
-                        <span className="tabular-nums text-[#6b7a82]">{montant(ailleurs, langue)}</span>
+                        <span className="vs-mot self-center text-[12px] font-black italic tracking-tight text-gold-ink">VS</span>
+                        <span className="vs-eux min-w-0 flex-1 rounded-md bg-[#dfe5e8] px-2.5 py-1.5 text-[#6b7a82]">
+                          <span className="block text-[10px] uppercase tracking-wider">Booking</span>
+                          <span className="block text-[14px] font-bold tabular-nums">{montant(ailleurs, langue)}</span>
+                        </span>
                       </div>
-                      <p className="ecart-mot mt-1.5 font-semibold text-[#2d6a4f]">
+                      <p className="vs-gain mt-2 text-center text-[13px] font-bold text-[#2d6a4f]">
                         {T.gainDirect(montant(gain, langue))}
                       </p>
                     </div>
@@ -2636,24 +2636,28 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               <button
                 type="button"
                 onClick={() => { pulse(); setDosRooftop(true); }}
-                /* ⚠️ ELLE N'APPELLE QUE TANT QU'ELLE N'A PAS ÉTÉ PRISE. Une
-                   tuile qui continue de réclamer un clic déjà donné devient du
-                   bruit — pire, elle fait douter d'avoir bien choisi. Réservée,
-                   elle redevient une ligne d'état. */
+                /* ⛔ PLUS DE CADRE. Une boîte bordée posée juste au-dessus du
+                   bouton de paiement faisait un second bloc encadré, et deux
+                   cadres empilés dans une colonne étroite donnent l'air d'un
+                   formulaire, pas d'une invitation. Martin : « le cadre à
+                   bordure comme ça est moche ». Un filet au-dessus suffit à la
+                   séparer ; la pastille marine fait le reste.
+                   ⚠️ ET LA SOUS-LIGNE S'EN VA. « Un verre face à la mer, le soir
+                   venu » était joli et ne servait à rien : on sait ce qu'est une
+                   table au rooftop. Les pixels rendus vont au titre, qui double
+                   presque de taille — et c'est lui qui se clique.
+                   ⚠️ Elle n'appelle que tant qu'elle n'a pas été prise : une
+                   tuile qui réclame un clic déjà donné fait douter d'avoir bien
+                   choisi. */
                 className={[
-                  "group mb-3 flex w-full items-center gap-3 rounded-xl border border-gold/50 bg-[#faf7f1] px-3 py-2.5 text-left",
-                  "transition-[transform,border-color,background-color] hover:-translate-y-px hover:border-gold hover:bg-[#f5efe3]",
+                  "group mb-3 flex w-full items-center gap-3 border-t border-[#f0ece4] pt-3 text-left",
+                  "transition-transform hover:-translate-y-px",
                   tableChoix ? "" : "tuile-appel",
                 ].join(" ")}
               >
-                <span aria-hidden className="verre flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-[17px] leading-none">🍸</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-semibold leading-tight text-navy">
-                    {tableChoix ? `✓ ${T.rooftopChoisie(heureLisible(tableChoix.heure, langue))}` : T.rooftopAjouter}
-                  </span>
-                  <span className="mt-0.5 block text-[12.5px] leading-tight text-[#6b7280]">
-                    {tableChoix ? T.rooftopModifier : T.rooftopSous}
-                  </span>
+                <span aria-hidden className="verre flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy text-[19px] leading-none">🍸</span>
+                <span className="min-w-0 flex-1 text-[15.5px] font-semibold leading-tight text-navy group-hover:text-gold-ink">
+                  {tableChoix ? `✓ ${T.rooftopChoisie(heureLisible(tableChoix.heure, langue))}` : T.rooftopAjouter}
                 </span>
                 <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-gold-ink transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 6l6 6-6 6" />

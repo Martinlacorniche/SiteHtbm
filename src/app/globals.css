@@ -273,27 +273,54 @@
 @media (prefers-reduced-motion: reduce) { .bandeau-or::after { animation: none; opacity: 0 } }
 
 /* ─────────────────────────────────────────────────────────────────────────
- * L'ÉCART AVEC BOOKING — deux barres qui poussent, et le reste est à vous.
+ * LE DUEL — nous, Booking, et qui reste à la fin.
  *
- * ⚠️ L'ORDRE RACONTE L'HISTOIRE. Booking pousse en premier et va jusqu'au bout ;
- * la nôtre s'arrête avant ; le morceau vert qui dépasse s'allume en dernier, et
- * c'est lui qu'on nomme. Lancées ensemble, les deux barres se liraient comme
- * deux prix ; décalées, elles se lisent comme un écart.
+ * 🔑 LA MISE EN SCÈNE PORTE, PAS LA TAILLE DE L'ÉCART. Deux barres
+ * proportionnelles étaient exactes et parfaitement froides : 9 % de différence
+ * y faisaient une languette que personne ne regardait. Un duel ne dépend pas de
+ * l'écart — les deux entrent, l'un s'efface, l'autre prend toute la place, et le
+ * chiffre tombe à la fin en toutes lettres.
  *
- * ⛔ ET ÇA NE JOUE QU'UNE FOIS. Une barre qui repousse en boucle à côté d'un
- * total est une publicité ; jouée une fois, c'est une démonstration.
+ * ⚠️ ET LE PERDANT NE SE FAIT PAS HUMILIER. Booking s'efface, il n'explose
+ * pas : on vend une chambre à quelqu'un qui a peut-être réservé là-bas le mois
+ * dernier. Clin d'œil, pas victoire.
+ *
+ * ⛔ UNE SEULE FOIS. Rejoué en boucle à côté d'un total, ce serait une
+ * publicité ; joué une fois, c'est une démonstration — et ce qui reste à
+ * l'écran est l'état utile : notre prix, en grand, et ce qu'on garde.
  * ───────────────────────────────────────────────────────────────────────── */
-@keyframes bw-pousse { from { width: 0 } }
-@keyframes bw-allume { from { opacity: 0; transform: scaleX(.2) } to { opacity: 1; transform: none } }
-@keyframes bw-dit { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+/* ⚠️ UNE SEULE PISTE PAR ÉLÉMENT. Deux animations sur le même élément se
+   disputent l'opacité, et c'est la dernière déclarée qui gagne : l'entrée du
+   perdant était écrasée par sa sortie, donc il n'entrait jamais. Chaque pièce a
+   sa partition complète, du premier au dernier pour cent. */
+@keyframes vs-mot {
+  0%, 18% { opacity: 0; transform: scale(.5) rotate(-12deg) }
+  26% { opacity: 1; transform: scale(1.25) rotate(-12deg) }
+  32%, 52% { opacity: 1; transform: scale(1) rotate(-12deg) }
+  62%, 100% { opacity: 0; transform: scale(.7) rotate(-12deg) }
+}
+/* Le perdant entre, tient, puis se retire : il perd sa place dans la rangée, et
+   c'est ce retrait qui donne la sienne au gagnant. `flex-grow` s'anime, là où
+   `width` ne le ferait pas proprement dans une rangée en `gap`. */
+@keyframes vs-sort {
+  0% { opacity: 0; transform: translateX(28px); flex-grow: 1 }
+  14%, 52% { opacity: 1; transform: none; flex-grow: 1; padding-left: .625rem; padding-right: .625rem }
+  72%, 100% { opacity: 0; transform: none; flex-grow: 0; padding-left: 0; padding-right: 0 }
+}
+@keyframes vs-grandit {
+  0% { opacity: 0; transform: translateX(-28px) }
+  14%, 100% { opacity: 1; transform: none }
+}
+@keyframes vs-dit { from { opacity: 0; transform: translateY(6px) scale(.92) } to { opacity: 1; transform: none } }
 
-.ecart-ici { width: var(--part); animation: bw-pousse 700ms cubic-bezier(.23, 1, .32, 1) 520ms both }
-.ecart-ailleurs { width: var(--part); animation: bw-pousse 620ms cubic-bezier(.23, 1, .32, 1) both }
-.ecart-gain { transform-origin: left center; animation: bw-allume 420ms cubic-bezier(.23, 1, .32, 1) 1200ms both }
-.ecart-mot { animation: bw-dit 420ms cubic-bezier(.23, 1, .32, 1) 1450ms both }
+.vs-nous { animation: vs-grandit 2.9s cubic-bezier(.23, 1, .32, 1) both }
+.vs-eux { animation: vs-sort 2.9s cubic-bezier(.23, 1, .32, 1) both }
+.vs-mot { animation: vs-mot 2.9s cubic-bezier(.23, 1, .32, 1) both }
+.vs-gain { animation: vs-dit 520ms cubic-bezier(.23, 1, .32, 1) 2.2s both }
 
 @media (prefers-reduced-motion: reduce) {
-  .ecart-ici, .ecart-ailleurs, .ecart-gain, .ecart-mot { animation: none !important; opacity: 1 !important; transform: none !important }
+  .vs-nous, .vs-eux, .vs-mot, .vs-gain { animation: none !important; opacity: 1 !important; transform: none !important }
+  .vs-mot { opacity: .6 !important }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
