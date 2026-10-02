@@ -8,7 +8,9 @@ import { Wifi, Instagram, Facebook, Star, X, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { lienReservation } from "@/lib/site";
-import { weatherEmoji } from "@/lib/meteo";
+import { Ciel, momentDe, salutDe, type Moment } from "@/components/portail/Ciel";
+import { IconeMeteo, IconeMer, tempsDe } from "@/components/portail/Meteo";
+import { positionDe, zoomDe } from "@/lib/cadragePhoto";
 
 const serif = Playfair_Display({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-serif" });
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -371,11 +373,33 @@ export default function WifiPage() {
       });
   }, []);
 
+  /* 🔑 LE MOMENT DU JOUR. ⚠️ Posé APRÈS le montage, jamais au rendu : cette
+   * page est pré-rendue par le serveur, et une heure lue au rendu ferait
+   * diverger les deux — React refuserait l'hydratation. « Jour » le temps d'une
+   * image, puis la vraie heure. */
+  const [moment, setMoment] = useState<Moment>("jour");
+  useEffect(() => { setMoment(momentDe(new Date().getHours())); }, []);
+
+  /** Le style d'une photo recadrée. ⚠️ Le zoom tourne autour du POINT CHOISI,
+   *  pas du centre du cadre : sans ça, resserrer sur un détail le fait aussitôt
+   *  sortir de la vignette. */
+  const cadrageDe = (tile: DbTile): React.CSSProperties => {
+    const cfg = (tile.config ?? {}) as Record<string, unknown>;
+    const pos = positionDe(cfg.cadrage);
+    const z = zoomDe(cfg.zoom);
+    return { objectPosition: pos, transform: z > 1 ? `scale(${z})` : undefined, transformOrigin: pos };
+  };
+
   const toggle = (id: string) => setOpenId(prev => (prev === id ? null : id));
 
   return (
-    <div className={`${serif.variable} ${sans.variable} min-h-screen bg-cream md:bg-transparent`}>
-      <div className="flex flex-col items-center px-4 md:px-10 pt-10 pb-12">
+    /* ⚠️ `relative` ET `data-moment` : le ciel se place tout seul en haut, et
+       c'est l'attribut qui fait passer l'en-tête en clair sur le ciel de nuit —
+       sans quoi le nom de l'hôtel en gris devient illisible (vu à l'écran). */
+    <div data-portail data-moment={moment}
+      className={`${serif.variable} ${sans.variable} relative min-h-screen bg-cream md:bg-transparent`}>
+      <Ciel moment={moment} />
+      <div className="relative z-10 flex flex-col items-center px-4 md:px-10 pt-10 pb-12">
 
         {/* ── HEADER ── */}
         <motion.header
@@ -390,8 +414,12 @@ export default function WifiPage() {
           <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400 mb-2" style={{ fontFamily: "var(--font-sans)" }}>
             Best Western Plus La Corniche
           </p>
-          <h1 className="text-[2rem] font-semibold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-serif)" }}>
-            {t.welcome}
+          {/* ⚠️ « BIENVENUE CHEZ VOUS » NE VAUT QUE LE PREMIER JOUR. Un client
+              reste trois nuits et ouvre cette page dix fois : « Bonsoir » est
+              juste à chaque fois, et il dit qu'on sait quelle heure il est chez
+              lui — ce que le ciel derrière raconte déjà. */}
+          <h1 className="text-[2rem] md:text-[2.6rem] font-semibold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-serif)" }}>
+            {salutDe(moment, lang === "en")}
           </h1>
           <p className="text-sm text-slate-400 mt-1 mb-4" style={{ fontFamily: "var(--font-sans)" }}>
             {t.location}
@@ -413,10 +441,15 @@ export default function WifiPage() {
             <div className="h-px w-8 bg-gold/50" />
           </div>
           <div className="flex items-center justify-center gap-4 flex-wrap">
+            {/* ⛔ L'ÉMOJI EST PARTI : ce n'était pas le soleil de la maison
+                (celui d'Apple sur un iPhone, celui de Google sur un Android), et
+                il ne bougeait pas — alors que c'est la seule donnée vivante de
+                la page, celle qu'on regarde pour savoir si on sort. */}
             {weather.air !== null && (
-              <span className="text-[11px] text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
-                {weatherEmoji(weather.code)} {Math.round(weather.air)}°C
-                {weather.sea !== null && <> · 🌊 {Math.round(weather.sea)}°C</>}
+              <span data-meteo className="inline-flex items-center gap-1.5 text-[11px] text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>
+                <IconeMeteo temps={tempsDe(weather.code)} />
+                {Math.round(weather.air)} °C
+                {weather.sea !== null && <><span className="opacity-50">·</span><IconeMer />{Math.round(weather.sea)} °C</>}
               </span>
             )}
           </div>
@@ -517,7 +550,15 @@ export default function WifiPage() {
                     onClick={() => toggle(tile.id)}
                   >
                     {tile.image_url ? (
-                      <Image src={tile.image_url} alt={tileTitle(tile, lang)} fill className="object-cover transition-transform duration-700 hover:scale-105" sizes="(max-width:640px) 50vw,200px" />
+                      /* ⚠️ LE CADRAGE VIENT DE WIFI CLIENT. Une photo d'hôtel
+                         n'a pas son sujet au milieu : un flacon posé en bas de
+                         cadre, un comptoir d'accueil sur la droite. La réception
+                         le règle à la main, et ce réglage doit arriver ici aussi
+                         — sinon elle cadre dans le vide.
+                         ⛔ Et plus de `hover:scale-105` : il écrasait son zoom. */
+                      <Image src={tile.image_url} alt={tileTitle(tile, lang)} fill
+                        style={cadrageDe(tile)}
+                        className="object-cover" sizes="(max-width:640px) 50vw,200px" />
                     ) : (
                       <div className="absolute inset-0" style={{ background: fallback }} />
                     )}

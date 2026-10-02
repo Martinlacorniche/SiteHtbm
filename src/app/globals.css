@@ -414,3 +414,16 @@
   .tuile-appel::after { animation: none; opacity: 0 }
   .tuile-appel .verre { animation: none }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * LE PORTAIL DE CHAMBRE, SUR UN CIEL DE NUIT
+ *
+ * ⚠️ UN CIEL SOMBRE REND LE TEXTE ILLISIBLE. Vérifié à l'écran côté produit :
+ * le nom de la maison en gris sur un ciel marine, on ne le lit plus du tout. Un
+ * décor qui efface l'information est un décor de trop — l'en-tête passe en
+ * clair, et seulement la nuit.
+ * ⚠️ SAUF LA MÉTÉO : elle vit plus bas, là où le ciel a déjà fondu dans le
+ * papier. En blanc, elle disparaîtrait.
+ * ───────────────────────────────────────────────────────────────────────── */
+[data-portail][data-moment="nuit"] header p:not([data-meteo]) { color: rgba(255, 255, 255, .66) }
+[data-portail][data-moment="nuit"] header h1 { color: #fff }
