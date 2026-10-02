@@ -2581,7 +2581,16 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                          emploi légitime : le montant gagné, en texte. Tout le
                          reste redevient la page. */
                       className="mt-2.5 border-t border-[#f0ece4] pt-2.5 text-[12px] leading-snug">
-                      <div className="flex items-stretch gap-2">
+                      {/* ⚠️ LA RANGÉE DOIT SE REFERMER, PAS SEULEMENT SES
+                          PERDANTS. Le VS et la carte de Booking devenaient
+                          invisibles mais gardaient leur largeur, et les deux
+                          écarts de la rangée restaient : une quarantaine de
+                          pixels de vide à droite du gagnant, qui se retrouvait
+                          donc centré dans une boîte décalée vers la gauche.
+                          Martin : « tu n'arrives pas à centrer le podium dans la
+                          largeur de la colonne ». C'est l'ÉCART qui se ferme
+                          aussi, sur la rangée elle-même. */}
+                      <div className="vs-ring flex items-stretch gap-2">
                         <span className="vs-nous min-w-0 flex-1 rounded-md px-2.5 py-1.5 text-center">
                           <span className="block text-[10px] uppercase tracking-wider opacity-60">{T.ecartIci}</span>
                           <span className="block text-[15px] font-bold tabular-nums">{montant(choix.total + taxe, langue)}</span>

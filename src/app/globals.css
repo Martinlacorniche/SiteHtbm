@@ -312,20 +312,26 @@
   background: currentColor; transform: translateX(-50%) rotate(20deg);
 }
 
+/* ⚠️ IL REND SA PLACE EN PARTANT. Invisible mais toujours large de vingt-huit
+   pixels, il décalait le gagnant vers la gauche — et c'est ce décalage qu'on
+   lisait comme « le podium n'est pas centré ». */
 @keyframes vs-mot {
-  0%, 18% { opacity: 0; transform: scale(.5) rotate(-12deg) }
+  0%, 18% { opacity: 0; transform: scale(.5) rotate(-12deg); max-width: 40px; padding-left: 7px; padding-right: 7px }
   26% { opacity: 1; transform: scale(1.25) rotate(-12deg) }
-  32%, 52% { opacity: 1; transform: scale(1) rotate(-12deg) }
-  62%, 100% { opacity: 0; transform: scale(.7) rotate(-12deg) }
+  32%, 52% { opacity: 1; transform: scale(1) rotate(-12deg); max-width: 40px; padding-left: 7px; padding-right: 7px }
+  70%, 100% { opacity: 0; transform: scale(.7) rotate(-12deg); max-width: 0; padding-left: 0; padding-right: 0 }
 }
 /* Le perdant entre, tient, puis se retire : il perd sa place dans la rangée, et
    c'est ce retrait qui donne la sienne au gagnant. `flex-grow` s'anime, là où
    `width` ne le ferait pas proprement dans une rangée en `gap`. */
 @keyframes vs-sort {
-  0% { opacity: 0; transform: translateX(28px); flex-grow: 1 }
-  14%, 52% { opacity: 1; transform: none; flex-grow: 1; padding-left: .625rem; padding-right: .625rem }
-  72%, 100% { opacity: 0; transform: none; flex-grow: 0; padding-left: 0; padding-right: 0 }
+  0% { opacity: 0; transform: translateX(28px); flex-grow: 1; max-width: 100% }
+  14%, 52% { opacity: 1; transform: none; flex-grow: 1; max-width: 100%; padding-left: .625rem; padding-right: .625rem }
+  72%, 100% { opacity: 0; transform: none; flex-grow: 0; max-width: 0; padding-left: 0; padding-right: 0 }
 }
+/* Et la rangée referme ses écarts : deux fois huit pixels de vide suffisent à
+   décentrer un bloc dans une colonne de 230. */
+@keyframes vs-referme { 0%, 58% { gap: .5rem } 76%, 100% { gap: 0 } }
 /* Le gagnant entre dans sa carte marine, puis la carte s'efface : il ne reste
    que « Ici », le montant, et ce qu'on gagne.
    ⛔ PAS DE BARRE MARINE À LA FIN. Une fois le duel joué, un bandeau plein
@@ -362,12 +368,15 @@
    qui est le seul moment où les deux chiffres se comparent. */
 .vs-nous { animation: vs-grandit 4.2s cubic-bezier(.23, 1, .32, 1) both }
 .vs-eux { animation: vs-sort 4.2s cubic-bezier(.23, 1, .32, 1) both }
-.vs-mot { animation: vs-mot 4.2s cubic-bezier(.23, 1, .32, 1) both }
+.vs-mot { overflow: hidden; animation: vs-mot 4.2s cubic-bezier(.23, 1, .32, 1) both }
+.vs-eux { overflow: hidden }
+.vs-ring { animation: vs-referme 4.2s cubic-bezier(.23, 1, .32, 1) both }
 .vs-podium { animation: vs-marche 4.2s cubic-bezier(.23, 1, .32, 1) both }
 .vs-gain { animation: vs-dit 560ms cubic-bezier(.23, 1, .32, 1) 3.5s both }
 
 @media (prefers-reduced-motion: reduce) {
-  .vs-nous, .vs-eux, .vs-mot, .vs-gain, .vs-podium { animation: none !important; opacity: 1 !important }
+  .vs-nous, .vs-eux, .vs-mot, .vs-gain, .vs-podium, .vs-ring { animation: none !important; opacity: 1 !important }
+  .vs-ring { gap: 0 !important }
   /* Sans mouvement, on montre l'état utile : le gagnant sans sa boîte. */
   .vs-nous { background-color: transparent !important; color: #004e7c !important;
     padding-top: 0 !important; padding-bottom: 0 !important }
