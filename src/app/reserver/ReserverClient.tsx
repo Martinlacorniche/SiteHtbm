@@ -124,7 +124,12 @@ const TEXTES = {
     rooftopChoisie: (h: string) => `Table au rooftop · ${h}`,
     rooftopSous: "Un verre face à la mer, le soir venu",
     rooftopModifier: "Modifier le créneau",
-    gainDirect: (m: string) => `Bien vu — vous gardez ${m} en réservant ici.`,
+    /* ⚠️ COURT, PARCE QUE LES BARRES DISENT LE RESTE. « en réservant ici »
+     * était utile quand la phrase était seule ; avec deux barres au-dessus,
+     * c'est une redite qui coûtait une ligne — et cette ligne, c'était la barre
+     * de défilement de toute la colonne. */
+    gainDirect: (m: string) => `Bien vu, vous gardez ${m}.`,
+    ecartIci: "Ici",
     /* Ce qui arrive a la carte. Court sur la carte de tarif — il y a deux
      * cartes cote a cote et la place est comptee — entier sur l'ecran de
      * paiement, ou le client a la sienne en main. Les montants sont calcules
@@ -218,11 +223,12 @@ const TEXTES = {
     aJour: "Prices up to date",
     siteOfficiel: "Official website",
     surBooking: ["On ", ", this stay is ", "."] as const,
+    ecartIci: "Here",
     rooftopAjouter: "Add a rooftop table",
     rooftopChoisie: (h: string) => `Rooftop table · ${h}`,
     rooftopSous: "A drink facing the sea, come evening",
     rooftopModifier: "Change the time",
-    gainDirect: (m: string) => `Nice move — you keep ${m} by booking direct.`,
+    gainDirect: (m: string) => `Nice move, you keep ${m}.`,
     empreinteCourt: (m: string) => `Card as guarantee · ${m} held`,
     debitCourt: (m: string) => `Charged now · ${m}`,
     empreinteLong: (m: string, pc: string) =>
@@ -1676,6 +1682,39 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   }, [chambres, lignesPanier, totalChambres, personnesRetenues,
       categories, tarifs, groupes, arrivee, depart, nuits, langue, T]);
 
+  /* ⚠️ DÉCLARÉ UNE FOIS, POSÉ À DEUX ENDROITS. Le bandeau vit sur la ligne du
+   * haut en grand écran et sous le titre en petit : deux copies du même JSX
+   * auraient divergé à la première retouche. */
+  const bandeau = PRIVILEGES.voiles[langue].length > 0 ? (
+    <div className="bandeau-or mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-1.5 rounded-3xl bg-gold px-4 py-2 text-[12.5px] font-bold text-navy-deep sm:gap-x-5 sm:rounded-full lg:px-5 lg:py-2 lg:text-[14px]">
+      {/* L'étiquette « Exclu direct » ne se répète pas : elle est posée UNE
+          fois, en tête, et couvre les avantages marqués `exclusif` qui la
+          suivent. Un séparateur la referme, et ce qui vient après — le
+          petit-déjeuner — se lit comme ce qu'il est : compris partout. */}
+      <span data-arrive style={{ "--i": 0 } as React.CSSProperties}
+        className="rounded-full bg-navy-deep px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-gold">
+        {T.exclusif}
+      </span>
+      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:gap-x-5">
+        {PRIVILEGES.voiles[langue].filter((p) => p.exclusif).map((p, k) => (
+          <li key={p.texte} data-arrive style={{ "--i": k + 1 } as React.CSSProperties}>{p.texte}</li>
+        ))}
+      </ul>
+      {PRIVILEGES.voiles[langue].some((p) => !p.exclusif) && (
+        <>
+          {/* Le trait sépare les exclus du reste tant que tout tient sur une
+              ligne. À 390 px le bandeau passe à la ligne de toute façon : le
+              trait se retrouvait alors seul en bout de première ligne. */}
+          <span aria-hidden className="hidden h-4 w-px bg-navy-deep/30 sm:block" />
+          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 font-semibold text-navy-deep/75 sm:gap-x-5">
+            {PRIVILEGES.voiles[langue].filter((p) => !p.exclusif).map((p, k) => (
+              <li key={p.texte} data-arrive style={{ "--i": k + 3 } as React.CSSProperties}>{p.texte}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  ) : null;
   return (
     /* Sur PC, l'écran EST la page : hauteur fixe, aucune barre de défilement
        générale, chaque colonne défile chez elle. Un tunnel qui oblige à
@@ -1720,10 +1759,11 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             parce que c'est la reponse qui separe cette page d'une OTA. En
             navy sourd, jamais en or : l'or de cette page est reserve a ce qui
             se clique et a ce que le direct donne de plus. */}
-        <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="text-[13px] tracking-wide text-navy hover:underline">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/" className="shrink-0 text-[13px] tracking-wide text-navy hover:underline">
             ← Hôtels Toulon Bord de Mer
           </Link>
+          <div className="hidden min-w-0 lg:block">{bandeau}</div>
           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-navy/[0.07] px-2.5 py-1 text-[11.5px] font-semibold text-navy">
             <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2.6l7.4 3v5.8c0 4.4-3 8.3-7.4 9.9-4.4-1.6-7.4-5.5-7.4-9.9V5.6z" />
@@ -1752,38 +1792,17 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             Il porte maintenant DEUX promesses, en or plein, et dit laquelle des
             deux ne s'obtient qu'ici. Parametre par hotel dans lib/site.ts :
             « depart 12 h offert » est vrai aux Voiles, pas a la Corniche. */}
-        {PRIVILEGES.voiles[langue].length > 0 && (
-          // L'etiquette « Exclu direct » ne se repete pas : elle est posee UNE
-          // fois, en tete, et couvre les avantages marques `exclusif` qui la
-          // suivent. Un separateur la referme, et ce qui vient apres — le
-          // petit-dejeuner — se lit comme ce qu'il est : compris partout.
-          <div className="mx-auto mt-2.5 flex w-fit max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-1.5 rounded-3xl bg-gold px-4 py-2 text-[12.5px] font-bold text-navy-deep sm:gap-x-5 sm:rounded-full lg:px-6 lg:py-3 lg:text-[15px]">
-            <span className="rounded-full bg-navy-deep px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-gold lg:text-[11px]">
-              {T.exclusif}
-            </span>
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:gap-x-5">
-              {PRIVILEGES.voiles[langue].filter((p) => p.exclusif).map((p) => (
-                <li key={p.texte}>{p.texte}</li>
-              ))}
-            </ul>
-            {PRIVILEGES.voiles[langue].some((p) => !p.exclusif) && (
-              <>
-                {/* Le trait separe les exclus du reste tant que tout tient sur
-                    une ligne. A 390 px le bandeau passe a la ligne de toute
-                    facon : le trait se retrouvait alors seul en bout de premiere
-                    ligne, a separer du vide. Le retour a la ligne separe deja,
-                    et la graisse plus legere du petit-dejeuner acheve de le
-                    distinguer — on retire le trait plutot qu'un orphelin. */}
-                <span aria-hidden className="hidden h-4 w-px bg-navy-deep/30 sm:block" />
-                <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 font-semibold text-navy-deep/75 sm:gap-x-5">
-                  {PRIVILEGES.voiles[langue].filter((p) => !p.exclusif).map((p) => (
-                    <li key={p.texte}>{p.texte}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        )}
+        {/* ⚠️ LE BANDEAU MONTE SUR LA LIGNE DE « SITE OFFICIEL ». Il prenait
+            une ligne à lui seul, soit une quarantaine de pixels — et sur un
+            écran de 950, ces quarante pixels étaient exactement ce qui forçait
+            la colonne de droite à défiler : on avait une barre de défilement à
+            côté de « Chambre confort », sur la page qui vend. Demandé par
+            Martin, et c'est la bonne lecture : un avantage et un gage de
+            confiance se lisent très bien côte à côte.
+            ⛔ Sous `lg` il reste en dessous : à cette largeur, trois promesses
+            sur la ligne du lien de retour ne tiennent pas, et le bandeau est
+            précisément ce qu'on ne veut PAS écraser. */}
+        <div className="lg:hidden">{bandeau}</div>
       </header>
 
       <div className="mx-auto grid w-full max-w-[1600px] gap-3 px-4 py-3 lg:gap-5 lg:px-6 lg:py-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[340px_minmax(0,1fr)_320px]">
@@ -2519,19 +2538,38 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   // Sous un euro, l'écart ne vaut pas une ligne — et un « vous
                   // économisez 0,40 € » dessert plus qu'il ne sert.
                   if (gain < 1) return null;
+                  /* 🔑 DEUX BARRES PLUTÔT QUE DEUX PHRASES. Une phrase demande
+                     de lire deux montants et de faire la soustraction soi-même ;
+                     deux barres la font sous les yeux. La barre de Booking pousse
+                     d'abord, puis la nôtre s'arrête avant — et le morceau qui
+                     dépasse, c'est l'argent gardé. C'est lui qu'on colore et
+                     qu'on nomme, parce que c'est lui le sujet.
+                     ⚠️ LES LONGUEURS SONT EXACTES, elles ne sont pas forcées
+                     pour « faire joli » : l'écart est de 9 %, la barre le dit.
+                     Exagérer la différence sur une page de vente, c'est mentir
+                     avec un dessin — et le client a les deux chiffres sous les
+                     yeux pour le vérifier. */
+                  const part = Math.max(0, Math.min(1, (choix.total + taxe) / ailleurs));
                   return (
-                    <div className="mt-2 rounded-lg bg-[#f4f8f5] px-3 py-2 text-[12.5px] leading-snug">
-                      <p className="text-[#6b7a82]">
-                        {T.surBooking[0]}
-                        <span className="font-semibold text-navy">Booking</span>
-                        {T.surBooking[1]}
-                        {/* Pas de barré : la phrase dit déjà que ce prix est
-                            ailleurs, et le gain juste en dessous dit ce qu'on
-                            garde. Le rayer par-dessus ne fait que charger. */}
-                        <span className="tabular-nums">{montant(ailleurs, langue)}</span>
-                        {T.surBooking[2]}
-                      </p>
-                      <p className="mt-0.5 font-semibold text-[#2d6a4f]">
+                    <div className="mt-2 rounded-lg bg-[#f4f8f5] px-3 py-2 text-[12px] leading-snug">
+                      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1">
+                        <span className="font-semibold text-navy">{T.ecartIci}</span>
+                        <span className="h-2.5 overflow-hidden rounded-full bg-black/[0.06]">
+                          <span className="ecart-ici block h-full rounded-full bg-navy"
+                            style={{ "--part": `${(part * 100).toFixed(1)}%` } as React.CSSProperties} />
+                        </span>
+                        <span className="tabular-nums font-semibold text-navy">{montant(choix.total + taxe, langue)}</span>
+
+                        <span className="text-[#6b7a82]">Booking</span>
+                        <span className="flex h-2.5 overflow-hidden rounded-full bg-black/[0.06]">
+                          <span className="ecart-ailleurs h-full rounded-l-full border-r-2 border-white bg-[#b9c4ca]"
+                            style={{ "--part": `${(part * 100).toFixed(1)}%` } as React.CSSProperties} />
+                          {/* Le morceau qui dépasse : c'est l'argent gardé. */}
+                          <span className="ecart-gain h-full flex-1 rounded-r-full bg-[#2d6a4f]" />
+                        </span>
+                        <span className="tabular-nums text-[#6b7a82]">{montant(ailleurs, langue)}</span>
+                      </div>
+                      <p className="ecart-mot mt-1.5 font-semibold text-[#2d6a4f]">
                         {T.gainDirect(montant(gain, langue))}
                       </p>
                     </div>
@@ -2598,9 +2636,17 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               <button
                 type="button"
                 onClick={() => { pulse(); setDosRooftop(true); }}
-                className="group mb-3 flex w-full items-center gap-3 rounded-xl border border-gold/50 bg-[#faf7f1] px-3 py-2.5 text-left transition-colors hover:border-gold hover:bg-[#f5efe3]"
+                /* ⚠️ ELLE N'APPELLE QUE TANT QU'ELLE N'A PAS ÉTÉ PRISE. Une
+                   tuile qui continue de réclamer un clic déjà donné devient du
+                   bruit — pire, elle fait douter d'avoir bien choisi. Réservée,
+                   elle redevient une ligne d'état. */
+                className={[
+                  "group mb-3 flex w-full items-center gap-3 rounded-xl border border-gold/50 bg-[#faf7f1] px-3 py-2.5 text-left",
+                  "transition-[transform,border-color,background-color] hover:-translate-y-px hover:border-gold hover:bg-[#f5efe3]",
+                  tableChoix ? "" : "tuile-appel",
+                ].join(" ")}
               >
-                <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-[17px] leading-none">🍸</span>
+                <span aria-hidden className="verre flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-[17px] leading-none">🍸</span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold leading-tight text-navy">
                     {tableChoix ? `✓ ${T.rooftopChoisie(heureLisible(tableChoix.heure, langue))}` : T.rooftopAjouter}

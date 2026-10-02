@@ -249,3 +249,81 @@
 @media (prefers-reduced-motion: reduce) {
   [data-arrive] { animation: none !important }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * LE BANDEAU DU DIRECT — une lumière qui passe, et c'est tout.
+ *
+ * ⚠️ L'IMPACT NE VIENT PAS D'UN CLIGNOTEMENT. Ce bandeau porte ce que l'hôtel
+ * donne de plus que les OTA : s'il bat ou pulse, il devient une bannière
+ * publicitaire et l'œil apprend à l'éviter. Une lumière qui le traverse toutes
+ * les sept secondes se remarque une fois, puis se laisse oublier — ce qui est
+ * exactement le bon compromis sur une page où l'on vient réserver.
+ *
+ * ⛔ Et elle ne touche PAS au texte : `pointer-events: none`, et un dégradé
+ * par-dessus. Rien ne bouge, donc rien ne gêne la lecture.
+ * ───────────────────────────────────────────────────────────────────────── */
+.bandeau-or { position: relative; overflow: hidden; isolation: isolate }
+.bandeau-or::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 36%, rgba(255, 255, 255, .5) 50%, transparent 64%);
+  transform: translateX(-130%);
+  animation: or-brille 7s ease-in-out infinite;
+}
+@keyframes or-brille { 0%, 72% { transform: translateX(-130%) } 100% { transform: translateX(130%) } }
+@media (prefers-reduced-motion: reduce) { .bandeau-or::after { animation: none; opacity: 0 } }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * L'ÉCART AVEC BOOKING — deux barres qui poussent, et le reste est à vous.
+ *
+ * ⚠️ L'ORDRE RACONTE L'HISTOIRE. Booking pousse en premier et va jusqu'au bout ;
+ * la nôtre s'arrête avant ; le morceau vert qui dépasse s'allume en dernier, et
+ * c'est lui qu'on nomme. Lancées ensemble, les deux barres se liraient comme
+ * deux prix ; décalées, elles se lisent comme un écart.
+ *
+ * ⛔ ET ÇA NE JOUE QU'UNE FOIS. Une barre qui repousse en boucle à côté d'un
+ * total est une publicité ; jouée une fois, c'est une démonstration.
+ * ───────────────────────────────────────────────────────────────────────── */
+@keyframes bw-pousse { from { width: 0 } }
+@keyframes bw-allume { from { opacity: 0; transform: scaleX(.2) } to { opacity: 1; transform: none } }
+@keyframes bw-dit { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+
+.ecart-ici { width: var(--part); animation: bw-pousse 700ms cubic-bezier(.23, 1, .32, 1) 520ms both }
+.ecart-ailleurs { width: var(--part); animation: bw-pousse 620ms cubic-bezier(.23, 1, .32, 1) both }
+.ecart-gain { transform-origin: left center; animation: bw-allume 420ms cubic-bezier(.23, 1, .32, 1) 1200ms both }
+.ecart-mot { animation: bw-dit 420ms cubic-bezier(.23, 1, .32, 1) 1450ms both }
+
+@media (prefers-reduced-motion: reduce) {
+  .ecart-ici, .ecart-ailleurs, .ecart-gain, .ecart-mot { animation: none !important; opacity: 1 !important; transform: none !important }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * LA TABLE DU ROOFTOP — une tuile qui appelle, et qui se tait une fois prise.
+ *
+ * ⛔ ELLE N'EMPRUNTE PAS L'OR DU BOUTON DE PAIEMENT. Dans cette colonne, l'or
+ * plein appartient au règlement et à lui seul : deux blocs dorés empilés, et le
+ * client ne sait plus lequel conclut. L'appel passe donc par une lumière qui
+ * traverse et un verre qui tinte — pas par la couleur.
+ *
+ * ⚠️ ET ELLE SE CALME UNE FOIS LA TABLE RÉSERVÉE (classe retirée côté React) :
+ * une tuile qui continue de réclamer un clic déjà donné fait douter d'avoir
+ * bien choisi.
+ * ───────────────────────────────────────────────────────────────────────── */
+.tuile-appel { position: relative; overflow: hidden; isolation: isolate }
+.tuile-appel::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, rgba(198, 169, 114, .34) 50%, transparent 62%);
+  transform: translateX(-130%);
+  animation: or-brille 9s ease-in-out infinite 3s;
+}
+/* Le verre tinte : deux degrés, deux fois, toutes les neuf secondes. ⚠️ C'est
+   le seuil — au-delà, ce n'est plus une invitation, c'est une sonnerie. */
+.tuile-appel .verre { animation: verre-tinte 9s ease-in-out infinite 3s }
+@keyframes verre-tinte {
+  0%, 86%, 100% { transform: rotate(0) }
+  90% { transform: rotate(-11deg) }
+  94% { transform: rotate(7deg) }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tuile-appel::after { animation: none; opacity: 0 }
+  .tuile-appel .verre { animation: none }
+}
