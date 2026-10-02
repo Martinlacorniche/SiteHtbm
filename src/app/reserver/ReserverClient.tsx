@@ -2016,14 +2016,21 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                  details d'UNE chambre rallongeait alors les TROIS lignes, et les
                  trois photos grandissaient d'un coup. Chaque ligne fait
                  desormais sa taille, et la photo garde la sienne. */}
-              <ul className="grid gap-5">
+              {/* ⚠️ LA CLÉ DE LA LISTE PORTE LES DATES, et c'est elle qui fait
+                  tout : sans elle, React garde les mêmes éléments d'une
+                  recherche à l'autre, et l'arrivée en vague ne se jouerait
+                  qu'au tout premier affichage — c'est-à-dire la seule fois où
+                  personne ne l'attend. */}
+              <ul key={`${arrivee}-${depart}`} className="grid gap-5">
                 {offresAffichees.map((o, rang) => {
                   const cat = categories.get(o.categorieId);
                   const photo = couvertureDe(o.categorieId, cat, 480);
                   const nbPhotos = photosDe(o.categorieId, cat, "").length;
 
                   return (
-                  <li key={`${o.categorieId}-${o.pourPersonnes}`} className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                  <li key={`${o.categorieId}-${o.pourPersonnes}`} data-arrive
+                    style={{ "--i": Math.min(rang, 6) } as React.CSSProperties}
+                    className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                     {photo && (
                       /* La photo epouse la hauteur de SA ligne : figee a
                          158 px, elle depassait sous les cartes de tarif. Ce

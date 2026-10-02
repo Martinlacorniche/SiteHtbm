@@ -227,3 +227,25 @@
     );
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * CE QUI SE POSE L'UN APRÈS L'AUTRE
+ *
+ * ⚠️ APRÈS UNE ATTENTE, TROIS CARTES QUI APPARAISSENT DANS LA MÊME IMAGE se
+ * lisent comme un rechargement de page ; posées l'une après l'autre, elles se
+ * lisent comme une réponse. C'est le même contenu et ce n'est pas le même
+ * message — sur un moteur de réservation, l'un dit « ça a planté », l'autre
+ * dit « voilà ce qu'il reste ».
+ *
+ * `--i` donne le rang. ⛔ Rien n'est caché par défaut : l'élément garde son
+ * opacité normale dans la feuille, donc couper les animations (réglage
+ * système, navigateur ancien) rend la page entière.
+ * ───────────────────────────────────────────────────────────────────────── */
+@keyframes bw-monte { from { opacity: 0; transform: translate3d(0, 14px, 0) } to { opacity: 1; transform: none } }
+[data-arrive] {
+  animation: bw-monte 520ms cubic-bezier(.23, 1, .32, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-arrive] { animation: none !important }
+}
