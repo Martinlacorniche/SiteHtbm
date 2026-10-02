@@ -9,6 +9,8 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { lienReservation } from "@/lib/site";
 import { Ciel, momentDe, salutDe, type Moment } from "@/components/portail/Ciel";
+import { Decor } from "@/components/portail/Decor";
+import { Jeu } from "@/components/portail/Jeu";
 import { IconeMeteo, IconeMer, tempsDe } from "@/components/portail/Meteo";
 import { positionDe, zoomDe } from "@/lib/cadragePhoto";
 
@@ -378,6 +380,10 @@ export default function WifiPage() {
    * diverger les deux — React refuserait l'hydratation. « Jour » le temps d'une
    * image, puis la vraie heure. */
   const [moment, setMoment] = useState<Moment>("jour");
+  /* La valise du décor ouvre un jeu. ⛔ Rien ne se charge tant qu'on ne clique
+   * pas : le composant n'est monté qu'à ce moment-là, et les marges n'existent
+   * qu'au-dessus de 1280 px — donc jamais sur le téléphone d'un client. */
+  const [jeu, setJeu] = useState(false);
   useEffect(() => { setMoment(momentDe(new Date().getHours())); }, []);
 
   /** Le style d'une photo recadrée. ⚠️ Le zoom tourne autour du POINT CHOISI,
@@ -396,9 +402,11 @@ export default function WifiPage() {
     /* ⚠️ `relative` ET `data-moment` : le ciel se place tout seul en haut, et
        c'est l'attribut qui fait passer l'en-tête en clair sur le ciel de nuit —
        sans quoi le nom de l'hôtel en gris devient illisible (vu à l'écran). */
-    <div data-portail data-moment={moment}
+    <div data-portail data-moment={moment} data-joue={jeu ? "oui" : undefined}
       className={`${serif.variable} ${sans.variable} relative min-h-screen bg-cream md:bg-transparent`}>
       <Ciel moment={moment} />
+      <Decor moment={moment} etoiles={4} onValise={() => setJeu(true)} />
+      {jeu ? <Jeu accent="#C6A972" encre="#004e7c" hotel="f9d59e56-9a2f-433e-bcf4-f9753f105f32" onFermer={() => setJeu(false)} /> : null}
       <div className="relative z-10 flex flex-col items-center px-4 md:px-10 pt-10 pb-12">
 
         {/* ── HEADER ── */}
