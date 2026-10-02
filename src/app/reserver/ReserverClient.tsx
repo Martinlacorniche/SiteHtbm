@@ -2574,7 +2574,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                        recharge pas au changement de prix ». La clé change, React
                        remonte le bloc, tout repart. */
                     <div key={`${choix.total + taxe}-${ailleurs}`}
-                      className="mt-2 overflow-hidden rounded-lg bg-[#f4f8f5] px-3 py-2.5 text-[12px] leading-snug">
+                      /* ⛔ PLUS DE SURFACE VERTE. Un pavé vert pâle au milieu
+                         d'une page crème, marine et or, c'est une couleur qui
+                         n'appartient à aucune des trois — Martin : « le fond
+                         vert j'ai comme un doute ». Le vert garde son seul
+                         emploi légitime : le montant gagné, en texte. Tout le
+                         reste redevient la page. */
+                      className="mt-2.5 border-t border-[#f0ece4] pt-2.5 text-[12px] leading-snug">
                       <div className="flex items-stretch gap-2">
                         <span className="vs-nous min-w-0 flex-1 rounded-md px-2.5 py-1.5 text-center">
                           <span className="block text-[10px] uppercase tracking-wider opacity-60">{T.ecartIci}</span>
@@ -2586,8 +2592,16 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                               occupe. La boîte verte ne bouge pas d'un pixel —
                               c'était la condition. */}
                           <svg className="vs-podium mx-auto mt-1 block" viewBox="0 0 72 12" width="72" height="12" aria-hidden>
-                            <rect x="4" y="4" width="22" height="8" rx="1.5" fill="currentColor" opacity="0.28" />
-                            <rect x="46" y="5.5" width="22" height="6.5" rx="1.5" fill="currentColor" opacity="0.2" />
+                            {/* ⚠️ LES DEUX MARCHES LATÉRALES SONT IDENTIQUES. En
+                                vrai podium, la deuxième et la troisième place
+                                n'ont ni la même hauteur ni le même poids — à
+                                douze pixels, cette asymétrie ne se lit pas comme
+                                un classement, elle se lit comme un dessin de
+                                travers : l'œil place le centre du côté le plus
+                                sombre, et le podium paraissait décalé alors que
+                                ses coordonnées étaient justes. */}
+                            <rect x="4" y="4" width="22" height="8" rx="1.5" fill="currentColor" opacity="0.24" />
+                            <rect x="46" y="4" width="22" height="8" rx="1.5" fill="currentColor" opacity="0.24" />
                             <rect x="25" y="0" width="22" height="12" rx="1.5" fill="currentColor" opacity="0.5" />
                           </svg>
                         </span>
