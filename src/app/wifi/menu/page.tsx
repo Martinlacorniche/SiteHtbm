@@ -27,11 +27,13 @@ const T = {
     title: "Menu du jour",
     empty: "Aucun menu publié pour aujourd'hui.",
     plat: "Plat du jour",
-    chooseBase: "Au choix",
+    chooseBase: "Votre base",
     withSide: "accompagné de",
-    sideOnly: "Garniture au choix",
-    sideWith: "Accompagnement",
+    sideOnly: "Votre accompagnement",
+    sideWith: "Votre accompagnement",
     or: "ou",
+    unAuChoix: "un au choix",
+    compose: "Composez votre assiette",
     desserts: "Desserts",
     prices: "Tarifs",
     platAlone: "Plat seul",
@@ -49,11 +51,13 @@ const T = {
     title: "Daily menu",
     empty: "No menu published for today.",
     plat: "Main course",
-    chooseBase: "Choose one",
+    chooseBase: "Your base",
     withSide: "served with",
-    sideOnly: "Side choice",
-    sideWith: "Side",
+    sideOnly: "Your topping",
+    sideWith: "Your topping",
     or: "or",
+    unAuChoix: "pick one",
+    compose: "Build your plate",
     desserts: "Desserts",
     prices: "Prices",
     platAlone: "Main only",
@@ -170,20 +174,31 @@ export default function MenuPage() {
                     </span>
                   </div>
 
+                  {/* 🔑 L'ASSIETTE QUI SE COMPOSE. Deux colonnes et un « + » ne
+                      disaient pas ce qu'il fallait faire : l'écran listait des
+                      plats, le client lisait une carte. Ici l'assiette se
+                      remplit sous ses yeux — la base se pose, puis
+                      l'accompagnement — et « j'en prends un de chaque » se
+                      comprend sans lire une ligne. */}
+                  {bases.length > 0 && garnitures.length > 0 && (
+                    <div className="flex flex-col items-center pt-5 pb-1">
+                      <Assiette />
+                      <p className="mt-2 text-[10px] uppercase tracking-widest text-slate-400"
+                        style={{ fontFamily: "var(--font-sans)" }}>{t.compose}</p>
+                    </div>
+                  )}
+
                   <div className="flex flex-col md:flex-row md:items-stretch">
 
                     {bases.length > 0 && (
                       <div className="md:flex-1 md:self-start py-2">
-                        <p className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-widest text-slate-400 text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                          {t.chooseBase}
-                        </p>
-                        <ul>
+                        <Colonne n={1} titre={t.chooseBase} aide={t.unAuChoix} />
+                        <ul className="px-4">
                           {bases.map((item, idx) => (
-                            <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                              <span className="block py-2.5 text-sm text-slate-700">{nom(item)}</span>
-                              {idx < bases.length - 1 && (
-                                <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">{t.or}</span>
-                              )}
+                            <li key={item.id}
+                              className={`py-2.5 text-center text-sm text-slate-700 ${idx > 0 ? "border-t border-slate-100" : ""}`}
+                              style={{ fontFamily: "var(--font-sans)" }}>
+                              {nom(item)}
                             </li>
                           ))}
                         </ul>
@@ -192,31 +207,30 @@ export default function MenuPage() {
 
                     {bases.length > 0 && garnitures.length > 0 && (
                       <>
-                        <div className="md:hidden flex items-center gap-3 px-4 py-2">
+                        <div className="md:hidden flex items-center gap-3 px-4 py-1">
                           <div className="h-px flex-1 bg-slate-100" />
-                          <span className="text-[10px] text-slate-300 font-medium" style={{ fontFamily: "var(--font-sans)" }}>{t.withSide}</span>
+                          <span className="text-xl font-light text-slate-300">+</span>
                           <div className="h-px flex-1 bg-slate-100" />
                         </div>
-                        <div className="hidden md:flex flex-col items-center justify-center px-3">
-                          <div className="w-px flex-1 bg-slate-100" />
-                          <span className="text-3xl font-light text-slate-300 py-2">+</span>
-                          <div className="w-px flex-1 bg-slate-100" />
+                        {/* ⚠️ LE « + » SE CALE EN HAUT. Centré sur la hauteur de
+                            la rangée, il descendait au milieu du vide laissé par
+                            la colonne la plus courte — et ne reliait plus rien. */}
+                        <div className="hidden md:flex flex-col items-center self-start px-3 pt-[62px]">
+                          <span className="text-3xl font-light text-slate-300">+</span>
                         </div>
                       </>
                     )}
 
                     {garnitures.length > 0 && (
                       <div className="md:flex-1 md:self-start py-2">
-                        <p className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-widest text-slate-400 text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                          {bases.length === 0 ? t.sideOnly : t.sideWith}
-                        </p>
-                        <ul className="pb-2">
+                        <Colonne n={bases.length === 0 ? 1 : 2}
+                          titre={bases.length === 0 ? t.sideOnly : t.sideWith} aide={t.unAuChoix} />
+                        <ul className="px-4 pb-2">
                           {garnitures.map((item, idx) => (
-                            <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                              <span className="block py-2.5 text-sm text-slate-700">{nom(item)}</span>
-                              {idx < garnitures.length - 1 && (
-                                <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">{t.or}</span>
-                              )}
+                            <li key={item.id}
+                              className={`py-2.5 text-center text-sm text-slate-700 ${idx > 0 ? "border-t border-slate-100" : ""}`}
+                              style={{ fontFamily: "var(--font-sans)" }}>
+                              {nom(item)}
                             </li>
                           ))}
                         </ul>
@@ -233,13 +247,12 @@ export default function MenuPage() {
                       {t.desserts}
                     </span>
                   </div>
-                  <ul>
+                  <ul className="px-4 py-1">
                     {desserts.map((item, idx) => (
-                      <li key={item.id} className="text-center" style={{ fontFamily: "var(--font-sans)" }}>
-                        <span className="block py-2.5 text-sm text-slate-700">{nom(item)}</span>
-                        {idx < desserts.length - 1 && (
-                          <span className="block text-[10px] uppercase tracking-widest text-slate-300 -mt-1 mb-0.5">{t.or}</span>
-                        )}
+                      <li key={item.id}
+                        className={`py-2.5 text-center text-sm text-slate-700 ${idx > 0 ? "border-t border-slate-100" : ""}`}
+                        style={{ fontFamily: "var(--font-sans)" }}>
+                        {nom(item)}
                       </li>
                     ))}
                   </ul>
@@ -295,5 +308,87 @@ function PrixRow({ label, prix, highlight }: { label: string; prix: string; high
         {prix.includes("€") ? prix : `${prix} €`}
       </span>
     </div>
+  );
+}
+
+/* ── LA COLONNE, ET SON NUMÉRO ─────────────────────────────────────────────
+ *
+ * ⚠️ LE NUMÉRO FAIT PLUS QUE DÉCORER. Deux colonnes côte à côte se lisent comme
+ * une alternative — l'une OU l'autre. Numérotées, elles se lisent comme une
+ * suite : d'abord ceci, ensuite cela. C'est le même dessin et ce n'est plus le
+ * même sens. */
+function Colonne({ n, titre, aide }: { n: number; titre: string; aide: string }) {
+  return (
+    /* ⚠️ SUR DEUX LIGNES, PAS SUR UNE. « 2 · Votre accompagnement · un au choix »
+       tenait sur une ligne en maquette et se cassait en trois à l'écran, le
+       titre coupé au milieu d'un mot. Le titre d'un côté, l'aide en dessous. */
+    <div className="px-4 pt-2 pb-3 text-center">
+      <div className="flex items-center justify-center gap-2">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/15 text-[11px] font-semibold text-gold-ink"
+          style={{ fontFamily: "var(--font-sans)" }}>{n}</span>
+        <span className="text-[10.5px] uppercase tracking-widest text-slate-500" style={{ fontFamily: "var(--font-sans)" }}>
+          {titre}
+        </span>
+      </div>
+      <p className="mt-1 text-[10.5px] text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>{aide}</p>
+    </div>
+  );
+}
+
+/* ── L'ASSIETTE QUI SE COMPOSE ─────────────────────────────────────────────
+ *
+ * 🔑 CE QU'UN TEXTE N'ARRIVAIT PAS À DIRE. « Au choix » d'un côté,
+ * « Accompagnement » de l'autre et un « + » au milieu : l'écran listait des
+ * plats, et le client lisait une carte. Ici l'assiette se remplit sous ses yeux
+ * — la base arrive par la gauche et se pose, l'accompagnement arrive par la
+ * droite et se pose à côté — et « j'en prends un de chaque » se comprend sans
+ * lire une ligne.
+ *
+ * ⚠️ ELLE SE VIDE AVANT DE SE REMPLIR À NOUVEAU. Une boucle qui recommence sur
+ * une assiette pleine donne l'impression qu'on peut en prendre deux.
+ *
+ * ⛔ Tout est en CSS, et le réglage système « moins d'animations » montre
+ * l'assiette déjà pleine : c'est l'état utile, pas le mouvement.
+ */
+function Assiette() {
+  return (
+    <svg data-assiette viewBox="0 0 120 64" width="188" height="100" aria-hidden>
+      <style>{`
+[data-assiette] .part{ transform-box:fill-box; transform-origin:center }
+[data-assiette] .base{ animation: pose-base 7s cubic-bezier(.23,1,.32,1) infinite }
+[data-assiette] .accomp{ animation: pose-accomp 7s cubic-bezier(.23,1,.32,1) infinite }
+@keyframes pose-base{
+  0%{ opacity:0; transform:translate(-30px,-16px) scale(.7) }
+  16%,78%{ opacity:1; transform:none }
+  88%,100%{ opacity:0; transform:translate(-30px,-16px) scale(.7) } }
+@keyframes pose-accomp{
+  0%,34%{ opacity:0; transform:translate(30px,-16px) scale(.7) }
+  50%,78%{ opacity:1; transform:none }
+  88%,100%{ opacity:0; transform:translate(30px,-16px) scale(.7) } }
+@media (prefers-reduced-motion: reduce){
+  [data-assiette] .part{ animation:none !important; opacity:1 !important; transform:none !important } }
+      `}</style>
+      {/* L'assiette : deux cercles, et le creux se voit. */}
+      <ellipse cx="60" cy="40" rx="42" ry="17" fill="#ffffff" stroke="currentColor"
+        className="text-slate-200" strokeWidth="1.4" />
+      <ellipse cx="60" cy="39" rx="32" ry="12" fill="none" stroke="currentColor"
+        className="text-slate-100" strokeWidth="1.2" />
+
+      {/* La base : des rubans, à gauche. */}
+      <g className="part base">
+        <path d="M40,40 q6,-7 13,-2 q6,4 12,-1" fill="none" stroke="#C6A972" strokeWidth="3"
+          strokeLinecap="round" opacity="0.9" />
+        <path d="M40,45 q6,-6 13,-1 q6,4 12,-2" fill="none" stroke="#C6A972" strokeWidth="3"
+          strokeLinecap="round" opacity="0.65" />
+      </g>
+
+      {/* L'accompagnement : une pièce posée dessus, à droite. */}
+      <g className="part accomp">
+        <path d="M62,36 q10,-5 18,2 q4,6 -4,8 q-11,2 -15,-4 q-2,-4 1,-6 Z"
+          fill="#1f2937" opacity="0.72" />
+        <path d="M68,39 q5,-2 8,1" fill="none" stroke="#ffffff" strokeWidth="1.2"
+          strokeLinecap="round" opacity="0.35" />
+      </g>
+    </svg>
   );
 }
