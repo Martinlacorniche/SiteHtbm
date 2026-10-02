@@ -403,7 +403,7 @@ export default function WifiPage() {
        c'est l'attribut qui fait passer l'en-tête en clair sur le ciel de nuit —
        sans quoi le nom de l'hôtel en gris devient illisible (vu à l'écran). */
     <div data-portail data-moment={moment} data-voile={jeu || annonce || openId ? "oui" : undefined}
-      className={`${serif.variable} ${sans.variable} relative min-h-screen bg-cream md:bg-transparent`}>
+      className={`${serif.variable} ${sans.variable} relative min-h-screen bg-cream`}>
       <Ciel moment={moment} />
       <Decor moment={moment} etoiles={4} onValise={() => setJeu(true)} />
       {jeu ? <Jeu accent="#C6A972" encre="#004e7c" hotel="f9d59e56-9a2f-433e-bcf4-f9753f105f32" onFermer={() => setJeu(false)} /> : null}

@@ -1,28 +1,23 @@
-// Décor commun aux deux portails clients (/wifi et /wifiv).
+// Le fond des deux portails clients (/wifi et /wifiv).
 //
-// La photo n'apparaît qu'à partir de `md`, mais la page, elle, n'est montée
-// qu'une seule fois : la version précédente rendait {children} deux fois — une
-// branche `md:hidden`, une branche `hidden md:block` — si bien que chaque page
-// interrogeait Supabase et l'API météo en double et dupliquait tout son DOM
-// (ids, effets, images) dans chaque document.
+// ⛔ LA PHOTO DE MER EST PARTIE. Elle tenait tout le fond en `md+`, sous un
+// voile crème à 65 % — un parti pris qui marchait tant que la page n'avait pas
+// de décor à elle. Depuis que le ciel dessiné occupe le haut, les deux se
+// disputaient le même rôle : une photo floutée derrière un ciel peint, ça ne
+// fait pas deux plans, ça fait du bruit. Et le fondu par le bas du ciel, prévu
+// pour s'éteindre dans le papier, s'éteignait dans des vagues.
+// Martin, 02/10/2026 : « tu peux enlever l'ancienne image de la mer ? ».
+//
+// ⚠️ LE FICHIER RESTE : `/images/pagewifi.jpg` sert encore à la page d'accueil
+// et aux pages de groupe. On retire son usage ici, pas l'image du dépôt.
+//
+// Ce composant garde sa place — c'est l'endroit où se décide le fond des deux
+// portails, et il vaut mieux un endroit vide qu'un endroit disparu : la
+// prochaine fois qu'on voudra y poser quelque chose, on saura où.
 export default function FondWifi({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen">
-      {/* Fond fixe : il ne défile pas avec le contenu, comme avant. */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 hidden md:block">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: "url('/images/pagewifi.jpg')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
-        {/* Voile clair pour atténuer la photo sous le contenu. */}
-        <div className="absolute inset-0" style={{ background: "rgba(253,252,248,0.65)" }} />
-      </div>
-
-      <div className="relative z-10">{children}</div>
+    <div className="relative min-h-screen bg-cream">
+      {children}
     </div>
   );
 }

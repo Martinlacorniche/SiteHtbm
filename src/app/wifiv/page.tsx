@@ -311,7 +311,7 @@ export default function WifiVPage() {
 
   return (
     <div data-portail data-moment={moment} data-voile={jeu || annonce || openId ? "oui" : undefined}
-      className={`${serif.variable} ${sans.variable} relative min-h-screen bg-cream md:bg-transparent`}>
+      className={`${serif.variable} ${sans.variable} relative min-h-screen bg-cream`}>
       <Ciel moment={moment} />
       <Decor moment={moment} etoiles={3} onValise={() => setJeu(true)} />
       {jeu ? <Jeu accent="#C6A972" encre="#004e7c" hotel="ded6e6fb-ff3c-4fa8-ad07-403ee316be53" onFermer={() => setJeu(false)} /> : null}
