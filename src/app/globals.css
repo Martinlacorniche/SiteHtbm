@@ -427,3 +427,16 @@
  * ───────────────────────────────────────────────────────────────────────── */
 [data-portail][data-moment="nuit"] header p:not([data-meteo]) { color: rgba(255, 255, 255, .66) }
 [data-portail][data-moment="nuit"] header h1 { color: #fff }
+
+/* 🔴 LE DÉCOR PASSAIT PAR-DESSUS L'ANNONCE DU JOUR. Et la cause n'est pas son
+   z-index : la fenêtre d'annonce vit DANS le conteneur du contenu, qui est en
+   `z-10`. Son propre `z-50` ne la classe donc qu'à l'intérieur de ce
+   conteneur-là — face au décor, qui est son VOISIN, c'est 10 contre 20, et le
+   décor gagne. Un z-index ne compare que ce qui est dans le même empilement ;
+   celui d'un enfant ne sort jamais de la boîte de son parent.
+   ⛔ Plutôt que de remonter le décor (il intercepterait les clics de la page)
+   ou de déplacer la fenêtre (elle est à sa place dans le document), le décor
+   s'efface dès qu'un voile s'ouvre — annonce, vignette dépliée, ou jeu. On ne
+   lit pas un message par-dessus un dessin. */
+[data-portail] [data-decor] { transition: opacity 260ms ease }
+[data-portail][data-voile="oui"] [data-decor] { opacity: 0; pointer-events: none }

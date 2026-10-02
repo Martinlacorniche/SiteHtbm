@@ -102,9 +102,14 @@ const CSS = `
   transition: transform 280ms cubic-bezier(.23,1,.32,1) }
 [data-decor] .valise:hover{ transform: translateY(-5px) }
 
-/* Pendant la partie, le décor s'efface : on ne joue pas devant soi-même. */
+/* Pendant la partie — et sous tout voile : annonce du jour, vignette dépliée —
+   le décor s'efface. On ne joue pas devant soi-même, et on ne lit pas un
+   message par-dessus un dessin.
+   ⚠️ C'est aussi la seule réponse correcte à un z-index qui ne peut pas gagner :
+   la fenêtre d'annonce vit DANS le conteneur du contenu, donc son empilement ne
+   sort jamais de celui-ci. Voir globals.css. */
 [data-decor]{ transition: opacity 320ms ease }
-[data-joue="oui"] [data-decor]{ opacity:0 }
+[data-joue="oui"] [data-decor], [data-voile="oui"] [data-decor]{ opacity:0; pointer-events:none }
 
 @media (prefers-reduced-motion: reduce){
   [data-decor] *{ animation:none !important }
