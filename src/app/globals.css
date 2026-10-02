@@ -267,9 +267,12 @@
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(105deg, transparent 36%, rgba(255, 255, 255, .5) 50%, transparent 64%);
   transform: translateX(-130%);
-  animation: or-brille 7s ease-in-out infinite;
+  /* ⚠️ TOUTES LES DIX-HUIT SECONDES, PAS TOUTES LES SEPT. À sept, on la croise
+     trois fois en lisant la page et elle passe d'un clin d'œil à un tic.
+     Martin : « pas autant, là c'est relou ». */
+  animation: or-brille 18s ease-in-out infinite;
 }
-@keyframes or-brille { 0%, 72% { transform: translateX(-130%) } 100% { transform: translateX(130%) } }
+@keyframes or-brille { 0%, 88% { transform: translateX(-130%) } 100% { transform: translateX(130%) } }
 @media (prefers-reduced-motion: reduce) { .bandeau-or::after { animation: none; opacity: 0 } }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -330,21 +333,44 @@
    et il repeint en bleu un chiffre que le total au-dessus dit déjà. Martin :
    « on veut pas de la barre, juste ICI, le montant et vous gagnez ». */
 @keyframes vs-grandit {
-  0% { opacity: 0; transform: translateX(-28px); background-color: #004e7c; color: #ffffff }
-  14%, 58% { opacity: 1; transform: none; background-color: #004e7c; color: #ffffff }
-  76%, 100% { opacity: 1; transform: none; background-color: rgba(0, 78, 124, 0); color: #004e7c }
+  0% { opacity: 0; transform: translateX(-28px); background-color: #004e7c; color: #ffffff;
+       padding-top: .375rem; padding-bottom: .375rem }
+  14%, 58% { opacity: 1; transform: none; background-color: #004e7c; color: #ffffff;
+       padding-top: .375rem; padding-bottom: .375rem }
+  76%, 100% { opacity: 1; transform: none; background-color: rgba(0, 78, 124, 0); color: #004e7c;
+       padding-top: 0; padding-bottom: 0 }
+}
+/* La marche monte sous le gagnant, une fois le duel fini. Trois blocs, le plus
+   haut au milieu : c'est la silhouette qu'on reconnaît, et elle tient en douze
+   pixels. */
+/* ⛔ PAS AVANT LA VICTOIRE. Il montait pendant que le perdant s'effaçait encore :
+   on couronnait quelqu'un au milieu du combat. Il n'apparaît qu'une fois la
+   place libre — et il monte, il n'apparaît pas. */
+@keyframes vs-marche {
+  0%, 82% { opacity: 0; transform: translateY(8px) }
+  94%, 100% { opacity: 1; transform: none }
 }
 @keyframes vs-dit { from { opacity: 0; transform: translateY(6px) scale(.92) } to { opacity: 1; transform: none } }
 
-.vs-nous { animation: vs-grandit 2.9s cubic-bezier(.23, 1, .32, 1) both }
-.vs-eux { animation: vs-sort 2.9s cubic-bezier(.23, 1, .32, 1) both }
-.vs-mot { animation: vs-mot 2.9s cubic-bezier(.23, 1, .32, 1) both }
-.vs-gain { animation: vs-dit 520ms cubic-bezier(.23, 1, .32, 1) 2.2s both }
+
+
+
+
+/* ⚠️ RALENTI. À 2,9 s, les deux cartes se croisaient, le perdant s'effaçait et
+   le podium montait avant qu'on ait fini de lire les deux prix : on voyait un
+   mouvement, pas un duel. 4,2 s laissent une seconde pleine sur le face-à-face,
+   qui est le seul moment où les deux chiffres se comparent. */
+.vs-nous { animation: vs-grandit 4.2s cubic-bezier(.23, 1, .32, 1) both }
+.vs-eux { animation: vs-sort 4.2s cubic-bezier(.23, 1, .32, 1) both }
+.vs-mot { animation: vs-mot 4.2s cubic-bezier(.23, 1, .32, 1) both }
+.vs-podium { animation: vs-marche 4.2s cubic-bezier(.23, 1, .32, 1) both }
+.vs-gain { animation: vs-dit 560ms cubic-bezier(.23, 1, .32, 1) 3.5s both }
 
 @media (prefers-reduced-motion: reduce) {
-  .vs-nous, .vs-eux, .vs-mot, .vs-gain { animation: none !important; opacity: 1 !important }
+  .vs-nous, .vs-eux, .vs-mot, .vs-gain, .vs-podium { animation: none !important; opacity: 1 !important }
   /* Sans mouvement, on montre l'état utile : le gagnant sans sa boîte. */
-  .vs-nous { background-color: transparent !important; color: #004e7c !important }
+  .vs-nous { background-color: transparent !important; color: #004e7c !important;
+    padding-top: 0 !important; padding-bottom: 0 !important }
   .vs-eux, .vs-mot { display: none !important }
 }
 
@@ -365,15 +391,15 @@
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(105deg, transparent 38%, rgba(198, 169, 114, .34) 50%, transparent 62%);
   transform: translateX(-130%);
-  animation: or-brille 9s ease-in-out infinite 3s;
+  animation: or-brille 22s ease-in-out infinite 6s;
 }
 /* Le verre tinte : deux degrés, deux fois, toutes les neuf secondes. ⚠️ C'est
    le seuil — au-delà, ce n'est plus une invitation, c'est une sonnerie. */
-.tuile-appel .verre { animation: verre-tinte 9s ease-in-out infinite 3s }
+.tuile-appel .verre { animation: verre-tinte 22s ease-in-out infinite 6s }
 @keyframes verre-tinte {
-  0%, 86%, 100% { transform: rotate(0) }
-  90% { transform: rotate(-11deg) }
-  94% { transform: rotate(7deg) }
+  0%, 93%, 100% { transform: rotate(0) }
+  95.5% { transform: rotate(-11deg) }
+  97.5% { transform: rotate(7deg) }
 }
 @media (prefers-reduced-motion: reduce) {
   .tuile-appel::after { animation: none; opacity: 0 }

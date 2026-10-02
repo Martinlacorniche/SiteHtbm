@@ -1700,7 +1700,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
         className="rounded-full bg-navy-deep px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-gold">
         {T.exclusif}
       </span>
-      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:gap-x-5">
+      {/* 🔑 `contents` SUR TÉLÉPHONE, ET LE BANDEAU PERD UNE LIGNE. Une liste
+          en `flex` est UN seul élément pour le bandeau qui l'entoure : large de
+          290 px, elle ne pouvait jamais tenir à côté de l'étiquette, qui se
+          retrouvait donc seule sur sa ligne — trois lignes au lieu de deux, et
+          c'est tout l'en-tête qui descendait. En `contents`, ses éléments
+          deviennent ceux du bandeau et se répartissent librement. */}
+      <ul className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-x-5">
         {PRIVILEGES.voiles[langue].filter((p) => p.exclusif).map((p, k) => (
           <li key={p.texte} data-arrive style={{ "--i": k + 1 } as React.CSSProperties}>{p.texte}</li>
         ))}
@@ -1711,7 +1717,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               ligne. À 390 px le bandeau passe à la ligne de toute façon : le
               trait se retrouvait alors seul en bout de première ligne. */}
           <span aria-hidden className="hidden h-4 w-px bg-navy-deep/30 sm:block" />
-          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 font-semibold text-navy-deep/75 sm:gap-x-5">
+          <ul className="contents font-semibold text-navy-deep/75 sm:flex sm:flex-wrap sm:items-center sm:gap-x-5">
             {PRIVILEGES.voiles[langue].filter((p) => !p.exclusif).map((p, k) => (
               <li key={p.texte} data-arrive style={{ "--i": k + 3 } as React.CSSProperties}>{p.texte}</li>
             ))}
@@ -1807,7 +1813,11 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             ⛔ Sous `lg` il reste en dessous : à cette largeur, trois promesses
             sur la ligne du lien de retour ne tiennent pas, et le bandeau est
             précisément ce qu'on ne veut PAS écraser. */}
-        <div className="lg:hidden">{bandeau}</div>
+        {/* ⚠️ ET DE L'AIR ENTRE LE TITRE ET LE BANDEAU. Collés, ils formaient
+            un bloc compact de gris et d'or où l'œil ne trouvait pas d'entrée —
+            « toujours tassé là-haut ». La ligne gagnée par le `contents`
+            ci-dessus paie très exactement cette respiration. */}
+        <div className="mt-3 lg:hidden">{bandeau}</div>
       </header>
 
       <div className="mx-auto grid w-full max-w-[1600px] gap-3 px-4 py-3 lg:gap-5 lg:px-6 lg:py-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[340px_minmax(0,1fr)_320px]">
@@ -2566,9 +2576,20 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                     <div key={`${choix.total + taxe}-${ailleurs}`}
                       className="mt-2 overflow-hidden rounded-lg bg-[#f4f8f5] px-3 py-2.5 text-[12px] leading-snug">
                       <div className="flex items-stretch gap-2">
-                        <span className="vs-nous min-w-0 flex-1 rounded-md px-2.5 py-1.5">
+                        <span className="vs-nous min-w-0 flex-1 rounded-md px-2.5 py-1.5 text-center">
                           <span className="block text-[10px] uppercase tracking-wider opacity-60">{T.ecartIci}</span>
                           <span className="block text-[15px] font-bold tabular-nums">{montant(choix.total + taxe, langue)}</span>
+                          {/* ⚠️ LE PODIUM NE S'AJOUTE PAS À LA HAUTEUR, IL PREND
+                              CELLE DE LA CARTE. Quand le fond marine s'efface,
+                              les marges intérieures du gagnant tombent à zéro et
+                              rendent exactement les douze pixels que la marche
+                              occupe. La boîte verte ne bouge pas d'un pixel —
+                              c'était la condition. */}
+                          <svg className="vs-podium mx-auto mt-1 block" viewBox="0 0 72 12" width="72" height="12" aria-hidden>
+                            <rect x="4" y="4" width="22" height="8" rx="1.5" fill="currentColor" opacity="0.28" />
+                            <rect x="46" y="5.5" width="22" height="6.5" rx="1.5" fill="currentColor" opacity="0.2" />
+                            <rect x="25" y="0" width="22" height="12" rx="1.5" fill="currentColor" opacity="0.5" />
+                          </svg>
                         </span>
                         {/* ⚠️ UN VS SE COUPE EN DIAGONALE. Deux lettres posées
                             côte à côte, c'est une abréviation ; c'est la barre
@@ -2577,7 +2598,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                         <span className="vs-mot self-center" aria-hidden>
                           <span className="vs-v">V</span><span className="vs-s">S</span>
                         </span>
-                        <span className="vs-eux min-w-0 flex-1 rounded-md bg-[#dfe5e8] px-2.5 py-1.5 text-[#6b7a82]">
+                        <span className="vs-eux min-w-0 flex-1 rounded-md bg-[#dfe5e8] px-2.5 py-1.5 text-center text-[#6b7a82]">
                           <span className="block text-[10px] uppercase tracking-wider">Booking</span>
                           <span className="block text-[15px] font-bold tabular-nums">{montant(ailleurs, langue)}</span>
                         </span>
