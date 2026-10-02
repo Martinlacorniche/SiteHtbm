@@ -293,6 +293,22 @@
    disputent l'opacité, et c'est la dernière déclarée qui gagne : l'entrée du
    perdant était écrasée par sa sortie, donc il n'entrait jamais. Chaque pièce a
    sa partition complète, du premier au dernier pour cent. */
+/* LE VS, COUPÉ EN DIAGONALE.
+   ⚠️ Deux lettres côte à côte, c'est une abréviation. C'est la barre qui les
+   traverse qui en fait le signe d'un duel — on le reconnaît sans le lire, et
+   c'est précisément ce qui manquait. Le S décroche d'un cran sous le V : les
+   deux lettres cessent d'être un mot et deviennent un logo. */
+.vs-mot {
+  position: relative; display: inline-flex; align-items: center;
+  padding: 0 7px; font-weight: 900; font-style: italic;
+  font-size: 15px; line-height: 1; letter-spacing: -.06em; color: #8E6726;
+}
+.vs-mot .vs-s { transform: translateY(3px) }
+.vs-mot::after {
+  content: ""; position: absolute; left: 50%; top: -5px; bottom: -5px; width: 2px;
+  background: currentColor; transform: translateX(-50%) rotate(20deg);
+}
+
 @keyframes vs-mot {
   0%, 18% { opacity: 0; transform: scale(.5) rotate(-12deg) }
   26% { opacity: 1; transform: scale(1.25) rotate(-12deg) }
@@ -307,9 +323,16 @@
   14%, 52% { opacity: 1; transform: none; flex-grow: 1; padding-left: .625rem; padding-right: .625rem }
   72%, 100% { opacity: 0; transform: none; flex-grow: 0; padding-left: 0; padding-right: 0 }
 }
+/* Le gagnant entre dans sa carte marine, puis la carte s'efface : il ne reste
+   que « Ici », le montant, et ce qu'on gagne.
+   ⛔ PAS DE BARRE MARINE À LA FIN. Une fois le duel joué, un bandeau plein
+   large redevient un bloc de plus dans une colonne qui en compte déjà cinq —
+   et il repeint en bleu un chiffre que le total au-dessus dit déjà. Martin :
+   « on veut pas de la barre, juste ICI, le montant et vous gagnez ». */
 @keyframes vs-grandit {
-  0% { opacity: 0; transform: translateX(-28px) }
-  14%, 100% { opacity: 1; transform: none }
+  0% { opacity: 0; transform: translateX(-28px); background-color: #004e7c; color: #ffffff }
+  14%, 58% { opacity: 1; transform: none; background-color: #004e7c; color: #ffffff }
+  76%, 100% { opacity: 1; transform: none; background-color: rgba(0, 78, 124, 0); color: #004e7c }
 }
 @keyframes vs-dit { from { opacity: 0; transform: translateY(6px) scale(.92) } to { opacity: 1; transform: none } }
 
@@ -319,8 +342,10 @@
 .vs-gain { animation: vs-dit 520ms cubic-bezier(.23, 1, .32, 1) 2.2s both }
 
 @media (prefers-reduced-motion: reduce) {
-  .vs-nous, .vs-eux, .vs-mot, .vs-gain { animation: none !important; opacity: 1 !important; transform: none !important }
-  .vs-mot { opacity: .6 !important }
+  .vs-nous, .vs-eux, .vs-mot, .vs-gain { animation: none !important; opacity: 1 !important }
+  /* Sans mouvement, on montre l'état utile : le gagnant sans sa boîte. */
+  .vs-nous { background-color: transparent !important; color: #004e7c !important }
+  .vs-eux, .vs-mot { display: none !important }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

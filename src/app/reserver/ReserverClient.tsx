@@ -2557,19 +2557,32 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                      peut-être réservé là-bas le mois dernier. Le ton est celui
                      d'un clin d'œil, pas d'une victoire. */
                   return (
-                    <div className="mt-2 overflow-hidden rounded-lg bg-[#f4f8f5] px-3 py-2.5 text-[12px] leading-snug">
+                    /* ⚠️ LA CLÉ PORTE LES DEUX MONTANTS. Les animations ne
+                       jouent qu'une fois : sans clé, changer de chambre ou de
+                       dates mettait à jour les chiffres sans rejouer le duel —
+                       on voyait le résultat sans le match. Martin : « il se
+                       recharge pas au changement de prix ». La clé change, React
+                       remonte le bloc, tout repart. */
+                    <div key={`${choix.total + taxe}-${ailleurs}`}
+                      className="mt-2 overflow-hidden rounded-lg bg-[#f4f8f5] px-3 py-2.5 text-[12px] leading-snug">
                       <div className="flex items-stretch gap-2">
-                        <span className="vs-nous min-w-0 flex-1 rounded-md bg-navy px-2.5 py-1.5 text-white">
-                          <span className="block text-[10px] uppercase tracking-wider text-white/60">{T.ecartIci}</span>
-                          <span className="block text-[14px] font-bold tabular-nums">{montant(choix.total + taxe, langue)}</span>
+                        <span className="vs-nous min-w-0 flex-1 rounded-md px-2.5 py-1.5">
+                          <span className="block text-[10px] uppercase tracking-wider opacity-60">{T.ecartIci}</span>
+                          <span className="block text-[15px] font-bold tabular-nums">{montant(choix.total + taxe, langue)}</span>
                         </span>
-                        <span className="vs-mot self-center text-[12px] font-black italic tracking-tight text-gold-ink">VS</span>
+                        {/* ⚠️ UN VS SE COUPE EN DIAGONALE. Deux lettres posées
+                            côte à côte, c'est une abréviation ; c'est la barre
+                            qui traverse qui en fait le signe d'un duel — et
+                            c'est à ça qu'on le reconnaît sans le lire. */}
+                        <span className="vs-mot self-center" aria-hidden>
+                          <span className="vs-v">V</span><span className="vs-s">S</span>
+                        </span>
                         <span className="vs-eux min-w-0 flex-1 rounded-md bg-[#dfe5e8] px-2.5 py-1.5 text-[#6b7a82]">
                           <span className="block text-[10px] uppercase tracking-wider">Booking</span>
-                          <span className="block text-[14px] font-bold tabular-nums">{montant(ailleurs, langue)}</span>
+                          <span className="block text-[15px] font-bold tabular-nums">{montant(ailleurs, langue)}</span>
                         </span>
                       </div>
-                      <p className="vs-gain mt-2 text-center text-[13px] font-bold text-[#2d6a4f]">
+                      <p className="vs-gain mt-1.5 text-center text-[13px] font-bold text-[#2d6a4f]">
                         {T.gainDirect(montant(gain, langue))}
                       </p>
                     </div>
