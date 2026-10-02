@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Playfair_Display, Inter } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
@@ -181,18 +181,14 @@ export default function MenuPage() {
                       l'accompagnement — et « j'en prends un de chaque » se
                       comprend sans lire une ligne. */}
                   {bases.length > 0 && garnitures.length > 0 && (
-                    <div className="flex flex-col items-center pt-5 pb-1">
-                      <Assiette />
-                      <p className="mt-2 text-[10px] uppercase tracking-widest text-slate-400"
-                        style={{ fontFamily: "var(--font-sans)" }}>{t.compose}</p>
-                    </div>
+                    <Composition legende={t.compose} />
                   )}
 
                   <div className="flex flex-col md:flex-row md:items-stretch">
 
                     {bases.length > 0 && (
                       <div className="md:flex-1 md:self-start py-2">
-                        <Colonne n={1} titre={t.chooseBase} aide={t.unAuChoix} />
+                        <Colonne n={1} titre={t.chooseBase} aide={t.unAuChoix} quoi="base" />
                         <ul className="px-4">
                           {bases.map((item, idx) => (
                             <li key={item.id}
@@ -224,7 +220,8 @@ export default function MenuPage() {
                     {garnitures.length > 0 && (
                       <div className="md:flex-1 md:self-start py-2">
                         <Colonne n={bases.length === 0 ? 1 : 2}
-                          titre={bases.length === 0 ? t.sideOnly : t.sideWith} aide={t.unAuChoix} />
+                          titre={bases.length === 0 ? t.sideOnly : t.sideWith} aide={t.unAuChoix}
+                          quoi="accomp" />
                         <ul className="px-4 pb-2">
                           {garnitures.map((item, idx) => (
                             <li key={item.id}
@@ -311,13 +308,42 @@ function PrixRow({ label, prix, highlight }: { label: string; prix: string; high
   );
 }
 
+/* ── LES DEUX DESSINS ──────────────────────────────────────────────────────
+ *
+ * 🔑 LE MÊME DESSIN AUX TROIS ENDROITS. Il identifie la colonne, il fait le
+ * trajet, il se pose dans l'assiette. C'est cette répétition — et elle seule —
+ * qui dit « ce que tu choisis ici atterrit là ». Trois dessins différents pour
+ * la même chose auraient demandé une légende. */
+export function DessinBase({ t = 1 }: { t?: number }) {
+  return (
+    <svg viewBox="0 0 30 16" width={30 * t} height={16 * t} aria-hidden>
+      <path d="M3,8 q6,-7 13,-2 q6,4 11,-1" fill="none" stroke="#C6A972" strokeWidth="3"
+        strokeLinecap="round" opacity="0.9" />
+      <path d="M3,13 q6,-6 13,-1 q6,4 11,-2" fill="none" stroke="#C6A972" strokeWidth="3"
+        strokeLinecap="round" opacity="0.65" />
+    </svg>
+  );
+}
+
+export function DessinAccomp({ t = 1 }: { t?: number }) {
+  return (
+    <svg viewBox="0 0 26 16" width={26 * t} height={16 * t} aria-hidden>
+      <path d="M2,6 q10,-5 18,2 q4,6 -4,8 q-11,2 -15,-4 q-2,-4 1,-6 Z" fill="#1f2937" opacity="0.72" />
+      <path d="M8,9 q5,-2 8,1" fill="none" stroke="#ffffff" strokeWidth="1.2"
+        strokeLinecap="round" opacity="0.35" />
+    </svg>
+  );
+}
+
 /* ── LA COLONNE, ET SON NUMÉRO ─────────────────────────────────────────────
  *
  * ⚠️ LE NUMÉRO FAIT PLUS QUE DÉCORER. Deux colonnes côte à côte se lisent comme
  * une alternative — l'une OU l'autre. Numérotées, elles se lisent comme une
  * suite : d'abord ceci, ensuite cela. C'est le même dessin et ce n'est plus le
  * même sens. */
-function Colonne({ n, titre, aide }: { n: number; titre: string; aide: string }) {
+function Colonne({ n, titre, aide, quoi }: {
+  n: number; titre: string; aide: string; quoi?: 'base' | 'accomp';
+}) {
   return (
     /* ⚠️ SUR DEUX LIGNES, PAS SUR UNE. « 2 · Votre accompagnement · un au choix »
        tenait sur une ligne en maquette et se cassait en trois à l'écran, le
@@ -329,66 +355,124 @@ function Colonne({ n, titre, aide }: { n: number; titre: string; aide: string })
         <span className="text-[10.5px] uppercase tracking-widest text-slate-500" style={{ fontFamily: "var(--font-sans)" }}>
           {titre}
         </span>
+        {/* Le dessin, à la source du trajet. `data-source` est ce que mesure le
+            script pour savoir d'où partir. */}
+        {quoi ? (
+          <span data-source={quoi} className="inline-flex shrink-0 items-center">
+            {quoi === 'base' ? <DessinBase t={0.85} /> : <DessinAccomp t={0.85} />}
+          </span>
+        ) : null}
       </div>
       <p className="mt-1 text-[10.5px] text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>{aide}</p>
     </div>
   );
 }
 
-/* ── L'ASSIETTE QUI SE COMPOSE ─────────────────────────────────────────────
+/* ── L'ASSIETTE, ET LE TRAJET ──────────────────────────────────────────────
  *
- * 🔑 CE QU'UN TEXTE N'ARRIVAIT PAS À DIRE. « Au choix » d'un côté,
- * « Accompagnement » de l'autre et un « + » au milieu : l'écran listait des
- * plats, et le client lisait une carte. Ici l'assiette se remplit sous ses yeux
- * — la base arrive par la gauche et se pose, l'accompagnement arrive par la
- * droite et se pose à côté — et « j'en prends un de chaque » se comprend sans
- * lire une ligne.
+ * 🔑 LES DESSINS PARTENT DES EN-TÊTES. Martin : « il faudrait que les dessins
+ * la base et l'accompagnement soient en en-tête des colonnes et aillent vers
+ * l'assiette ». C'est la bonne idée, et c'est même toute l'idée : une forme qui
+ * apparaît dans l'assiette ne dit rien de son origine ; une forme qui VIENT de
+ * la colonne 1 dit que c'est la colonne 1 qui remplit l'assiette.
  *
- * ⚠️ ELLE SE VIDE AVANT DE SE REMPLIR À NOUVEAU. Une boucle qui recommence sur
- * une assiette pleine donne l'impression qu'on peut en prendre deux.
+ * ⚠️ LE TRAJET SE MESURE, IL NE S'ÉCRIT PAS. Les en-têtes ne sont pas au même
+ * endroit selon la largeur de l'écran — côte à côte sur un ordinateur, l'un
+ * sous l'autre sur un téléphone, et plus bas encore si la liste s'allonge.
+ * Des décalages écrits à la main seraient justes sur une seule taille de
+ * fenêtre. On mesure les deux positions réelles et on en déduit le départ.
  *
- * ⛔ Tout est en CSS, et le réglage système « moins d'animations » montre
- * l'assiette déjà pleine : c'est l'état utile, pas le mouvement.
+ * ⛔ ET SI LA MESURE ÉCHOUE, L'ASSIETTE SE REMPLIT QUAND MÊME : le vol part de
+ * zéro, la forme apparaît sur place. On ne perd que le trajet.
  */
-function Assiette() {
+function Composition({ legende }: { legende: string }) {
+  const boite = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const mesurer = () => {
+      const b = boite.current;
+      if (!b) return;
+      for (const quoi of ['base', 'accomp'] as const) {
+        const source = document.querySelector<HTMLElement>(`[data-source="${quoi}"]`);
+        const cible = b.querySelector<HTMLElement>(`[data-cible="${quoi}"]`);
+        const vol = b.querySelector<HTMLElement>(`[data-vol="${quoi}"]`);
+        if (!source || !cible || !vol) continue;
+        const s = source.getBoundingClientRect();
+        const c = cible.getBoundingClientRect();
+        vol.style.setProperty('--dx', `${(s.x + s.width / 2) - (c.x + c.width / 2)}px`);
+        vol.style.setProperty('--dy', `${(s.y + s.height / 2) - (c.y + c.height / 2)}px`);
+      }
+    };
+    mesurer();
+    /* La liste du jour arrive après le premier rendu, et les polices changent
+       les hauteurs : on remesure quand la page bouge. */
+    const obs = new ResizeObserver(mesurer);
+    if (boite.current?.parentElement) obs.observe(boite.current.parentElement);
+    window.addEventListener('resize', mesurer);
+    return () => { obs.disconnect(); window.removeEventListener('resize', mesurer); };
+  }, []);
+
   return (
-    <svg data-assiette viewBox="0 0 120 64" width="188" height="100" aria-hidden>
+    <div ref={boite} className="relative flex flex-col items-center pt-5 pb-1">
       <style>{`
-[data-assiette] .part{ transform-box:fill-box; transform-origin:center }
-[data-assiette] .base{ animation: pose-base 7s cubic-bezier(.23,1,.32,1) infinite }
-[data-assiette] .accomp{ animation: pose-accomp 7s cubic-bezier(.23,1,.32,1) infinite }
-@keyframes pose-base{
-  0%{ opacity:0; transform:translate(-30px,-16px) scale(.7) }
-  16%,78%{ opacity:1; transform:none }
-  88%,100%{ opacity:0; transform:translate(-30px,-16px) scale(.7) } }
-@keyframes pose-accomp{
-  0%,34%{ opacity:0; transform:translate(30px,-16px) scale(.7) }
-  50%,78%{ opacity:1; transform:none }
-  88%,100%{ opacity:0; transform:translate(30px,-16px) scale(.7) } }
+/* 🔴 LE SÉLECTEUR VISAIT À CÔTÉ, ET LE SYMPTÔME RESSEMBLAIT À UNE ERREUR DE
+   CALCUL. J'avais écrit un sélecteur imbriqué : or les pièces ne sont
+   pas DANS le SVG de l'assiette, elles sont à côté, posées par-dessus en HTML
+   (c'est ce qui permet de les mesurer). La règle ne s'appliquait donc jamais,
+   les pièces restaient dans le flux — empilées SOUS l'assiette comme deux
+   miettes tombées à côté — et j'ai d'abord corrigé des coordonnées qui étaient
+   justes. Une position qui ne bouge pas quand on change le chiffre n'est pas
+   une position fausse : c'est une règle qui ne s'applique pas. */
+[data-cible], [data-vol]{ position:absolute }
+/* Ce qui se pose dans l'assiette : invisible tant que le voyage n'est pas fini. */
+[data-cible]{ opacity:0 }
+[data-cible="base"]{ animation: pose 7s steps(1) infinite }
+[data-cible="accomp"]{ animation: pose 7s steps(1) infinite; animation-delay: 2s }
+@keyframes pose{ 0%,25%{ opacity:0 } 26%,78%{ opacity:1 } 79%,100%{ opacity:0 } }
+
+/* La copie qui fait le trajet : elle part de l'en-tête (mesuré) et arrive dans
+   l'assiette, où elle cède la place à la forme posée. */
+[data-vol]{ opacity:0; transform: translate(var(--dx,0px), var(--dy,0px)) }
+[data-vol="base"]{ animation: vole 7s cubic-bezier(.5,0,.2,1) infinite }
+[data-vol="accomp"]{ animation: vole 7s cubic-bezier(.5,0,.2,1) infinite; animation-delay: 2s }
+@keyframes vole{
+  0%,4%{ opacity:0; transform: translate(var(--dx,0px), var(--dy,0px)) scale(.9) }
+  8%{ opacity:1; transform: translate(var(--dx,0px), var(--dy,0px)) scale(1) }
+  25%{ opacity:1; transform: translate(0,0) scale(1) }
+  26%,100%{ opacity:0; transform: translate(0,0) scale(1) } }
+
 @media (prefers-reduced-motion: reduce){
-  [data-assiette] .part{ animation:none !important; opacity:1 !important; transform:none !important } }
+  [data-vol]{ display:none }
+  [data-cible]{ animation:none !important; opacity:1 !important } }
       `}</style>
-      {/* L'assiette : deux cercles, et le creux se voit. */}
-      <ellipse cx="60" cy="40" rx="42" ry="17" fill="#ffffff" stroke="currentColor"
-        className="text-slate-200" strokeWidth="1.4" />
-      <ellipse cx="60" cy="39" rx="32" ry="12" fill="none" stroke="currentColor"
-        className="text-slate-100" strokeWidth="1.2" />
 
-      {/* La base : des rubans, à gauche. */}
-      <g className="part base">
-        <path d="M40,40 q6,-7 13,-2 q6,4 12,-1" fill="none" stroke="#C6A972" strokeWidth="3"
-          strokeLinecap="round" opacity="0.9" />
-        <path d="M40,45 q6,-6 13,-1 q6,4 12,-2" fill="none" stroke="#C6A972" strokeWidth="3"
-          strokeLinecap="round" opacity="0.65" />
-      </g>
+      <svg data-assiette viewBox="0 0 120 64" width="188" height="100" aria-hidden
+        style={{ overflow: 'visible' }}>
+        {/* L'assiette : deux cercles, et le creux se voit. */}
+        <ellipse cx="60" cy="40" rx="42" ry="17" fill="#ffffff" stroke="currentColor"
+          className="text-slate-200" strokeWidth="1.4" />
+        <ellipse cx="60" cy="39" rx="32" ry="12" fill="none" stroke="currentColor"
+          className="text-slate-100" strokeWidth="1.2" />
+      </svg>
 
-      {/* L'accompagnement : une pièce posée dessus, à droite. */}
-      <g className="part accomp">
-        <path d="M62,36 q10,-5 18,2 q4,6 -4,8 q-11,2 -15,-4 q-2,-4 1,-6 Z"
-          fill="#1f2937" opacity="0.72" />
-        <path d="M68,39 q5,-2 8,1" fill="none" stroke="#ffffff" strokeWidth="1.2"
-          strokeLinecap="round" opacity="0.35" />
-      </g>
-    </svg>
+      {/* Les deux emplacements, posés PAR-DESSUS l'assiette en HTML : c'est ce
+          qui permet de les mesurer et de les viser depuis l'extérieur du SVG. */}
+      {/* ⚠️ LA POSITION SE CALCULE DEPUIS LE CREUX DE L'ASSIETTE, pas au jugé.
+          Le dessin fait 100 px de haut pour un cadre de 64 : le centre de
+          l'assiette (cy = 40) tombe à 40/64 × 100 = 62 px dans le SVG, plus les
+          20 px de marge haute du bloc, soit 82 px. Les pièces se posent autour
+          de cette ligne — premier essai à 52, elles s'empilaient SOUS l'assiette
+          comme deux miettes tombées à côté. */}
+      {/* ⚠️ ET PLUS GRANDES QUE DANS L'EN-TÊTE. À la taille de l'icône, posées
+          au milieu d'une assiette de cent pixels, les deux formes devenaient
+          deux traces : on voyait une assiette vide. Une assiette se remplit. */}
+      <span data-cible="base" style={{ left: 'calc(50% - 52px)', top: 70 }}><DessinBase t={1.6} /></span>
+      <span data-cible="accomp" style={{ left: 'calc(50% + 6px)', top: 66 }}><DessinAccomp t={1.6} /></span>
+      <span data-vol="base" style={{ left: 'calc(50% - 52px)', top: 70 }}><DessinBase t={1.6} /></span>
+      <span data-vol="accomp" style={{ left: 'calc(50% + 6px)', top: 66 }}><DessinAccomp t={1.6} /></span>
+
+      <p className="mt-2 text-[10px] uppercase tracking-widest text-slate-400"
+        style={{ fontFamily: "var(--font-sans)" }}>{legende}</p>
+    </div>
   );
 }
