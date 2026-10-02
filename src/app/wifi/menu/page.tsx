@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Playfair_Display, Inter } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
@@ -32,7 +32,6 @@ const T = {
     sideOnly: "Votre accompagnement",
     sideWith: "Votre accompagnement",
     or: "ou",
-    unAuChoix: "un au choix",
     compose: "Composez votre assiette",
     desserts: "Desserts",
     prices: "Tarifs",
@@ -56,7 +55,6 @@ const T = {
     sideOnly: "Your topping",
     sideWith: "Your topping",
     or: "or",
-    unAuChoix: "pick one",
     compose: "Build your plate",
     desserts: "Desserts",
     prices: "Prices",
@@ -188,7 +186,7 @@ export default function MenuPage() {
 
                     {bases.length > 0 && (
                       <div className="md:flex-1 md:self-start py-2">
-                        <Colonne n={1} titre={t.chooseBase} aide={t.unAuChoix} quoi="base" />
+                        <Colonne n={1} titre={t.chooseBase} quoi="base" />
                         <ul className="px-4">
                           {bases.map((item, idx) => (
                             <li key={item.id}
@@ -220,8 +218,7 @@ export default function MenuPage() {
                     {garnitures.length > 0 && (
                       <div className="md:flex-1 md:self-start py-2">
                         <Colonne n={bases.length === 0 ? 1 : 2}
-                          titre={bases.length === 0 ? t.sideOnly : t.sideWith} aide={t.unAuChoix}
-                          quoi="accomp" />
+                          titre={bases.length === 0 ? t.sideOnly : t.sideWith} quoi="accomp" />
                         <ul className="px-4 pb-2">
                           {garnitures.map((item, idx) => (
                             <li key={item.id}
@@ -341,13 +338,11 @@ export function DessinAccomp({ t = 1 }: { t?: number }) {
  * une alternative — l'une OU l'autre. Numérotées, elles se lisent comme une
  * suite : d'abord ceci, ensuite cela. C'est le même dessin et ce n'est plus le
  * même sens. */
-function Colonne({ n, titre, aide, quoi }: {
-  n: number; titre: string; aide: string; quoi?: 'base' | 'accomp';
-}) {
+function Colonne({ n, titre, quoi }: { n: number; titre: string; quoi?: 'base' | 'accomp' }) {
   return (
-    /* ⚠️ SUR DEUX LIGNES, PAS SUR UNE. « 2 · Votre accompagnement · un au choix »
-       tenait sur une ligne en maquette et se cassait en trois à l'écran, le
-       titre coupé au milieu d'un mot. Le titre d'un côté, l'aide en dessous. */
+    /* ⛔ PLUS DE « UN AU CHOIX ». Le numéro, l'assiette qui se remplit d'une
+       pièce de chaque et le « + » entre les colonnes le disent trois fois :
+       l'écrire une quatrième, c'était ne faire confiance à aucune des trois. */
     <div className="px-4 pt-2 pb-3 text-center">
       <div className="flex items-center justify-center gap-2">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/15 text-[11px] font-semibold text-gold-ink"
@@ -363,7 +358,6 @@ function Colonne({ n, titre, aide, quoi }: {
           </span>
         ) : null}
       </div>
-      <p className="mt-1 text-[10.5px] text-slate-400" style={{ fontFamily: "var(--font-sans)" }}>{aide}</p>
     </div>
   );
 }
@@ -387,8 +381,13 @@ function Colonne({ n, titre, aide, quoi }: {
  */
 function Composition({ legende }: { legende: string }) {
   const boite = useRef<HTMLDivElement | null>(null);
+  /* ⛔ ON NE LANCE RIEN AVANT D'AVOIR MESURÉ. L'animation ne joue QU'UNE FOIS :
+   * si elle démarrait au rendu, avant que les positions des en-têtes soient
+   * connues, le premier — et unique — trajet partirait de zéro, et la pièce
+   * apparaîtrait sur place. Il n'y a pas de second tour pour rattraper. */
+  const [pret, setPret] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const mesurer = () => {
       const b = boite.current;
       if (!b) return;
@@ -404,8 +403,10 @@ function Composition({ legende }: { legende: string }) {
       }
     };
     mesurer();
-    /* La liste du jour arrive après le premier rendu, et les polices changent
-       les hauteurs : on remesure quand la page bouge. */
+    setPret(true);
+    /* Les polices changent les hauteurs après coup : on remesure quand la page
+       bouge, pour que le trajet reste juste si l'animation n'a pas encore joué
+       et que la pièce posée reste à sa place si elle a déjà joué. */
     const obs = new ResizeObserver(mesurer);
     if (boite.current?.parentElement) obs.observe(boite.current.parentElement);
     window.addEventListener('resize', mesurer);
@@ -413,7 +414,8 @@ function Composition({ legende }: { legende: string }) {
   }, []);
 
   return (
-    <div ref={boite} className="relative flex flex-col items-center pt-5 pb-1">
+    <div ref={boite} data-pret={pret ? 'oui' : undefined}
+      className="relative flex flex-col items-center pt-5 pb-1">
       <style>{`
 /* 🔴 LE SÉLECTEUR VISAIT À CÔTÉ, ET LE SYMPTÔME RESSEMBLAIT À UNE ERREUR DE
    CALCUL. J'avais écrit un sélecteur imbriqué : or les pièces ne sont
@@ -424,22 +426,42 @@ function Composition({ legende }: { legende: string }) {
    justes. Une position qui ne bouge pas quand on change le chiffre n'est pas
    une position fausse : c'est une règle qui ne s'applique pas. */
 [data-cible], [data-vol]{ position:absolute }
-/* Ce qui se pose dans l'assiette : invisible tant que le voyage n'est pas fini. */
-[data-cible]{ opacity:0 }
-[data-cible="base"]{ animation: pose 7s steps(1) infinite }
-[data-cible="accomp"]{ animation: pose 7s steps(1) infinite; animation-delay: 2s }
-@keyframes pose{ 0%,25%{ opacity:0 } 26%,78%{ opacity:1 } 79%,100%{ opacity:0 } }
+/* 🔴 UNE SEULE HORLOGE POUR LES QUATRE PISTES, ET ELLE NE TOURNE QU'UNE FOIS.
+   Première version : les deux pièces partageaient la même animation, décalée de
+   deux secondes par un délai. Elles volaient bien toutes les deux — mesuré —
+   mais leurs cycles ne se recouvraient plus : quand la base repartait pour un
+   tour, l'accompagnement était ENCORE dans l'assiette du tour précédent. À
+   l'œil, on ne voyait donc jamais l'accompagnement arriver, seulement
+   l'assiette déjà servie. Martin : « la base ça fonctionne, pas
+   l'accompagnement, il apparaît juste direct dans l'assiette ».
+   ⚠️ Un décalage se met dans les POURCENTAGES, jamais dans un délai : une même
+   durée, un même départ, et c'est la partition qui fait l'ordre.
+
+   ⛔ ET ÇA S'ARRÊTE UNE FOIS L'ASSIETTE PLEINE. Une boucle qui vide et remplit
+   sans fin finit par dire « ça recommence », pas « composez ». Le geste se
+   montre une fois, et l'assiette reste servie — c'est l'image utile, et c'est
+   celle qu'on veut avoir sous les yeux pendant qu'on lit les deux listes. */
+[data-pret] [data-cible], [data-pret] [data-vol]{ animation-duration: 3.4s; animation-iteration-count: 1; animation-fill-mode: both }
+[data-pret] [data-cible="base"]{ animation-name: pose-base; animation-timing-function: steps(1) }
+[data-pret] [data-cible="accomp"]{ animation-name: pose-accomp; animation-timing-function: steps(1) }
+@keyframes pose-base{ 0%,44%{ opacity:0 } 45%,100%{ opacity:1 } }
+@keyframes pose-accomp{ 0%,89%{ opacity:0 } 90%,100%{ opacity:1 } }
 
 /* La copie qui fait le trajet : elle part de l'en-tête (mesuré) et arrive dans
    l'assiette, où elle cède la place à la forme posée. */
 [data-vol]{ opacity:0; transform: translate(var(--dx,0px), var(--dy,0px)) }
-[data-vol="base"]{ animation: vole 7s cubic-bezier(.5,0,.2,1) infinite }
-[data-vol="accomp"]{ animation: vole 7s cubic-bezier(.5,0,.2,1) infinite; animation-delay: 2s }
-@keyframes vole{
-  0%,4%{ opacity:0; transform: translate(var(--dx,0px), var(--dy,0px)) scale(.9) }
-  8%{ opacity:1; transform: translate(var(--dx,0px), var(--dy,0px)) scale(1) }
-  25%{ opacity:1; transform: translate(0,0) scale(1) }
-  26%,100%{ opacity:0; transform: translate(0,0) scale(1) } }
+[data-pret] [data-vol="base"]{ animation-name: vole-base; animation-timing-function: cubic-bezier(.5,0,.2,1) }
+[data-pret] [data-vol="accomp"]{ animation-name: vole-accomp; animation-timing-function: cubic-bezier(.5,0,.2,1) }
+@keyframes vole-base{
+  0%,8%{ opacity:0; transform: translate(var(--dx,0px), var(--dy,0px)) scale(.9) }
+  14%{ opacity:1; transform: translate(var(--dx,0px), var(--dy,0px)) scale(1) }
+  44%{ opacity:1; transform: translate(0,0) scale(1) }
+  45%,100%{ opacity:0; transform: translate(0,0) scale(1) } }
+@keyframes vole-accomp{
+  0%,52%{ opacity:0; transform: translate(var(--dx,0px), var(--dy,0px)) scale(.9) }
+  58%{ opacity:1; transform: translate(var(--dx,0px), var(--dy,0px)) scale(1) }
+  89%{ opacity:1; transform: translate(0,0) scale(1) }
+  90%,100%{ opacity:0; transform: translate(0,0) scale(1) } }
 
 @media (prefers-reduced-motion: reduce){
   [data-vol]{ display:none }
