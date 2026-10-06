@@ -27,6 +27,7 @@ import { ficheHotel } from '@/lib/ucp/hotel';
 import { alternatives } from '@/lib/ucp/alternatives';
 import { chercher, lire } from '@/lib/ucp/recherche';
 import { appelant, compter, PLAFONDS, TropDAppels } from '@/lib/ucp/debit';
+import { journaliser, type Issue } from '@/lib/ucp/journal';
 import { reconnaitre } from '@/lib/ucp/acces';
 import { arrivee, HEURE_ARRIVEE } from '@/lib/ucp/checkin';
 import { lireSejour, noteDuSejour, ouvrirReglement, consignerReglements } from '@/lib/ucp/sejour';
@@ -458,7 +459,7 @@ const contenu = (donnee: unknown) => ({
  * ment. */
 const OUTILS_QUI_DEBITENT = new Set(['complete_booking_session', 'pay_folio']);
 
-export async function traiter(req: Request, sansPaiement = false) {
+async function traiterInterne(req: Request, sansPaiement = false) {
   const corps = await req.json().catch(() => null) as Rpc | null;
   if (!corps || corps.jsonrpc !== '2.0' || !corps.method) {
     return ko(corps?.id, -32600, 'Requête JSON-RPC invalide.');
@@ -811,6 +812,62 @@ export async function traiter(req: Request, sansPaiement = false) {
     console.error('[ucp] ', e instanceof Error ? e.message : e);
     return ko(corps.id, -32603, 'Le moteur de réservation n’a pas répondu.');
   }
+}
+
+/* ══════════════════ CE QUI COMPTE LES APPELS ═════════════════════════════════
+ *
+ * Martin, 06/10/2026 : « Je veux augmenter mes ventes via ia donc oui compte les
+ * mcp ». Seul le canal `agent-ia` de Distribution comptait les VENTES : un
+ * serveur visité cent fois sans vendre rendait le même chiffre qu'un serveur que
+ * personne n'appelle. On ne pouvait ni mesurer ce que rapporte une inscription à
+ * un annuaire, ni voir l'entonnoir avant la première vente.
+ *
+ * 🔑 UNE ENVELOPPE, PAS DES APPELS DISPERSÉS. `traiterInterne` a vingt points de
+ * sortie ; en instrumenter chacun, c'est en oublier un. On mesure autour.
+ *
+ * ⛔ ET MESURER NE CASSE JAMAIS CE QU'ON MESURE. Tout échec du journal est
+ * avalé : un journal troué vaut mieux qu'une réservation perdue parce que la
+ * table de comptage ne répondait pas. */
+export async function traiter(req: Request, sansPaiement = false) {
+  const debut = Date.now();
+  let methode = '?';
+  let outil: string | null = null;
+  let agent: string | null = null;
+  let agentVersion: string | null = null;
+  try {
+    const lu = await req.clone().json() as {
+      method?: string;
+      params?: { name?: string; clientInfo?: { name?: string; version?: string } };
+    };
+    methode = String(lu?.method ?? '?');
+    if (methode === 'tools/call') outil = String(lu?.params?.name ?? '') || null;
+    /* La SEULE ligne qui porte le nom de l'agent. Les appels d'outils qui
+     * suivent ne le répètent pas : ils se rattachent à celle-ci. */
+    if (lu?.params?.clientInfo) {
+      agent = String(lu.params.clientInfo.name ?? '') || null;
+      agentVersion = String(lu.params.clientInfo.version ?? '') || null;
+    }
+  } catch { /* corps illisible : on le journalise quand même, en '?' */ }
+
+  const reponse = await traiterInterne(req, sansPaiement);
+
+  /* ok / refus / erreur se lisent dans le protocole, pas dans le code HTTP : une
+   * réponse JSON-RPC est toujours un 200. Un code ≤ -32600 est une faute de
+   * l'appelant ou un refus de notre part ; -32603 est la nôtre. */
+  let issue: Issue = 'ok';
+  try {
+    const j = await reponse.clone().json() as { error?: { code?: number } };
+    if (j?.error) issue = j.error.code === -32603 ? 'erreur' : 'refus';
+  } catch { /* pas de corps JSON : on garde 'ok' */ }
+
+  journaliser({
+    porte: sansPaiement ? 'public' : 'ucp',
+    methode, outil, agent, agentVersion,
+    adresse: appelant(req),
+    issue,
+    ms: Date.now() - debut,
+  });
+  return reponse;
 }
 
 /** Un GET renvoie de quoi se repérer : qui répond ici, et où est le profil.
