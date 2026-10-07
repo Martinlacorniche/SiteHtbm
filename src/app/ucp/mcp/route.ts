@@ -830,6 +830,29 @@ async function traiterInterne(req: Request, sansPaiement = false) {
   }
 }
 
+/** Retire l'annonce de paiement d'une réponse, et désigne le tunnel à la place.
+ *  Ne touche à rien d'autre : si la réponse n'en porte pas, elle ressort telle quelle. */
+async function sansAnnoncerLePaiement(reponse: NextResponse): Promise<NextResponse> {
+  let j: Record<string, unknown>;
+  try { j = await reponse.clone().json() as Record<string, unknown>; } catch { return reponse; }
+  const res = j.result as { structuredContent?: Record<string, unknown> } | undefined;
+  const donnee = res?.structuredContent;
+  const ucp = donnee?.ucp as Record<string, unknown> | undefined;
+  if (!donnee || !ucp?.payment_handlers) return reponse;
+
+  delete ucp.payment_handlers;
+  /* Dit en toutes lettres ce que l'agent doit faire, plutôt que de le laisser
+     déduire d'une absence. Une capacité retirée sans explication se lit comme
+     une panne. */
+  ucp.payment = {
+    handled_by: 'property_website',
+    note: 'Le paiement ne se fait pas par ce connecteur : la réservation se termine sur le site de '
+      + 'l’hôtel, qui encaisse lui-même. Dirigez le client vers `continue_url`.',
+  };
+  const corrigee = { ...j, result: { ...res, structuredContent: donnee, content: [{ type: 'text', text: JSON.stringify(donnee) }] } };
+  return NextResponse.json(corrigee, { status: reponse.status, headers: CORS });
+}
+
 /* ══════════════════ CE QUI COMPTE LES APPELS ═════════════════════════════════
  *
  * Martin, 06/10/2026 : « Je veux augmenter mes ventes via ia donc oui compte les
@@ -865,7 +888,26 @@ export async function traiter(req: Request, sansPaiement = false) {
     }
   } catch { /* corps illisible : on le journalise quand même, en '?' */ }
 
-  const reponse = await traiterInterne(req, sansPaiement);
+  let reponse = await traiterInterne(req, sansPaiement);
+
+  /* 🔴 LA PORTE PUBLIQUE N'ANNONCE PAS UN PAIEMENT QU'ELLE REFUSERA.
+   *
+   * `creerSession` répète le handler Stripe du profil UCP dans chaque session —
+   * utile sur `/ucp/mcp`, où l'agent peut effectivement payer. Sur `/mcp`, les
+   * outils qui débitent sont retirés : on annonçait donc un moyen de paiement
+   * qu'on n'exécute pas.
+   *
+   * Ce n'est pas théorique. Le 07/10/2026, ChatGPT a lu `payment_handlers` et a
+   * répondu à un client « c'est le tarif prépayé que je peux réserver
+   * directement ici ». Il aurait buté sur un mur — après lui avoir fait croire
+   * qu'il s'engageait sur un non-remboursable.
+   *
+   * 🔑 ON RETIRE L'ANNONCE, ET ON DIT OÙ ÇA SE PASSE. La session porte déjà un
+   * `continue_url` vers le tunnel de l'hôtel : il suffit de le désigner.
+   *
+   * ⚠️ Ici et pas dans `contenu()` : quinze points d'appel en rendent, et
+   * l'enveloppe est le seul endroit qui les voit TOUS. */
+  if (sansPaiement) reponse = await sansAnnoncerLePaiement(reponse);
 
   /* ok / refus / erreur se lisent dans le protocole, pas dans le code HTTP : une
    * réponse JSON-RPC est toujours un 200. Un code ≤ -32600 est une faute de

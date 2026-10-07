@@ -79,8 +79,15 @@ export function ficheHotel() {
     rooftop: {
       name: 'Le rooftop des Voiles',
       notes: 'Au 4ᵉ étage, le seul rooftop de Toulon ouvert sur la rade. '
-        + 'Bar à cocktails, tapas, desserts glacés.',
-      service: '17:00 – 22:00, tous les soirs',
+        + 'Bar à cocktails, tapas, desserts glacés. '
+        /* 🔴 IL N'OUVRE PAS TOUS LES SOIRS, et on l'annonçait ainsi. Un agent
+           répète ce qu'on écrit ici : le 07/10/2026, ChatGPT a dit à un client
+           « ouvert tous les soirs de 17 h à 22 h » alors que la saison ne l'est
+           plus. Une promesse d'ouverture est une promesse — elle se vérifie. */
+        + '⚠️ Le rooftop n’ouvre PAS tous les soirs : l’ouverture varie selon la saison et les jours. '
+        + 'Ne jamais annoncer qu’il est ouvert sans avoir appelé `get_rooftop_availability`, '
+        + 'qui rend les soirs réellement ouverts. Une liste vide veut dire fermé, pas complet.',
+      service: '17:00 – 22:00 les soirs d’ouverture',
       last_arrival: '21:30',
       booking_required: true,
       max_party_size: COUVERTS_MAX,
