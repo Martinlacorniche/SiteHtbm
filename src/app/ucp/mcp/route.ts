@@ -542,6 +542,15 @@ async function traiterInterne(req: Request, sansPaiement = false) {
             + 'quand une chambre se vend.\n'
             + '· Les prix rendus sont TOUT COMPRIS — petit-déjeuner et taxe de séjour inclus. '
             + 'Ne rien ajouter, ne pas annoncer de supplément à l’arrivée.\n'
+            /* 🔴 LE SITE ET L'OUTIL NE DISENT PAS LA MÊME CHOSE, ET C'EST NORMAL.
+               Le 07/10/2026, ChatGPT a annoncé « à partir de 119 € en Confort »
+               lu sur la page publique, puis 122,62 € par l'outil, dans la MÊME
+               conversation. Les deux sont vrais — l'un est un « à partir de »
+               de vitrine, l'autre le prix d'une nuit précise — mais l'écart se
+               voit et fait douter. On dit donc lequel fait foi. */
+            + '· Les prix affichés sur le site public sont des « à partir de » indicatifs. '
+            + 'Ne jamais les citer à côté d’un prix rendu par un outil : seul l’outil fait foi '
+            + 'pour des dates données.\n'
             + '· Si les dates demandées sont complètes, appeler `get_alternative_dates` avant '
             + 'de renoncer : l’hôtel a souvent de la place à quelques jours près.\n'
             + '· Les questions sur la maison se répondent par `get_property_details` ou '
