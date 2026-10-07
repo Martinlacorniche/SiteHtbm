@@ -160,3 +160,51 @@ qui dépend d'un tiers.
 > réponses aux questions pratiques, et réservation de table au rooftop. La
 > réservation de chambre se conclut sur le site de l'hôtel, qui encaisse
 > lui-même : aucun paiement n'a lieu dans la conversation.
+
+---
+
+# Le paquet, construit (07/10/2026)
+
+`docs/annuaire/paquet/` et son archive `docs/annuaire/les-voiles-toulon.zip`
+(3,2 Ko) : c'est ce qui se téléverse sur https://platform.openai.com/plugins.
+
+```
+plugin.json          le manifeste et la fiche d'annuaire
+mcp.json             le serveur déclaré en "streamable-http"
+assets/logo-64.png   l'icône, 1 534 octets
+```
+
+🔧 **Correction de ce que j'avais écrit le 06/10** : `shortDescription` est
+limitée à **30 caractères**, pas à une phrase. La mienne en faisait 120 — elle
+aurait fait échouer la validation automatique. Les quatre longueurs sont
+maintenant vérifiées : `name` 17/64, `displayName` 17/30, `shortDescription`
+25/30, `longDescription` 1 029/4 000.
+
+⚠️ `category` est posée à `travel` : la liste des catégories admises n'est pas
+publiée, elle apparaîtra dans le tableau de bord. À corriger là si elle est
+refusée.
+
+## La vérification du domaine
+
+OpenAI délivre un jeton au moment où l'on déclare le serveur, et veut le lire
+en **texte brut** (pas en JSON) sur
+`https://hotels-toulon-mer.com/.well-known/openai-apps-challenge`.
+
+La route existe et est en ligne. Elle lit la variable `OPENAI_APPS_CHALLENGE` :
+
+1. tu colles le jeton dans les variables du site `sitehtbm` sur Netlify ;
+2. ⚠️ **un redéploiement est nécessaire** pour qu'une variable neuve soit vue ;
+3. tu reviens cliquer « vérifier » chez OpenAI.
+
+Tant que la variable est vide, l'adresse rend **404** — et c'est voulu : une
+chaîne vide en 200 ferait croire à une vérification qui ne peut pas aboutir.
+
+## Ce qui reste, et pour qui
+
+| | |
+|---|---|
+| Vérification d'identité de l'organisation OpenAI | **toi** — rien ne commence avant |
+| Le jeton de domaine, puis la variable Netlify | toi le jeton, moi la pose |
+| Vidéo de démonstration | **toi** |
+| Captures d'écran | **toi**, pendant l'essai en mode développeur |
+| Paquet, manifeste, cas de test, notes de version | ✅ fait |

@@ -1,0 +1,21 @@
+{
+  "name": "les-voiles-toulon",
+  "description": "Chambres, prix réels et tables au rooftop de l'Hôtel-Rooftop Les Voiles, à Toulon.",
+  "homepage": "https://hotels-toulon-mer.com",
+  "keywords": ["hotel", "toulon", "rooftop", "booking", "lodging"],
+  "extensions": {
+    "com.openai.interface": {
+      "displayName": "Les Voiles Toulon",
+      "shortDescription": "Hôtel et rooftop à Toulon",
+      "longDescription": "L'Hôtel-Rooftop Les Voiles est un boutique-hôtel indépendant de 16 chambres à Toulon, dans le quartier du Mourillon, à 300 m des plages.\n\nCe connecteur interroge directement le logiciel hôtelier des Voiles. Les disponibilités et les prix sont donc réels, et ils changent quand une chambre se vend : rien n'est estimé ni mis en cache. Les totaux sont annoncés taxe de séjour comprise.\n\nIl permet de décrire l'hôtel et ses prestations, de chercher une chambre pour des dates données, d'obtenir un prix tout compris, de proposer des dates de repli quand c'est complet, de répondre aux questions pratiques (parking, animaux, arrivée autonome, petit-déjeuner) et de réserver une table au rooftop — le seul rooftop de Toulon ouvert sur la rade, accessible aussi aux personnes qui ne dorment pas à l'hôtel.\n\nLa réservation de chambre se termine sur le site de l'hôtel, qui encaisse lui-même : aucun paiement n'a lieu dans la conversation.\n\nUn client déjà réservé peut relire son séjour, obtenir ses codes d'arrivée et consulter sa note.",
+      "developerName": "LES VOILES (Hôtels Bord de Mer) — Toulon, France",
+      "category": "travel",
+      "logo": "assets/logo-64.png",
+      "composerIcon": "assets/logo-64.png",
+      "websiteURL": "https://hotels-toulon-mer.com",
+      "supportURL": "https://hotels-toulon-mer.com/connecteur",
+      "privacyPolicyURL": "https://hotels-toulon-mer.com/confidentialite",
+      "termsOfServiceURL": "https://hotels-toulon-mer.com/cgv"
+    }
+  }
+}
