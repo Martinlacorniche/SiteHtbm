@@ -1,149 +1,173 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Les Voiles — Arrivée en autonomie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  /* A4 PORTRAIT, SANS MARGES D'IMPRIMANTE : le cadre doré touche presque le
-     bord, donc c'est la page qui porte sa propre marge. */
+  /* ⚠️ PAS DE FOND À BORD PERDU. Cette feuille s'imprime sur l'imprimante de la
+     réception, qui garde ses marges : un aplat jusqu'au bord ressortirait
+     cerné de blanc. Tous les aplats sont donc en retrait, et c'est assumé. */
   @page { size: A4 portrait; margin: 0; }
 
   :root {
-    --navy: #004e7c;
-    --navy-deep: #013a5c;
+    --navy: #013a5c;
+    --navy-clair: #004e7c;
     --gold: #C6A972;
     --gold-ink: #8C6F39;
-    --cream: #FDFCF8;
-    --encre: #2b3942;
+    --encre: #1d2a33;
+    --gris: #78878f;
   }
 
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    width: 210mm; height: 297mm;
-    background: var(--cream);
-    color: var(--encre);
-    font-family: Georgia, "Times New Roman", serif;
+    width: 210mm; height: 297mm; background: #fff; color: var(--encre);
+    font-family: Inter, "Helvetica Neue", Arial, sans-serif;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
+  .page { height: 297mm; padding: 14mm; display: flex; flex-direction: column; gap: 9mm; }
 
-  .feuille {
-    height: 297mm;
-    padding: 17mm 18mm;
-    display: flex; flex-direction: column;
+  /* ── LE BANDEAU ────────────────────────────────────────────────────────── */
+  .bandeau {
+    background: var(--navy); color: #fff; border-radius: 3mm;
+    padding: 13mm 14mm 12mm; position: relative; overflow: hidden;
   }
-
-  /* ── L'EN-TÊTE ─────────────────────────────────────────────────────────── */
-  header { text-align: center; padding-bottom: 7mm; border-bottom: 1.2pt solid var(--gold); }
-  .marque {
-    font-size: 11pt; letter-spacing: .42em; text-transform: uppercase;
-    color: var(--gold-ink); margin: 0 0 3.5mm; font-family: Helvetica, Arial, sans-serif;
+  /* Un seul geste graphique : un arc d'or en fond, coupé par le cadre. */
+  .bandeau::after {
+    content: ""; position: absolute; right: -26mm; top: -34mm;
+    width: 86mm; height: 86mm; border-radius: 50%;
+    border: 1.1mm solid var(--gold); opacity: .7;
   }
-  h1 { font-size: 27pt; color: var(--navy-deep); margin: 0; font-weight: normal; letter-spacing: .01em; }
-  .lieu { font-size: 10pt; color: #7b8a93; margin: 2.5mm 0 0; font-family: Helvetica, Arial, sans-serif; letter-spacing: .06em; }
-
-  /* ── LES DEUX LANGUES ──────────────────────────────────────────────────── */
-  .langues { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 9mm; }
-
-  section { }
-  .drapeau {
-    font-size: 8.5pt; letter-spacing: .3em; text-transform: uppercase;
-    color: var(--gold-ink); font-family: Helvetica, Arial, sans-serif;
-    margin: 0 0 3.5mm;
+  .eyebrow {
+    font-size: 8pt; font-weight: 600; letter-spacing: .34em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 5mm;
   }
-  h2 { font-size: 16.5pt; color: var(--navy); margin: 0 0 4mm; font-weight: normal; }
-  p { font-size: 11.5pt; line-height: 1.62; margin: 0 0 3mm; }
-  .cle { color: var(--navy-deep); font-weight: bold; }
+  .bandeau h1 {
+    font-family: "Playfair Display", Georgia, serif; font-weight: 400;
+    font-size: 36pt; line-height: 1; letter-spacing: -.01em;
+  }
+  .sous { margin-top: 4mm; font-size: 12.5pt; font-weight: 300; color: #cfe0ea; }
+  .sous .en { color: #8fb0c4; font-size: 11pt; }
 
-  /* L'ENCADRÉ DU TÉLÉPHONE : c'est la seule chose qu'on cherche en urgence,
-     à 23 h, avec une valise à la main. Il doit se voir sans lire la page. */
+  /* ── LES TROIS TEMPS ───────────────────────────────────────────────────── */
+  /* Les trois temps RESPIRENT dans la hauteur restante : sans `flex: 1`, ils
+     s'entassaient sous le bandeau et laissaient huit centimètres de vide
+     au-dessus du numéro — une page à moitié pleine, qui se voit. */
+  .etapes { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; padding: 0 2mm; }
+  .etape { display: grid; grid-template-columns: 15mm 1fr; align-items: start; }
+  .num {
+    font-family: "Playfair Display", Georgia, serif; font-size: 25pt;
+    color: var(--gold); line-height: .9;
+  }
+  .etape h2 { font-size: 13.5pt; font-weight: 600; color: var(--navy); letter-spacing: -.01em; }
+  .etape .fr { margin-top: 2.5mm; font-size: 11.3pt; line-height: 1.6; font-weight: 400; }
+  .etape .en {
+    margin-top: 3mm; font-size: 10pt; line-height: 1.55; color: var(--gris);
+    padding-left: 4mm; border-left: .5pt solid #dfe5e8;
+  }
+  .etape .en b { color: #5d6c75; font-weight: 600; }
+  strong { font-weight: 600; color: var(--navy-clair); }
+
+  /* ── LE NUMÉRO ─────────────────────────────────────────────────────────── */
+  /* Aplat plein, pas de contour : c'est le contraste qui le fait voir, et il
+     se trouve en une seconde à 23 h, une valise à la main. */
   .secours {
-    margin-top: 4.5mm; padding: 4.5mm 6mm;
-    background: #fff; border: .9pt solid var(--gold);
-    display: flex; align-items: baseline; gap: 4mm;
+    background: var(--navy); color: #fff;
+    border-radius: 3mm; padding: 9mm 14mm;
+    display: flex; align-items: center; justify-content: space-between; gap: 8mm;
   }
-  .secours .libelle { font-size: 9.5pt; color: #6b7a82; font-family: Helvetica, Arial, sans-serif; }
-  .secours .numero {
-    font-size: 17pt; color: var(--navy-deep); font-weight: bold;
-    letter-spacing: .035em; white-space: nowrap;
+  .secours .quoi { font-size: 10pt; font-weight: 500; line-height: 1.5; }
+  .secours .quoi .en { color: #8fb0c4; font-size: 9pt; font-weight: 300; }
+  .secours .tel {
+    font-size: 25pt; font-weight: 700; letter-spacing: -.01em; white-space: nowrap;
   }
-
-  .filet { height: 1pt; background: linear-gradient(to right, transparent, var(--gold), transparent); }
+  .secours .tel small { display: block; font-size: 8pt; font-weight: 400; letter-spacing: .18em; color: var(--gold); text-align: right; margin-top: 1.5mm; }
 
   /* ── LE PIED ───────────────────────────────────────────────────────────── */
   footer {
-    border-top: 1.2pt solid var(--gold); padding-top: 5mm; text-align: center;
-    font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #7b8a93; line-height: 1.6;
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 8.5pt; color: var(--gris); padding: 0 2mm;
   }
-  footer .adresse { color: var(--navy); }
+  footer .nom { color: var(--navy); font-weight: 600; }
 </style>
 
-<div class="feuille">
+<div class="page">
 
-  <header>
-    <p class="marque">Hôtel&nbsp;·&nbsp;Rooftop</p>
+  <div class="bandeau">
+    <div class="eyebrow">Hôtel · Rooftop · Toulon</div>
     <h1>Les Voiles</h1>
-    <p class="lieu">Toulon — Le Mourillon</p>
-  </header>
+    <div class="sous">
+      Bienvenue — votre arrivée se fait en autonomie.<br>
+      <span class="en">Welcome — this is a self check-in.</span>
+    </div>
+  </div>
 
-  <div class="langues">
+  <div class="etapes">
 
-    <!-- ── FRANÇAIS ────────────────────────────────────────────────────── -->
-    <section>
-      <p class="drapeau">Français</p>
-      <h2>Bienvenue — votre arrivée en autonomie</h2>
-      <p>
-        Nous ne sommes pas présents à cette heure-ci, et vous n’avez pas besoin de
-        nous attendre : <span class="cle">vous pouvez vous installer dès maintenant</span>.
-      </p>
-      <p>
-        <span class="cle">Le code de la porte vous a été communiqué par e-mail</span>,
-        avec le numéro de votre chambre. Si vous ne le retrouvez pas, regardez
-        également dans vos courriers indésirables.
-      </p>
-      <p>
-        La moindre difficulté — un code qui ne fonctionne pas, une question, un
-        imprévu — se règle en un appel. Nous sommes joignables
-        <span class="cle">24 h/24</span>&nbsp;:
-      </p>
-      <div class="secours">
-        <span class="libelle">Assistance, jour et nuit</span>
-        <span class="numero">04 94 41 35 12</span>
+    <div class="etape">
+      <div class="num">1</div>
+      <div>
+        <h2>Entrez, nous ne sommes pas là</h2>
+        <p class="fr">
+          Personne ne vous attend à la réception à cette heure-ci, et
+          <strong>vous n’avez pas besoin de nous attendre non plus</strong> :
+          votre chambre est prête.
+        </p>
+        <p class="en">
+          <b>Come on in.</b> There is no one at the desk right now, and there is no
+          need to wait for us — your room is ready.
+        </p>
       </div>
-      <p style="margin-top:4mm">À très vite, et bon séjour parmi nous.</p>
-    </section>
+    </div>
 
-    <div class="filet"></div>
-
-    <!-- ── ENGLISH ─────────────────────────────────────────────────────── -->
-    <section>
-      <p class="drapeau">English</p>
-      <h2>Welcome — self check-in</h2>
-      <p>
-        There is no one at the desk right now, and there is no need to wait for us:
-        <span class="cle">you can settle in straight away</span>.
-      </p>
-      <p>
-        <span class="cle">Your door code was sent to you by e-mail</span>, together
-        with your room number. If you cannot find it, please also check your spam
-        folder.
-      </p>
-      <p>
-        Should anything go wrong — a code that will not open, a question, anything
-        unexpected — one call is all it takes. We are reachable
-        <span class="cle">24/7</span>:
-      </p>
-      <div class="secours">
-        <span class="libelle">Assistance, day and night</span>
-        <span class="numero">+33 4 94 41 35 12</span>
+    <div class="etape">
+      <div class="num">2</div>
+      <div>
+        <h2>Le code est dans votre e-mail</h2>
+        <p class="fr">
+          <strong>Le code de la porte vous a été envoyé par e-mail</strong>, avec
+          le numéro de votre chambre. Si vous ne le retrouvez pas, pensez à
+          regarder dans vos courriers indésirables.
+        </p>
+        <p class="en">
+          <b>Your door code was sent to you by e-mail</b>, along with your room
+          number. If you cannot find it, please check your spam folder too.
+        </p>
       </div>
-      <p style="margin-top:4mm">See you very soon — enjoy your stay.</p>
-    </section>
+    </div>
+
+    <div class="etape">
+      <div class="num">3</div>
+      <div>
+        <h2>Un souci ? Un appel suffit</h2>
+        <p class="fr">
+          Un code qui ne fonctionne pas, une question, un imprévu : nous
+          répondons <strong>à toute heure, nuit comprise</strong>.
+        </p>
+        <p class="en">
+          A code that will not open, a question, anything unexpected: we answer
+          <b>at any hour, night included</b>.
+        </p>
+      </div>
+    </div>
 
   </div>
 
+  <div class="secours">
+    <div class="quoi">
+      Assistance, jour et nuit<br>
+      <span class="en">Assistance, day and night</span>
+    </div>
+    <div class="tel">
+      04 94 41 35 12
+      <small>+33 4 94 41 35 12</small>
+    </div>
+  </div>
+
   <footer>
-    <div class="adresse">Hôtel-Rooftop Les Voiles — 124 rue Gubler, 83000 Toulon</div>
-    <div>hotels-toulon-mer.com</div>
+    <span class="nom">Hôtel-Rooftop Les Voiles</span>
+    <span>124 rue Gubler, 83000 Toulon</span>
+    <span>hotels-toulon-mer.com</span>
   </footer>
 
 </div>
