@@ -376,12 +376,28 @@ const ANNOTATIONS: Record<string, {
 }> = {
   create_booking_session: {
     title: 'Chercher une chambre et son prix',
-    /* Ouvre une session et rend un prix. Rien n'est tenu, rien n'est vendu. */
-    readOnlyHint: true, destructiveHint: false, openWorldHint: true,
+    /* 🔴 `readOnlyHint: false`, ET CE N'EST PAS UN DÉTAIL DE FORME.
+     *
+     * Rien n'est tenu ni vendu — c'est vrai — mais `creerSession` ÉCRIT une
+     * ligne dans `ucp_session`. OpenAI définit la marque sans ambiguïté :
+     * `true` seulement pour une lecture (fetch / list / retrieve), `false` dès
+     * qu'il y a création ou changement d'état. Ils rangent l'annotation
+     * inexacte parmi les causes de rejet.
+     *
+     * ⚠️ Et c'est juste au fond, pas seulement pour passer la relecture : un
+     * agent qui lit `readOnlyHint: true` se croit autorisé à rappeler l'outil
+     * autant de fois qu'il veut, sans conséquence. Chaque appel laisse ici une
+     * session de plus. */
+    readOnlyHint: false, destructiveHint: false, openWorldHint: true,
   },
   get_booking_session: {
     title: 'Relire une recherche en cours',
-    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+    /* 🔴 FAUX AUSSI, ET POUR UNE RAISON PLUS FORTE : relire RATTRAPE. Si un
+     * lien de paiement a été réglé entre-temps, c'est cet appel qui conclut la
+     * vente (`finaliserSiPaye`). Un outil qui peut conclure une vente n'est pas
+     * en lecture seule, même s'il ne fait rien neuf fois sur dix.
+     * `idempotentHint` reste vrai : rappeler ne vend pas deux fois. */
+    readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true,
   },
   update_booking_session: {
     title: 'Indiquer qui réserve',
