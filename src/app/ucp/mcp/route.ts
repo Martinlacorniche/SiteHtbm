@@ -61,14 +61,29 @@ const OUTILS = [
     name: 'create_booking_session',
     description:
       'Ouvre une session de réservation à l’Hôtel-Rooftop Les Voiles (Toulon, Mourillon) '
-      + 'pour des dates et une occupation données. Rend la chambre et le tarif réellement '
+      + 'pour des dates et une occupation données. Le plus simple : `check_in`, `check_out` '
+      + '(AAAA-MM-JJ) et `adults`. La forme UCP `booking.stays[]` est acceptée aussi. Rend la chambre et le tarif réellement '
       + 'disponibles, le prix total en centimes d’euro, et une URL pour finaliser. '
       + 'Seuls les tarifs PRÉPAYÉS se réservent par agent : le séjour est réglé en totalité '
       + 'à la réservation, et n’est pas remboursable. '
       + 'Rend une erreur claire si l’hôtel est complet ou fermé sur la période.',
     inputSchema: {
       type: 'object',
+      /* 🔴 DEUX FORMES ACCEPTÉES, ET LA COURTE EST ANNONCÉE EN PREMIER.
+       *
+       * Le 07/10/2026, ChatGPT a essuyé QUATRE refus avant de trouver
+       * `booking.stays[0].stay_dates.start_date` — quatre niveaux à deviner.
+       * Il est têtu et y est arrivé ; un agent au budget de relances plus
+       * serré aurait rendu « pas de disponibilité » sur un hôtel qui a des
+       * chambres. C'est le pire mensonge possible pour un moteur, et il ne
+       * laisse aucune trace côté client.
+       *
+       * La forme UCP reste servie telle quelle — c'est le protocole, et les
+       * agents qui le parlent l'attendent. */
       properties: {
+        check_in: { type: 'string', description: 'Date d’arrivée, AAAA-MM-JJ. Forme courte, équivaut à booking.stays[0].stay_dates.start_date.' },
+        check_out: { type: 'string', description: 'Date de départ, AAAA-MM-JJ. Forme courte.' },
+        adults: { type: 'integer', description: 'Nombre d’adultes (2 par défaut). Forme courte.' },
         meta: { type: 'object', description: 'Métadonnées de protocole UCP.' },
         booking: {
           type: 'object',
@@ -592,7 +607,15 @@ async function traiterInterne(req: Request, sansPaiement = false) {
 
         if (nom === 'create_booking_session') {
           const stays = Array.isArray(booking.stays) ? booking.stays as Record<string, unknown>[] : [];
-          const stay = stays[0];
+          /* La forme courte vaut un séjour : on la convertit, et tout ce qui suit
+             ne connaît plus qu'une seule forme. */
+          const court = String(args.check_in ?? '') && String(args.check_out ?? '')
+            ? [{
+              stay_dates: { start_date: String(args.check_in), end_date: String(args.check_out) },
+              occupancy: { adults: Number(args.adults ?? 2) },
+            }] as Record<string, unknown>[]
+            : [];
+          const stay = stays[0] ?? court[0];
           /* ⚠️ UN SEUL SÉJOUR POUR CE PREMIER JALON, ET ON LE DIT. Le protocole
              prévoit un panier de plusieurs chambres ; notre moteur ne sait en
              tenir qu'une à la fois. Accepter la demande en n'en traitant qu'une
@@ -600,7 +623,14 @@ async function traiterInterne(req: Request, sansPaiement = false) {
           if (stays.length > 1) {
             return ko(corps.id, -32602, 'Une seule chambre par session pour l’instant — ouvrez une session par chambre.');
           }
-          if (!stay) return ko(corps.id, -32602, 'Aucun séjour demandé (`booking.stays`).');
+          /* ⚠️ UN REFUS QUI ENSEIGNE LA FORME. C'est la seule chose que l'agent
+             lira avant de réessayer : lui nommer le champ manquant lui épargne
+             les quatre tentatives du 07/10. */
+          if (!stay) {
+            return ko(corps.id, -32602,
+              'Aucun séjour demandé. Donnez soit `check_in` et `check_out` au format AAAA-MM-JJ '
+              + '(le plus simple), soit `booking.stays[0].stay_dates.start_date` et `.end_date`.');
+          }
 
           const dates = (stay.stay_dates ?? {}) as { start_date?: string; end_date?: string };
           const occ = (stay.occupancy ?? {}) as { adults?: number };
