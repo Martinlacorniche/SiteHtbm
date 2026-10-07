@@ -46,7 +46,9 @@
     font-family: "Playfair Display", Georgia, serif; font-weight: 400;
     font-size: 36pt; line-height: 1; letter-spacing: -.01em;
   }
-  .sous { margin-top: 4mm; font-size: 12.5pt; font-weight: 300; color: #cfe0ea; }
+  /* ⚠️ Bornée en largeur : sans ça, la ligne court jusque sous l'arc d'or et
+     ses derniers mots deviennent illisibles. Le texte s'arrête avant le motif. */
+  .sous { margin-top: 4mm; font-size: 12.5pt; font-weight: 300; color: #cfe0ea; max-width: 112mm; }
   .sous .en { color: #8fb0c4; font-size: 11pt; }
 
   /* ── LES TROIS TEMPS ───────────────────────────────────────────────────── */
@@ -97,8 +99,8 @@
     <div class="eyebrow">Hôtel · Rooftop · Toulon</div>
     <h1>Les Voiles</h1>
     <div class="sous">
-      Bienvenue — votre arrivée se fait en autonomie.<br>
-      <span class="en">Welcome — this is a self check-in.</span>
+      Nous sommes absents ? Pas de panique.<br>
+      <span class="en">No one at the desk? No need to worry — it is all taken care of.</span>
     </div>
   </div>
 
@@ -107,15 +109,15 @@
     <div class="etape">
       <div class="num">1</div>
       <div>
-        <h2>Entrez, nous ne sommes pas là</h2>
+        <h2>Montez, votre chambre est prête</h2>
         <p class="fr">
           Personne ne vous attend à la réception à cette heure-ci, et
-          <strong>vous n’avez pas besoin de nous attendre non plus</strong> :
-          votre chambre est prête.
+          <strong>vous n’avez pas besoin de nous attendre</strong> : votre
+          chambre est prête, vous pouvez monter.
         </p>
         <p class="en">
-          <b>Come on in.</b> There is no one at the desk right now, and there is no
-          need to wait for us — your room is ready.
+          <b>Go straight up.</b> There is no need to wait for us — your room is
+          ready and waiting.
         </p>
       </div>
     </div>
@@ -123,15 +125,15 @@
     <div class="etape">
       <div class="num">2</div>
       <div>
-        <h2>Le code est dans votre e-mail</h2>
+        <h2>Votre code d’entrée, à deux endroits</h2>
         <p class="fr">
-          <strong>Le code de la porte vous a été envoyé par e-mail</strong>, avec
-          le numéro de votre chambre. Si vous ne le retrouvez pas, pensez à
-          regarder dans vos courriers indésirables.
+          Il est <strong>dans votre boîte mail</strong>, et il est aussi
+          <strong>sur votre clé de chambre</strong>. Si le message ne vous dit
+          rien, regardez dans vos courriers indésirables.
         </p>
         <p class="en">
-          <b>Your door code was sent to you by e-mail</b>, along with your room
-          number. If you cannot find it, please check your spam folder too.
+          It is <b>in your inbox</b>, and it is also <b>on your room key</b>.
+          If you cannot find the e-mail, please check your spam folder.
         </p>
       </div>
     </div>
@@ -139,14 +141,15 @@
     <div class="etape">
       <div class="num">3</div>
       <div>
-        <h2>Un souci ? Un appel suffit</h2>
+        <h2>La borne vous guide — et nous aussi</h2>
         <p class="fr">
-          Un code qui ne fonctionne pas, une question, un imprévu : nous
-          répondons <strong>à toute heure, nuit comprise</strong>.
+          <strong>La borne est là pour vous aider</strong> à tout moment. Et si
+          vous préférez une voix, la nôtre répond <strong>à toute heure</strong>,
+          nuit comprise.
         </p>
         <p class="en">
-          A code that will not open, a question, anything unexpected: we answer
-          <b>at any hour, night included</b>.
+          <b>The kiosk is there to help you</b>, at any time. And if you would
+          rather hear a voice, ours answers <b>around the clock</b>.
         </p>
       </div>
     </div>
