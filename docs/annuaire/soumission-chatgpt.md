@@ -81,3 +81,82 @@ là qu'on prendra les captures.
 ⚠️ Chaque essai sera maintenant COMPTÉ dans `mcp_appels` : c'est normal, et ça
 permet de distinguer nos propres essais (agent `ChatGPT`, avant la publication)
 du trafic réel qui suivra.
+
+---
+
+# Le vrai parcours de soumission (relevé le 07/10/2026)
+
+🔧 **CORRECTION DE CE QUE J'AI ÉCRIT LE 06/10.** J'avais annoncé « trois choses
+à faire ». C'est davantage : la soumission n'est pas un formulaire, c'est un
+paquet à téléverser avec des pièces de recette. Voici la liste réelle.
+
+**Où** : https://platform.openai.com/plugins → « Upload new or existing plugin ».
+
+**Prérequis bloquant** : être propriétaire de l'organisation (ou avoir le droit
+« Apps Management Write »), **et avoir fait la vérification d'identité**
+(individuelle ou entreprise) dans les réglages de l'organisation. Rien ne
+commence avant ça — c'est la première chose à lancer, parce que c'est la seule
+qui dépend d'un tiers.
+
+| Pièce | Qui |
+|---|---|
+| Vérification d'identité de l'organisation | **toi** — à lancer en premier |
+| Paquet (ZIP) + manifeste | moi, dès qu'on voit le gabarit attendu |
+| Vérification du domaine, onglet « MCPs » | moi (fichier ou DNS) dès que tu as le jeton |
+| Métadonnées, icône, descriptions | ✅ déjà faites, plus haut |
+| **5 cas de test positifs** | ✅ ci-dessous |
+| **3 cas de test négatifs** | ✅ ci-dessous |
+| Vidéo de démonstration (URL) | **toi** — une capture d'écran filmée de la conversation |
+| Identifiants pour le relecteur | sans objet : aucune authentification sur `/mcp` |
+| Notes de version | ✅ ci-dessous |
+
+## Les 5 cas positifs
+
+1. **Décrire l'hôtel.** « Parle-moi de l'Hôtel-Rooftop Les Voiles à Toulon. »
+   → `get_property_details`. Attendu : adresse au Mourillon, 16 chambres,
+   rooftop, arrivée autonome à partir de 15 h, animaux acceptés. Rien
+   d'inventé : tout vient de l'outil.
+
+2. **Un prix réel, taxe comprise.** « Une chambre pour 2 personnes du 20 au 22
+   novembre, c'est combien ? » → `create_booking_session`. Attendu : un total
+   TTC taxe de séjour incluse, et le prix par nuit. ⚠️ Le prix doit changer si
+   on repose la question à d'autres dates : il vient du PMS, pas d'un cache.
+
+3. **Des dates de repli quand c'est complet.** Demander des dates saturées.
+   → `get_alternative_dates`. Attendu : des séjours de même durée, proches, et
+   réellement disponibles — pas un « aucune disponibilité » sec.
+
+4. **Une table au rooftop.** « Une table au rooftop vendredi soir pour 4. »
+   → `get_rooftop_availability` puis `create_rooftop_reservation`. Attendu :
+   la table est tenue **fermement, sans paiement**, et l'agent rend la
+   confirmation. C'est le cas qui montre une écriture réussie de bout en bout.
+
+5. **Une question précise sur l'établissement.** « Est-ce que les chiens sont
+   acceptés, et y a-t-il un parking ? » → `search` puis `fetch`. Attendu : la
+   réponse dans les mots de l'hôtel, pas une généralité sur les hôtels.
+
+## Les 3 cas négatifs
+
+1. **On ne paie pas dans la conversation.** Demander à régler la chambre
+   directement. Attendu : l'outil de paiement **n'existe pas** sur cette porte,
+   et un appel direct est refusé avec le message qui renvoie sur le tunnel de
+   l'hôtel. Aucun débit n'est possible depuis ChatGPT — c'est exactement ce que
+   leurs règles sur le commerce exigent.
+
+2. **Des dates impossibles.** Départ avant l'arrivée, ou dates passées.
+   Attendu : un refus lisible dans le protocole (JSON-RPC), pas une erreur HTTP
+   ni un plantage, et surtout pas un prix.
+
+3. **Le séjour de quelqu'un d'autre.** `get_stay` avec une référence inconnue
+   ou devinée. Attendu : un refus qui ne divulgue rien — ni nom, ni dates, ni
+   note. Et le code de porte (`get_check_in`) n'est jamais rendu sans la bonne
+   référence.
+
+## Notes de version
+
+> Première version. Connecteur de l'Hôtel-Rooftop Les Voiles (Toulon, France),
+> 16 chambres, indépendant. Lecture des disponibilités et des prix réels dans
+> le logiciel de l'hôtel, description de l'établissement, dates de repli,
+> réponses aux questions pratiques, et réservation de table au rooftop. La
+> réservation de chambre se conclut sur le site de l'hôtel, qui encaisse
+> lui-même : aucun paiement n'a lieu dans la conversation.

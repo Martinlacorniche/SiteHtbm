@@ -55,3 +55,48 @@ qui pourra brancher ses clients — c'est le profil qu'ils cherchent.
 L'accès aux spécifications d'intégration et au programme, pour qu'un hôtel
 indépendant puisse être réservable dans AI Mode **en direct**, sans passer par
 une OTA.
+
+---
+
+# Le formulaire, champ par champ (relevé le 07/10/2026)
+
+🔴 **À LIRE AVANT DE LE REMPLIR : ce formulaire est cadré sur les États-Unis.**
+La toute première question est « Do you have U.S. based properties? », et la
+suivante demande combien de propriétés américaines sont déjà en service sur
+Google. Pour Les Voiles, la réponse honnête est **non** et **zéro**.
+
+Rien n'annonce que ce soit éliminatoire — aucun critère d'éligibilité n'est
+publié — mais il faut y aller en le sachant : c'est un programme qui démarre
+aux États-Unis, et une candidature française arrivera probablement dans une
+file d'attente de seconde intention. L'envoyer coûte dix minutes et garde la
+porte ouverte ; en attendre une réponse rapide serait se tromper.
+
+🔑 **Ce qui nous distingue est à la question 10** : « Does your organization
+have prior experience building REST API endpoints or MCP servers? » → **Yes**,
+et c'est vérifiable en une URL. Très peu de candidats non américains pourront
+en dire autant.
+
+| # | Champ | Réponse |
+|---|---|---|
+| 1 | U.S. based properties? *(obligatoire)* | **No** |
+| 2 | Contact first name | Martin |
+| 3 | Contact last name | Vitté |
+| 4 | Contact email *(obligatoire)* | ⚠️ une adresse **professionnelle** — jamais une adresse perso. `contact-lesvoiles@htbm.fr`, ou une adresse de direction si tu préfères que ça n'arrive pas dans la boîte de la réception. |
+| 5 | Email CC *(facultatif)* | au choix |
+| 6 | Company Name *(obligatoire)* | **LES VOILES** (SAS, SIREN 795 063 304) |
+| 7 | Hotel Center ID *(facultatif)* | ⚠️ à laisser vide : les liens de réservation gratuits passent par D-EDGE, le Hotel Center est le leur, pas le nôtre (cf. `mail-dedge-google-hotels.md`). |
+| 8 | Company Website URL *(obligatoire)* | `https://hotels-toulon-mer.com` |
+| 9 | Combien de propriétés US en service sur Google ? | **Fewer than 25 properties** (c'est zéro — c'est l'option la plus basse offerte) |
+| 10 | Expérience REST/MCP ? *(obligatoire)* | **Yes** |
+| 11 | Engagement : démarrer l'implémentation sous 30 jours | ✅ à cocher — c'est tenable, le profil UCP et le serveur MCP tournent déjà |
+| 12 | Interlocuteur Google ? *(facultatif)* | non |
+| 13 | Conditions Google | ✅ à cocher |
+
+Si un champ libre permet d'ajouter un mot, le plus utile est :
+
+> Hôtel indépendant français de 16 chambres, déjà conforme UCP : profil public
+> sur https://hotels-toulon-mer.com/.well-known/ucp et serveur MCP en service
+> sur https://hotels-toulon-mer.com/mcp (12 outils, prix et disponibilités
+> issus du PMS, l'hôtel étant marchand de référence et encaissant lui-même).
+> Nous éditons aussi le logiciel hôtelier qui les alimente : ce qui est branché
+> ici est reproductible pour d'autres indépendants.
