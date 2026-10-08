@@ -5,6 +5,7 @@ import {
   chargerConfigPaiement, autoriserCarte, infosNavigateur, lien3DSecure, type Langue,
 } from "@/lib/mewsBooking";
 import { poserVente } from "@/lib/reprise3ds";
+import { jalon } from "@/lib/mesure";
 
 /* L'écran de règlement — DEUX CHEMINS, un par tarif.
  *
@@ -287,6 +288,12 @@ export default function Paiement({
         setErreur(T.echec); relacher(); return;
       }
 
+      /* 🔑 LA CARTE EST SAISIE ET LA CHAMBRE EST POSÉE. C'est la marche qui
+         manquait : `paiement` ne disait que « le panneau s'est ouvert », donc
+         un abandon devant le total et un échec d'authentification se
+         ressemblaient dans l'entonnoir. */
+      jalon("carte");
+
       // ── Temps 2 : l'authentification de la carte ───────────────────────────
       setEtape(T.auth3ds);
       let etat: string | null = null;
@@ -316,6 +323,8 @@ export default function Paiement({
           client: client(),
           langue,
         });
+        /* La banque veut le voir : à partir d'ici, la vente dépend de lui. */
+        jalon("3ds");
         const retour = `${window.location.origin}${window.location.pathname}?apres3ds=1`;
         window.location.href = lien3DSecure(j.carteId, retour);
         return;

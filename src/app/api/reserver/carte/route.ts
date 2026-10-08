@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { etatCarte, type Langue } from '@/lib/mewsBooking';
 import { finaliserVente } from '@/lib/finaliserVente';
+import { alerterCarteNonAuthentifiee } from '@/lib/alerte3ds';
 
 /* Ferme la vente du tarif FLEXIBLE, une fois la carte authentifiée.
  *
@@ -76,8 +77,15 @@ export async function POST(req: NextRequest) {
   if (etat !== 'Authorized') {
     /* `Authorizable` ici veut dire que le client n'a pas fini son 3-D Secure,
      * ou l'a abandonné. Ce n'est pas une panne : la chambre sera relâchée toute
-     * seule, et l'écran le lui dira. */
+     * seule, et l'écran le lui dira.
+     *
+     * 🔴 MAIS L'HÔTEL DOIT L'APPRENDRE AUTREMENT QUE PAR UN APPEL. Le
+     * 08/10/2026, une cliente a appelé et la réception n'avait rien : la seule
+     * trace de l'échec était cette ligne de journal, que personne ne lit. On
+     * pose donc une consigne de réception, et on n'attend pas sa réussite pour
+     * répondre au client — voir `alerte3ds.ts`. */
     console.warn('Confirmation refusee — carte', corps.carteId, 'en etat', etat);
+    void alerterCarteNonAuthentifiee(ids, etat);
     return NextResponse.json({ erreur: 'carte non authentifiee', etat }, { status: 402 });
   }
 

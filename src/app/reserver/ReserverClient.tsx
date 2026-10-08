@@ -155,6 +155,15 @@ const TEXTES = {
     repriseEnCours: "On finalise votre réservation…",
     repriseEchecTitre: "Un dernier pas nous manque",
     repriseEchec: "Votre banque a bien confirmé, mais nous n'avons pas pu terminer la réservation ici. Appelez-nous au 04 94 41 36 23 : nous la bouclons en deux minutes, rien n'a été débité.",
+    /* 🔴 LE CAS LE PLUS FRÉQUENT, ET ON LUI DISAIT LE CONTRAIRE. Quand la
+       carte revient NON authentifiée, la banque n'a rien confirmé du tout :
+       le client a fermé la page, ou l'authentification n'est pas allée au
+       bout. Lui annoncer « votre banque a bien confirmé » l'envoyait nous
+       appeler persuadé que la panne venait de nous — et au comptoir on n'avait
+       rien à lui dire. Vécu le 08/10/2026. */
+    repriseAuthTitre: "L'authentification n'est pas allée au bout",
+    repriseAuth: "Votre banque n'a pas confirmé l'authentification de votre carte, donc rien n'a été réservé ni débité. Vous pouvez réessayer tout de suite — ou nous appeler au 04 94 41 36 23, on s'en occupe.",
+    repriseAuthRejouer: "Réessayer",
     repriseFermer: "Fermer",
     paiementSecuriseAide:
       "Votre carte est saisie chez notre prestataire de paiement : elle ne transite pas par ce site.",
@@ -250,6 +259,9 @@ const TEXTES = {
     repriseEnCours: "Finalising your booking…",
     repriseEchecTitre: "One last step is missing",
     repriseEchec: "Your bank confirmed, but we couldn't complete the booking here. Call us on +33 4 94 41 36 23 and we'll finish it in two minutes — nothing has been charged.",
+    repriseAuthTitre: "The authentication didn't complete",
+    repriseAuth: "Your bank did not confirm your card authentication, so nothing was booked and nothing was charged. You can try again right away — or call us on +33 4 94 41 36 23 and we'll take care of it.",
+    repriseAuthRejouer: "Try again",
     repriseFermer: "Close",
     paiementSecuriseAide:
       "Your card is entered directly with our payment provider — it never passes through this site.",
@@ -1243,7 +1255,10 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   /* La reprise au retour du 3-D Secure : « en-cours » pendant qu'on confirme,
      « echec » si on n'a pas pu. Un retour de banque qui n'aboutit a rien
      visible est la pire seconde du tunnel. */
-  const [reprise, setReprise] = useState<"en-cours" | "echec" | null>(null);
+  /* `auth` = la carte est revenue NON authentifiée (402) : la banque n'a rien
+     confirmé, et le client peut réessayer. `echec` = tout le reste, où la
+     chambre est peut-être posée et où seul le téléphone rattrape. */
+  const [reprise, setReprise] = useState<"en-cours" | "echec" | "auth" | null>(null);
 
   const nuits = nuitsEntre(arrivee, depart);
   const adultes = voyage === "seul" ? 1 : 2;
@@ -1380,7 +1395,15 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           }),
         })
           .then((r) => {
-            if (!r.ok) { setReprise("echec"); return; }
+            if (!r.ok) {
+              /* 🔑 402 = « carte non authentifiée », et c'est le serveur qui
+                 l'a relu CHEZ MEWS. Ce n'est pas une panne de notre côté :
+                 c'est un 3-D Secure qui n'est pas allé au bout, et ça se dit
+                 autrement — avec un bouton pour réessayer. */
+              setReprise(r.status === 402 ? "auth" : "echec");
+              jalon("3ds_echec");
+              return;
+            }
             setReprise(null);
             setReserve({
               groupeId: vente.groupeId, numeros: vente.numeros, client: vente.client,
@@ -1391,11 +1414,12 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                barreau, exactement là où on veut être sûr de soi. */
             jalon("confirmee");
           })
-          .catch(() => setReprise("echec"));
+          .catch(() => { setReprise("echec"); jalon("3ds_echec"); });
       } else {
         // Onglet ferme, navigation privee, ou plus de trente minutes : on ne
         // sait plus de quelle vente il s'agit. Le telephone rattrape.
         setReprise("echec");
+        jalon("3ds_echec");
       }
     }
 
@@ -2824,6 +2848,28 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   <path d="M12 3a9 9 0 1 0 9 9" />
                 </svg>
                 <p className="mt-4 text-[15px] font-semibold text-navy">{T.repriseEnCours}</p>
+              </>
+            ) : reprise === "auth" ? (
+              /* 🔑 LA BANQUE N'A RIEN CONFIRMÉ. On le dit, et on remet le
+                 client sur le chemin : réessayer est gratuit et immédiat,
+                 téléphoner lui coûte sa soirée et nous coûte un appel où on
+                 n'a rien à lui apprendre. Le téléphone reste, en second. */
+              <>
+                <p className="font-serif text-2xl text-navy">{T.repriseAuthTitre}</p>
+                <p className="mt-3 text-[14.5px] leading-relaxed text-[#5b6a72]">{T.repriseAuth}</p>
+                <button
+                  type="button"
+                  onClick={() => { setReprise(null); setPaiementOuvert(true); }}
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-gold px-6 py-3.5 text-[17px] font-bold text-navy-deep transition hover:brightness-105"
+                >
+                  {T.repriseAuthRejouer}
+                </button>
+                <a
+                  href="tel:+33494413623"
+                  className="mt-3 flex w-full items-center justify-center rounded-full border border-navy/15 px-6 py-3 text-[15px] font-semibold text-navy transition hover:bg-navy/5"
+                >
+                  04 94 41 36 23
+                </a>
               </>
             ) : (
               <>

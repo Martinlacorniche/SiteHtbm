@@ -19,14 +19,25 @@
 
 import { supabase } from "@/lib/supabase";
 
-/** Les six marches, dans l'ordre. La table les contrôle : une étape inventée
- *  est refusée par Postgres plutôt que comptée à part. */
+/** Les marches, dans l'ordre. La table les contrôle : une étape inventée est
+ *  refusée par Postgres plutôt que comptée à part (migration 371).
+ *
+ *  🔴 LES TROIS DERNIÈRES ONT ÉTÉ AJOUTÉES LE 08/10/2026, et il a fallu une
+ *  cliente au téléphone pour s'en apercevoir. `paiement` ne veut PAS dire « la
+ *  carte est saisie » — il se pose quand le panneau s'ouvre. Entre les deux il
+ *  y a tout : le client qui regarde le total et renonce, celui qui tape sa
+ *  carte, celui que sa banque interroge, celui qui ne finit pas son
+ *  3-D Secure. 57 sessions avaient atteint `paiement`, 23 avaient confirmé, et
+ *  on ne pouvait rien dire des 34 autres. */
 export type Etape =
   | "ouverture"   // le tunnel s'affiche
   | "recherche"   // dates et occupants validés
   | "offres"      // au moins une chambre est proposée
   | "choix"       // une chambre est sélectionnée
-  | "paiement"    // la carte est saisie
+  | "paiement"    // le PANNEAU de paiement s'ouvre — pas la carte
+  | "carte"       // la carte est saisie et la réservation posée chez Mews
+  | "3ds"         // la banque réclame le client : on l'envoie s'authentifier
+  | "3ds_echec"   // il revient SANS authentification : la vente ne peut pas se fermer
   | "confirmee";  // la réservation existe dans Mews
 
 const CLE = "htbm_mesure_session";
