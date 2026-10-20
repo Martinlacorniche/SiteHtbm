@@ -1247,7 +1247,18 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * ceux-ci décrivent un ÉTAT de l'écran, d'où les effets. Voir
    * `src/lib/mesure.ts` pour ce qui est mesuré — et ce qui ne l'est pas. */
   useEffect(() => { jalon("ouverture"); }, []);
-  useEffect(() => { if (paiementOuvert) jalon("paiement"); }, [paiementOuvert]);
+  /* ⚠️ LA CHAMBRE PROPOSÉE PAR DÉFAUT NE POSAIT PAS `choix`. Mesuré le
+   * 20/10/2026 : 24 des 62 visiteurs arrivés au paiement n'avaient jamais
+   * « choisi » — ils avaient gardé la proposition. Ouvrir le paiement, c'est
+   * l'avoir choisie : on pose `choix` s'il manque (le jalon ne se pose qu'une
+   * fois, il ne double rien). */
+  useEffect(() => {
+    if (!paiementOuvert) return;
+    const contexte = { montant: totalChambres, nuits: cherche ? nuitsEntre(cherche.a, cherche.d) : undefined };
+    jalon("choix", contexte);
+    jalon("paiement", contexte);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paiementOuvert]);
   const [reserve, setReserve] = useState<{
     groupeId: string; numeros: string[];
     client: { prenom: string; nom: string; email: string; telephone: string };
@@ -1279,7 +1290,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     setChargement(true);
     setErreur(false);
     // Jalon 2 : le visiteur a validé des dates. Voir `src/lib/mesure.ts`.
-    jalon("recherche");
+    jalon("recherche", { arrivee: a, nuits: nuitsEntre(a, d), personnes: pax });
     try {
       const [dispos, cats] = await Promise.all([
         chercherDisponibilite({ arrivee: a, depart: d, adultes: pax, langue }),
@@ -1290,7 +1301,12 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       /* Jalon 3 : on lui a montré quelque chose. ⚠️ SEULEMENT S'IL Y A DES
          OFFRES — une liste vide est précisément la marche où l'on perd les
          gens, et la compter comme franchie effacerait l'information. */
-      if (dispos?.offres?.length) jalon("offres");
+      /* Le montant : le séjour le moins cher qu'on lui a montré. C'est lui qu'on
+         confronte à Booking quand il repart sans rien choisir. */
+      if (dispos?.offres?.length) {
+        const moinsCher = Math.min(...dispos.offres.flatMap((o) => o.prix.map((p) => p.total)));
+        jalon("offres", { arrivee: a, nuits: nuitsEntre(a, d), personnes: pax, montant: moinsCher });
+      }
       /* ⚠️ POURQUOI IL N'Y A RIEN : la maison est pleine, ou le séjour est trop
          long ? La Booking Engine ne le dit pas — elle rend une liste vide dans
          les deux cas. On le DÉDUIT d'un second appel : les mêmes dates, deux
@@ -1309,6 +1325,13 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
         } catch { /* on ne conclut rien d'un appel raté */ }
       }
       setTropLong(trop);
+      /* SORTIE : il a cherché, on n'avait rien. Complet ou séjour trop long,
+         c'est la déduction juste au-dessus. */
+      if (!dispos.offres.length) {
+        jalon("aucune_offre", {
+          arrivee: a, nuits: nuitsEntre(a, d), personnes: pax, raison: trop ? "trop_long" : "complet",
+        });
+      }
       setChambres([]); // les prix changent avec les dates : on ne garde pas l'ancien choix
       setCherche({ a, d, pax });
       setTour((t) => t + 1);
@@ -1517,7 +1540,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     const deja = chambres.some((x) => memeLigne(x, c));
     // Jalon 4 : on ne compte que l'AJOUT — retirer une chambre n'est pas un
     // pas de plus dans le tunnel.
-    if (!deja) jalon("choix");
+    if (!deja) jalon("choix", { montant: c.total, nuits: cherche ? nuitsEntre(cherche.a, cherche.d) : undefined });
 
     if (!enComposition) {
       // Un seul choix a la fois : on remplace, ou on retire si c'etait celui-la.

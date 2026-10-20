@@ -485,6 +485,10 @@ export default function Paiement({
   /* Temps 2 : la vente ne se ferme QUE quand le paiement a abouti. */
   const finaliserPaiement = useCallback(async () => {
     if (!ouverte) return;
+    /* Le checkout de Mews vient d'aboutir : la carte est saisie ET acceptée.
+       Sans ce jalon, le chemin prépayé allait de `paiement` à `confirmee` sans
+       rien entre les deux — le 18/10, une vente confirmée n'avait aucun `carte`. */
+    jalon("carte");
     try {
       const r = await fetch("/api/reserver/confirmer", {
         method: "POST",

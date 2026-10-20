@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { SITE_URL } from "@/lib/site";
+import Provenance from "@/components/Provenance";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
@@ -70,7 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     // Langue par défaut
     <html lang="fr" className={`${inter.variable} ${playfair.variable}`}> 
-      <body className="font-sans">{children}</body>
+      <body className="font-sans"><Provenance />{children}</body>
     </html>
   );
 }

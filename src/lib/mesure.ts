@@ -32,6 +32,7 @@ import { supabase } from "@/lib/supabase";
 export type Etape =
   | "ouverture"   // le tunnel s'affiche
   | "recherche"   // dates et occupants validés
+  | "aucune_offre" // SORTIE : la recherche n'a rien rendu (complet ou séjour trop long)
   | "offres"      // au moins une chambre est proposée
   | "choix"       // une chambre est sélectionnée
   | "paiement"    // le PANNEAU de paiement s'ouvre — pas la carte
@@ -66,18 +67,82 @@ function session(): string | null {
  * lignes pour une. */
 const posees = new Set<Etape>();
 
-export function jalon(etape: Etape, extras?: { nuits?: number; montant?: number }): void {
+/** Ce qu'on joint à un jalon. Rien qui désigne une personne : des dates de
+ *  séjour, un nombre de nuits et de personnes, un montant affiché.
+ *  `montant` : sur `offres`, le séjour le moins cher proposé ; à partir de
+ *  `choix`, le total du panier. Toujours TTC. */
+export type Contexte = {
+  nuits?: number;
+  montant?: number;
+  arrivee?: string;
+  personnes?: number;
+  raison?: "complet" | "trop_long";
+};
+
+/* ── D'OÙ VIENT LE VISITEUR ─────────────────────────────────────────────────
+ * Martin, 20/10/2026 : l'entonnoir disait où l'on perd les gens, jamais d'où
+ * ils arrivaient. On le note UNE FOIS, à la première page de l'onglet — sur
+ * /reserver, le référent est presque toujours notre propre page d'accueil, et
+ * la vraie origine serait perdue.
+ * ⚠️ UNE ÉTIQUETTE, PAS UNE ADRESSE : `utm_source`, sinon le DOMAINE du
+ * référent (« google.com »), jamais le chemin ni la requête. */
+const CLE_PROVENANCE = "htbm_mesure_provenance";
+
+function lireProvenance(): string {
+  try {
+    const u = new URL(window.location.href);
+    const utm = u.searchParams.get("utm_source")?.trim().toLowerCase();
+    if (utm) return utm.slice(0, 60);
+    if (u.searchParams.has("gclid")) return "google_ads";
+    if (u.searchParams.has("fbclid")) return "facebook";
+    if (!document.referrer) return "direct";
+    const h = new URL(document.referrer).hostname.replace(/^www\./, "").toLowerCase();
+    if (!h) return "direct";
+    if (h === u.hostname.replace(/^www\./, "").toLowerCase()) return "site";
+    return h.slice(0, 60);
+  } catch {
+    return "direct";
+  }
+}
+
+/** À appeler au montage de chaque page : ne note que la PREMIÈRE de l'onglet. */
+export function noterProvenance(): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!window.sessionStorage.getItem(CLE_PROVENANCE)) {
+      window.sessionStorage.setItem(CLE_PROVENANCE, lireProvenance());
+    }
+  } catch { /* navigation privée : on ne mesure pas */ }
+}
+
+function provenance(): string | null {
+  try {
+    noterProvenance();
+    return window.sessionStorage.getItem(CLE_PROVENANCE);
+  } catch {
+    return null;
+  }
+}
+
+export function jalon(etape: Etape, extras?: Contexte): void {
   if (posees.has(etape)) return;
   const s = session();
   if (!s) return;
   posees.add(etape);
   try {
+    const nombre = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
     void supabase.from("moteur_evenements").insert({
       hotel: "voiles",
       session: s,
       etape,
-      nuits: extras?.nuits ?? null,
-      montant: extras?.montant ?? null,
+      nuits: nombre(extras?.nuits),
+      montant: nombre(extras?.montant) == null ? null : Math.round(extras!.montant! * 100) / 100,
+      arrivee: extras?.arrivee && /^\d{4}-\d{2}-\d{2}$/.test(extras.arrivee) ? extras.arrivee : null,
+      personnes: nombre(extras?.personnes),
+      raison: extras?.raison ?? null,
+      // Sur chaque ligne et pas seulement la première : une session dont
+      // l'ouverture s'est perdue garde son origine.
+      provenance: provenance(),
     }).then(undefined, () => { /* silence : voir l'en-tête */ });
   } catch { /* idem */ }
 }
