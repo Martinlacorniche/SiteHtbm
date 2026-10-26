@@ -1736,9 +1736,12 @@ function ManageView({ token }: { token: string }) {
         {groupe.locked && <Banner>{t.deadlinePassed}</Banner>}
 
         {justPaid && pending.length === 0 && (
-          <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 mb-4">
-            <p className="font-serif font-semibold text-emerald-800">{t.payThanks}</p>
-            <p className="text-xs text-emerald-700/80 mt-1">{t.payThanksNote}</p>
+          <div className="flex items-start gap-2.5 px-1 mb-4">
+            <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-serif font-semibold text-slate-800">{t.payThanks}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{t.payThanksNote}</p>
+            </div>
           </div>
         )}
 
