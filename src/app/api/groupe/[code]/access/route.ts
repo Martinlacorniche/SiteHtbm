@@ -1,3 +1,4 @@
+import { relayerVersNwh } from "@/lib/relaisNwh";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { GERABLES } from "@/lib/groupeStatuts";
@@ -9,6 +10,10 @@ import { GERABLES } from "@/lib/groupeStatuts";
 
 export async function POST(req: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  /* Relais vers NWH, qui applique seul les règles (src/lib/relaisNwh.ts). */
+  const relaye = await relayerVersNwh(req, `/api/groupe/${encodeURIComponent(code)}/access`);
+  if (relaye) return relaye;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "JSON invalide" }, { status: 400 }); }

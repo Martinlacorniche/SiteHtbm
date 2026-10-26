@@ -1,3 +1,4 @@
+import { relayerVersNwh } from "@/lib/relaisNwh";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -47,6 +48,10 @@ function one(x: any) { return Array.isArray(x) ? x[0] : x; }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token: ref } = await params;
+  /* Relais vers NWH, qui applique seul les règles (src/lib/relaisNwh.ts). */
+  const relaye = await relayerVersNwh(_req, `/api/resa/${encodeURIComponent(ref)}`);
+  if (relaye) return relaye;
+
 
   const { data: rows } = await supabaseServer
     .from("groupe_reservations")
@@ -123,6 +128,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token: ref } = await params;
+  /* Relais vers NWH, qui applique seul les règles (src/lib/relaisNwh.ts). */
+  const relaye = await relayerVersNwh(req, `/api/resa/${encodeURIComponent(ref)}`);
+  if (relaye) return relaye;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "JSON invalide" }, { status: 400 }); }

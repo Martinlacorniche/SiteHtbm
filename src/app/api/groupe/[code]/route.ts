@@ -1,3 +1,4 @@
+import { relayerVersNwh } from "@/lib/relaisNwh";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { TENUES } from "@/lib/groupeStatuts";
@@ -11,6 +12,10 @@ function one(x: any) { return Array.isArray(x) ? x[0] : x; }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  /* Relais vers NWH, qui applique seul les règles (src/lib/relaisNwh.ts). */
+  const relaye = await relayerVersNwh(_req, `/api/groupe/${encodeURIComponent(code)}`);
+  if (relaye) return relaye;
+
 
   const { data: g } = await supabaseServer.from("groupes").select("*").eq("code_acces", code).maybeSingle();
   if (!g) return NextResponse.json({ ok: false, error: "Groupe introuvable" }, { status: 404 });

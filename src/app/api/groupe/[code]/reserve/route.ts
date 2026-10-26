@@ -1,3 +1,4 @@
+import { relayerVersNwh } from "@/lib/relaisNwh";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -16,6 +17,10 @@ const nightsOf = (a: string, b: string) => Math.max(1, Math.round((new Date(b).g
 
 export async function POST(req: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  /* Relais vers NWH, qui applique seul les règles (src/lib/relaisNwh.ts). */
+  const relaye = await relayerVersNwh(req, `/api/groupe/${encodeURIComponent(code)}/reserve`);
+  if (relaye) return relaye;
+
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let body: any;
