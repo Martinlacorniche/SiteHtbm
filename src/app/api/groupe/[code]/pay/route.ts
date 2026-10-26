@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStripeForHotel } from "@/lib/stripe";
 import { GERABLES } from "@/lib/groupeStatuts";
+import { origineSite } from "@/lib/origineSite";
 
 // POST /api/groupe/[code]/pay  { ref: booking_ref }
 // Paiement EN LIGNE À LA DEMANDE d'un booking (modes « Sur place » / « Programmé »).
@@ -51,7 +52,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   if (unpaid.length === 0) return NextResponse.json({ ok: false, error: "Cette réservation est déjà réglée." }, { status: 409 });
 
   const first = unpaid[0];
-  const origin = req.headers.get("origin") || "";
+  const origin = origineSite(req);
 
   // Montants par hôtel du bloc : la taxe de séjour n'est pas la même d'un
   // établissement à l'autre, et le petit-déjeuner se négocie hôtel par hôtel.

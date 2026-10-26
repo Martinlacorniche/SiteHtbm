@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStripeForHotel } from "@/lib/stripe";
 import { teamEmailForHotel } from "@/lib/hotel-email";
+import { origineSite, echapperHtml } from "@/lib/origineSite";
 
 // POST /api/groupe/[code]/reserve
 // Réserve une OU plusieurs chambres en une fois (booking_ref partagé).
@@ -202,7 +203,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
 
   // ── PAIEMENT IMMÉDIAT : une session Checkout PAR HÔTEL (comptes Stripe distincts) ──
   if (immediat) {
-    const origin = req.headers.get("origin") || "http://localhost:3001";
+    const origin = origineSite(req);
     // Les nuits/pax sont ceux de CHAQUE chambre (mode 'pro' : dates par chambre).
     // Se servir du `nights` global du groupe surfacturerait un comédien venu 2 nuits
     // sur un bloc de 11.
@@ -343,12 +344,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
           <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1e293b;">
             <div style="background:#004e7c;padding:20px 28px;border-radius:12px 12px 0 0;">
               <p style="margin:0;color:#C6A972;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">${g.nom} · Nouvelle réservation</p>
-              <h1 style="margin:6px 0 0;color:#fff;font-size:20px;">${prenom || ""} ${nom}</h1>
+              <h1 style="margin:6px 0 0;color:#fff;font-size:20px;">${echapperHtml(prenom || "")} ${echapperHtml(nom)}</h1>
             </div>
             <div style="background:#f8fafc;padding:22px 28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
               <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
-                <tr><td style="padding:6px 0;color:#64748b;font-size:12px;width:110px;">Email</td><td style="padding:6px 0;font-weight:600;"><a href="mailto:${email}" style="color:#004e7c;">${email}</a></td></tr>
-                <tr><td style="padding:6px 0;color:#64748b;font-size:12px;">Téléphone</td><td style="padding:6px 0;font-weight:600;">${tel || "—"}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:12px;width:110px;">Email</td><td style="padding:6px 0;font-weight:600;"><a href="mailto:${echapperHtml(email)}" style="color:#004e7c;">${echapperHtml(email)}</a></td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:12px;">Téléphone</td><td style="padding:6px 0;font-weight:600;">${echapperHtml(tel || "—")}</td></tr>
                 <tr><td style="padding:6px 0;color:#64748b;font-size:12px;">Séjour</td><td style="padding:6px 0;font-weight:600;">${da} → ${dd}</td></tr>
               </table>
               <p style="margin:0 0 6px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Chambres (${hrooms.length})</p>
@@ -377,7 +378,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         const nomPublic = (h: { nom: string; etoiles?: number | null }) =>
           `Hôtel ${h.nom}${h.etoiles ? " " + "★".repeat(h.etoiles) : ""}`;
         const roomRows = roomRowsOf(rooms);
-        const origin = req.headers.get("origin") || "";
+        const origin = origineSite(req);
         const fmtFr = (d: string) => { try { return new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
         const gestionUrl = origin ? `${origin}/groupe/${code}?r=${bookingRef}` : "";
 
@@ -398,8 +399,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         // Il reprend le message d'accueil du groupe, ne réclame rien, et ne promet un code que
         // si l'invité en a réellement choisi un.
         const intro = isPro
-          ? `<p style="margin:0 0 14px;">Bonjour ${prenom || nom}, votre chambre est réservée pour <strong>${g.nom}</strong>. Voici le récapitulatif :</p>`
-          : `<p style="margin:0 0 14px;">Bonjour ${prenom || nom}, votre réservation est confirmée. Voici le récapitulatif :</p>`;
+          ? `<p style="margin:0 0 14px;">Bonjour ${echapperHtml(prenom || nom)}, votre chambre est réservée pour <strong>${g.nom}</strong>. Voici le récapitulatif :</p>`
+          : `<p style="margin:0 0 14px;">Bonjour ${echapperHtml(prenom || nom)}, votre réservation est confirmée. Voici le récapitulatif :</p>`;
         // À la place : OÙ l'on dort, et comment joindre l'hôtel.
         const accueil = hotelsInfo.length
           ? `<div style="margin:0 0 16px;padding:14px 16px;background:#f1f5f9;border-radius:10px;">
