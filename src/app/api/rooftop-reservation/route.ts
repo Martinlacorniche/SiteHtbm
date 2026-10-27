@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { expediteurVoiles } from '@/lib/expediteurVoiles';
 import { SITE_URL } from '@/lib/site';
 import { supabaseServer } from '@/lib/supabase-server';
 
@@ -52,7 +53,8 @@ export async function POST(req: NextRequest) {
   if (!ligne || ligne.statut === 'annulee') {
     return NextResponse.json({ ok: false, error: 'Réservation inconnue' }, { status: 404 });
   }
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const exp = expediteurVoiles('Rooftop Les Voiles');
+  const resend = new Resend(exp.cle);
   const { data: laTable } = ligne.table_id
     ? await supabaseServer.from('rooftop_tables').select('nom').eq('id', ligne.table_id).maybeSingle()
     : { data: null };
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest) {
 
   // ── 1) Notif équipe ─────────────────────────────────────────────────────────
   const { error: teamErr } = await resend.emails.send({
-    from: 'Rooftop Les Voiles <demandes@send.hotel-corniche.com>',
+    from: exp.from,
     to: 'contact-lesvoiles@htbm.fr',
     replyTo: email || undefined,
     subject: `🍸 Réservation Rooftop · ${dateFr} ${heure} — ${nom} (${couverts} pers.)`,
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest) {
   // Sautée depuis le tunnel : voir `depuisTunnel` en tête de fichier.
   if (email && !depuisTunnel) {
     const { error: clientErr } = await resend.emails.send({
-      from: 'Rooftop Les Voiles <demandes@send.hotel-corniche.com>',
+      from: exp.from,
       to: email,
       subject: `Votre table au Rooftop des Voiles — ${dateFr} à ${heure}`,
       html: `

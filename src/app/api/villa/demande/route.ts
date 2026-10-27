@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { expediteurVoiles } from '@/lib/expediteurVoiles';
 import { supabaseServer } from '@/lib/supabase-server';
 import { ALERTES } from '@/lib/villaContenu';
 import { chambresLibres } from '@/lib/mewsConnector';
@@ -148,7 +149,7 @@ type Alerte = {
 };
 
 async function alerter(a: Alerte): Promise<void> {
-  const cle = process.env.RESEND_API_KEY;
+  const { cle, from } = expediteurVoiles('Villa Les Voiles');
   if (!cle) return;
 
   const jour = (d: string) =>
@@ -168,7 +169,7 @@ async function alerter(a: Alerte): Promise<void> {
   try {
     const resend = new Resend(cle);
     await resend.emails.send({
-      from: 'Villa Les Voiles <demandes@send.hotel-corniche.com>',
+      from,
       to: ALERTES,
       // Le sujet porte l'essentiel : on doit pouvoir trier sans ouvrir.
       subject: `🏨 Privatisation — ${a.nom}, ${jour(a.arrivee)} → ${jour(a.depart)}`,
