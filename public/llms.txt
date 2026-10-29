@@ -46,7 +46,10 @@ Ce qu'un agent peut faire :
 
 À savoir : **seul le tarif prépayé se réserve par agent** — réglé en totalité à la réservation, non remboursable. Le tarif flexible existe et s'annule sans frais jusqu'au jour d'arrivée à 18 h, mais il se réserve sur le site, pas par agent. Si la banque du client réclame une authentification, la session rend une `continue_url` : le client termine lui-même, rien n'est débité avant.
 
-La Corniche n'est pas encore réservable par agent.
+Le **Best Western Plus La Corniche** se cherche sur le même point d'entrée, en ajoutant `property_id: "corniche"` (sans `property_id`, il s'agit toujours des Voiles ; `list_properties` donne les deux) :
+
+- `get_property_details` et `create_booking_session` — la fiche de l'hôtel, une chambre réellement disponible et son prix tout compris (taxe de séjour incluse ; **petit-déjeuner non compris**, en option sur place).
+- La réservation **payée par agent** (`complete_booking_session`, tarif prépayé, à partir du lendemain) n'est ouverte que lorsque le profil `/.well-known/ucp` publie le handler `stripe_spt_corniche` — c'est lui qui fait foi. Tant qu'il est absent, et toujours pour le tarif flexible ou une arrivée le jour même, la session rend une `continue_url` vers https://hotels-toulon-mer.com/reserver-corniche avec les mêmes dates : le client termine sur le site.
 
 ## Langues
 
