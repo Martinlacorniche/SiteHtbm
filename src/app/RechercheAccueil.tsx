@@ -82,7 +82,14 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
   const [monte, setMonte] = useState(false);
   useEffect(() => setMonte(true), []);
 
+  /* Ce soir → demain, d'office, comme le moteur des Voiles (Martin, 29/10 : « pas de date
+   * présélectionnée… ») : la recherche part dès l'ouverture et les lignes disent un vrai prix tout de
+   * suite. Posé après le montage : la date du serveur n'est pas celle du visiteur. Le « dès » général ne
+   * sert plus que si la recherche du jour n'a pas pu partir. */
   useEffect(() => {
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const auj = new Date(), dem = new Date(auj.getFullYear(), auj.getMonth(), auj.getDate() + 1);
+    setArrivee(iso(auj)); setDepart(iso(dem));
     fetch("/api/dispo-accueil").then((r) => (r.ok ? r.json() : null)).then((j) => j && setApercu(j)).catch(() => {});
   }, []);
 
@@ -210,7 +217,7 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
                     {e?.etat === "libre" && (
                       <>
                         <span className="block text-[17px] font-semibold tabular-nums text-navy">{t.des(e.parNuit)} <span className="text-xs font-normal text-slate-400">{t.nuit}</span></span>
-                        <span className="block text-xs text-slate-500">{t.total(e.total, nuits)}</span>
+                        {nuits > 1 && <span className="block text-xs text-slate-500">{t.total(e.total, nuits)}</span>}
                       </>
                     )}
                     {e?.etat === "apercu" && e.des !== null && (
