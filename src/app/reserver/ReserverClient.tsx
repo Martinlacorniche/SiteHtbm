@@ -744,20 +744,32 @@ function Galerie({
 
   const plusieurs = images.length > 1;
 
+  /* La page ne défile plus derrière la galerie : sur téléphone, le doigt qui glisse une photo faisait
+     aussi bouger la page dessous. */
+  useEffect(() => {
+    const avant = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = avant; };
+  }, []);
+
+  /* Fond PLEIN, presque noir : la page ne se lit plus au travers (le voile translucide laissait voir
+     les cartes et les prix derrière la photo — « pas ouf », Martin 29/10/2026). */
   return (
     <div
       role="dialog" aria-modal="true" aria-label={titre}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-navy-deep/90 p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onFermer(); }}
+      className="fixed inset-0 z-[70] flex flex-col bg-[#0c1419] text-white"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      {/* `h-full` et non `max-h-full` : sans hauteur definie, le `flex-1` de la
-          photo se resout a zero et la surcouche s'affiche vide. */}
-      <div ref={boite} className="flex h-full w-full max-w-4xl flex-col gap-3">
-        <div className="flex shrink-0 items-center justify-between gap-4 text-cream">
-          <p className="font-serif text-xl">{titre}</p>
+      <div ref={boite} className="mx-auto flex h-full w-full max-w-5xl flex-col">
+        {/* L'en-tête : le titre et le compteur à gauche, la fermeture à droite — jamais l'un sur l'autre. */}
+        <div className="flex shrink-0 items-center gap-3 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-serif text-[18px] leading-tight sm:text-xl">{titre}</p>
+            {plusieurs && <p className="text-[12px] tabular-nums text-white/60">{index + 1} / {images.length}</p>}
+          </div>
           <button
             ref={fermeture} type="button" onClick={onFermer} aria-label={T.galerieFermer}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-cream/15 text-cream backdrop-blur-sm transition hover:bg-cream/30"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <path d="M6 6l12 12M18 6L6 18" />
@@ -765,76 +777,64 @@ function Galerie({
           </button>
         </div>
 
-        {/* Les commandes se posent SUR la photo.
-            Rejetees sous elle, les fleches tombaient au bas de l'ecran, loin de
-            ce qu'elles font defiler et par-dessus la page assombrie. Ici la
-            photo elle-meme avance d'une image au clic, et le doigt la fait
-            glisser : c'est le geste que tout le monde a deja. */}
+        {/* La photo, entière (`contain`), sur toute la place restante ; le doigt la fait glisser. */}
         <div
-          className="relative min-h-0 w-full flex-1"
+          className="relative min-h-0 flex-1"
           onTouchStart={(e) => { depart.current = e.touches[0]?.clientX ?? null; }}
           onTouchEnd={(e) => {
             const x0 = depart.current;
             depart.current = null;
             if (x0 === null || !plusieurs) return;
             const ecart = (e.changedTouches[0]?.clientX ?? x0) - x0;
-            // 40 px : au-dela c'est un glisse, en deca c'est une tape qui vise.
             if (ecart <= -40) suivante();
             else if (ecart >= 40) precedente();
           }}
         >
-          <button
-            type="button"
-            onClick={plusieurs ? suivante : onFermer}
-            aria-label={plusieurs ? T.galerieSuiv : T.galerieFermer}
-            className="absolute inset-0 h-full w-full cursor-pointer"
-          >
-            {/* `contain` et non `cover` : dans une galerie, recadrer revient a
-                cacher la moitie de ce que le client est venu voir. */}
-            <Image
+          {/* La photo à sa taille, centrée, coins arrondis et ombre douce : l'arrondi épouse la PHOTO, pas
+              le cadre (avec `fill` + `contain`, il arrondissait le vide autour). */}
+          <div className="absolute inset-0 flex items-center justify-center px-3 py-2 sm:px-16">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={images[index].src}
               src={images[index].src}
               alt={images[index].alt ?? `${titre} — ${T.galerieCompteur(index + 1, images.length)}`}
-              fill sizes="(max-width: 900px) 100vw, 900px" className="rounded-2xl object-contain" priority
+              className="max-h-full max-w-full rounded-2xl object-contain shadow-[0_18px_50px_rgba(0,0,0,0.55)] ring-1 ring-white/10"
+              style={{ animation: "galerie-apparait 220ms ease-out" }}
             />
-          </button>
-
+          </div>
+          <style>{`@keyframes galerie-apparait { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }`}</style>
           {plusieurs && (
             <>
               <button
-                type="button" aria-label={T.galeriePrec}
-                onClick={precedente}
-                className="absolute left-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-navy-deep shadow-[0_4px_16px_rgba(0,0,0,0.28)] transition hover:bg-white active:scale-95"
+                type="button" aria-label={T.galeriePrec} onClick={precedente}
+                className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm transition hover:bg-black/65 active:scale-95 sm:left-4 sm:h-12 sm:w-12"
               >
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 5l-7 7 7 7" />
-                </svg>
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
               </button>
               <button
-                type="button" aria-label={T.galerieSuiv}
-                onClick={suivante}
-                className="absolute right-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-navy-deep shadow-[0_4px_16px_rgba(0,0,0,0.28)] transition hover:bg-white active:scale-95"
+                type="button" aria-label={T.galerieSuiv} onClick={suivante}
+                className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm transition hover:bg-black/65 active:scale-95 sm:right-4 sm:h-12 sm:w-12"
               >
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 5l7 7-7 7" />
-                </svg>
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
               </button>
-              {/* Des points plutot qu'un compteur : on voit d'un coup combien il
-                  en reste, sans lire. */}
-              <span className="pointer-events-none absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-navy-deep/55 px-3 py-2 backdrop-blur-sm">
-                {images.map((img, i) => (
-                  <span
-                    key={img.src}
-                    className={[
-                      "block rounded-full transition-all",
-                      i === index ? "h-2 w-5 bg-cream" : "h-2 w-2 bg-cream/50",
-                    ].join(" ")}
-                  />
-                ))}
-                <span className="sr-only">{T.galerieCompteur(index + 1, images.length)}</span>
-              </span>
             </>
           )}
         </div>
+
+        {/* Les miniatures : on voit tout ce qu'il y a, et on va droit à celle qu'on veut. */}
+        {plusieurs && (
+          <div className="flex shrink-0 justify-center gap-2 overflow-x-auto px-4 py-3">
+            {images.map((im, i) => (
+              <button
+                key={im.src} type="button" onClick={() => setIndex(i)}
+                aria-label={T.galerieCompteur(i + 1, images.length)} aria-current={i === index}
+                className={`relative h-14 w-20 shrink-0 overflow-hidden rounded-xl transition ${i === index ? "ring-2 ring-white ring-offset-2 ring-offset-[#0c1419]" : "opacity-50 hover:opacity-90"}`}
+              >
+                <Image src={im.src} alt="" fill sizes="80px" className="object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
