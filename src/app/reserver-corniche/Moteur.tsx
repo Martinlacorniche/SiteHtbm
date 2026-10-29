@@ -186,6 +186,7 @@ const TEXTES = (tel: string, telEn: string) => ({
     debitLongPartiel: (m: string, pc: string) =>
       `Votre carte est débitée de ${m} (${pc} du séjour) dès la confirmation. Le solde se règle à l'hôtel.`,
     paiementSecurise: "Paiement sécurisé",
+    garantieSecurisee: "Rien n’est débité · carte en garantie",
     pasDeMelange: "Une même réservation ne mélange pas les deux tarifs. Retirez vos chambres pour changer.",
     chambreEnPlus: "Ajouter une chambre identique",
     ajouterChambre: "Ajouter une autre chambre",
@@ -277,6 +278,7 @@ const TEXTES = (tel: string, telEn: string) => ({
     debitLongPartiel: (m: string, pc: string) =>
       `Your card is charged ${m} (${pc} of the stay) on confirmation. The balance is settled at the hotel.`,
     paiementSecurise: "Secure payment",
+    garantieSecurisee: "Nothing charged · card guarantee",
     pasDeMelange: "A single booking can't mix the two rates. Remove your rooms to switch.",
     chambreEnPlus: "Add another identical room",
     ajouterChambre: "Add another room",
@@ -2751,7 +2753,7 @@ export default function ReserverClient(
                     <rect x="4" y="10.5" width="16" height="10" rx="2" />
                     <path d="M8 10.5V7.2a4 4 0 0 1 8 0v3.3" />
                   </svg>
-                  {T.paiementSecurise}
+                  {sejourAPayer && !sejourAPayer.debite ? T.garantieSecurisee : T.paiementSecurise}
                 </p>
               </>
             )}
