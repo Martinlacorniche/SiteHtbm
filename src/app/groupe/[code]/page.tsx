@@ -287,7 +287,7 @@ function BookingView({ code }: { code: string }) {
   const [formOpen, setFormOpen] = useState(false);
   const [claim, setClaim] = useState<Room | null>(null);
   const [done, setDone] = useState<{ ref: string; pin: string } | null>(null);
-  const [pay, setPay] = useState<{ hotel_id: string; hotelNom: string; amount: number; url: string }[] | null>(null);
+  const [pay, setPay] = useState<{ hotel_id: string; hotelNom: string; amount: number; url: string; garantie?: boolean }[] | null>(null);
   // Plage choisie par l'invité (mode 'pro' uniquement) — initialisée aux dates du groupe.
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
 
@@ -1201,7 +1201,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
   // Mode 'pro' : les dates de CHAQUE chambre, posées au calendrier.
   picks?: Record<string, { from: string; to: string }>;
   onClose: () => void; onDone: (ref: string, pin: string) => void;
-  onPay: (payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]) => void;
+  onPay: (payments: { hotel_id: string; hotelNom: string; amount: number; url: string; garantie?: boolean }[]) => void;
   onConflict: () => void;
 }) {
   const t = useT();
@@ -1211,7 +1211,7 @@ function BookingForm({ code, groupe, rooms, initRange, picks, onClose, onDone, o
   const [emailAck, setEmailAck] = useState(false);
   const isPro = groupe.mode_vue === "pro";
   // L'email n'est exigé qu'en mode simple, ou si un règlement en ligne l'attend (Stripe l'envoie).
-  const emailRequis = !isPro || groupe.mode_paiement === "immediat" || groupe.mode_paiement === "differe";
+  const emailRequis = !isPro || groupe.mode_paiement === "immediat" || groupe.mode_paiement === "differe" || groupe.mode_paiement === "garantie";
   const [da, setDa] = useState(initRange?.from || groupe.date_arrivee);
   const [dd, setDd] = useState(initRange?.to || groupe.date_depart);
   /* 🔴 LE SÉJOUR MINIMUM N'ÉTAIT PAS DANS CE FORMULAIRE. En mode « simple »,
@@ -1523,8 +1523,30 @@ function ClaimModal({ code, room, onClose, onAccess }: { code: string; room: Roo
 
 // ---------- Confirmation ----------
 // Paiement obligatoire : écran « finalisez votre paiement » (1 bouton par hôtel).
-function PaymentScreen({ payments, groupe }: { payments: { hotel_id: string; hotelNom: string; amount: number; url: string }[]; groupe: GroupeMeta }) {
+function PaymentScreen({ payments, groupe }: { payments: { hotel_id: string; hotelNom: string; amount: number; url: string; garantie?: boolean }[]; groupe: GroupeMeta }) {
   const t = useT();
+  const en = useLang() === "en";
+  /* GARANTIE PAR CARTE (NWH, migration 422) : rien à payer, une carte à enregistrer — 3-D Secure obligatoire. */
+  const garantie = payments.some((p) => p.garantie);
+  if (garantie) return (
+    <main className="min-h-screen flex items-center justify-center px-5">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-lg max-w-md w-full p-7 text-center">
+        <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{ background: "rgba(0,78,124,.08)", color: NAVY }}><Check className="w-7 h-7" /></div>
+        <h1 className="font-serif font-semibold text-2xl text-slate-800 mt-4">{en ? "Guarantee your booking" : "Garantissez votre réservation"}</h1>
+        <p className="text-slate-500 text-sm mt-2">{en
+          ? `Your room for “${groupe.nom}” is held. Register a card as a guarantee to confirm it: nothing is charged now. Your bank will ask you to approve (3-D Secure).`
+          : `Votre chambre pour « ${groupe.nom} » est retenue. Enregistrez une carte en garantie pour la confirmer : rien n’est débité. Votre banque vous demandera de valider (3-D Secure).`}</p>
+        <div className="mt-5 space-y-2.5">
+          {payments.map((p) => (
+            <a key={p.hotel_id} href={p.url} className="h-11 px-6 rounded-full font-semibold flex items-center justify-center hover:opacity-95 transition" style={{ background: NAVY, color: "#fff" }}>
+              {en ? "Register my card" : "Enregistrer ma carte"}{payments.length > 1 ? ` · ${p.hotelNom}` : ""}
+            </a>
+          ))}
+        </div>
+        <p className="text-[11px] text-slate-400 mt-4">{t.payStripeNote}</p>
+      </motion.div>
+    </main>
+  );
   // Utilise le euro() global : ne pas redeclarer ici, cf. avertissement en haut du fichier.
   const multi = payments.length > 1;
   return (
@@ -1595,7 +1617,8 @@ function ManageView({ token }: { token: string }) {
   // le webhook bascule le statut. La verite reste ce que renvoie l'API.
   const params = useSearchParams();
   const routeur = useRouter();
-  const justPaid = params.get("paye") === "1";
+  const justPaid = params.get("paye") === "1" || params.get("carte") === "1";
+  const retourCarte = params.get("carte") === "1";
   // Arrivée depuis le plan : on ouvre l'édition d'emblée (voir openResa).
   const ouvrirEdition = params.get("edit") === "1";
   const editionOuverteRef = useRef(false);
@@ -1735,7 +1758,14 @@ function ManageView({ token }: { token: string }) {
         )}
         {groupe.locked && <Banner>{t.deadlinePassed}</Banner>}
 
-        {justPaid && pending.length === 0 && (
+        {/* ⛔ La banque n'a pas authentifié la carte : pas de réservation, et on le dit (le retour de
+          * Stripe se fait quand même sur « succès »). */}
+        {retourCarte && resas.length > 0 && resas.every((r: { statut: string }) => r.statut === "annulee") && (
+          <Banner>{lang === "en"
+            ? "Your bank did not confirm the card (3-D Secure), so the booking was not made. You can book again with another card."
+            : "Votre banque n’a pas confirmé la carte (3-D Secure) : la réservation n’est pas faite. Vous pouvez réserver à nouveau avec une autre carte."}</Banner>
+        )}
+        {justPaid && pending.length === 0 && !(retourCarte && resas.every((r: { statut: string }) => r.statut === "annulee")) && (
           <div className="flex items-start gap-2.5 px-1 mb-4">
             <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             <div>
