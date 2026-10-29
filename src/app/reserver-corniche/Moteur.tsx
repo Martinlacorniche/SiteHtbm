@@ -1691,7 +1691,13 @@ export default function ReserverClient(
     let annule = false;
     setTarifPublic(null);
     const q = new URLSearchParams({ arrivee: cherche.a, depart: cherche.d, adultes: String(cherche.pax) });
-    fetch(`/api/tarif-public?${q}`)
+    /* HotSoft (La Corniche) : le prix Booking se calcule chez NWH, sur le RACK, par le relais du moteur. */
+    (cfg.venteStripe && cfg.base
+      ? fetch(`${cfg.base}/tarifs/public`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ HotelId: cfg.hotelId, StartUtc: `${cherche.a}T00:00:00Z`, EndUtc: `${cherche.d}T00:00:00Z`, AdultCount: cherche.pax }),
+        })
+      : fetch(`/api/tarif-public?${q}`))
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (!annule && j?.prix) setTarifPublic(j.prix); })
       .catch(() => { /* on se tait : le tunnel n'en dépend pas */ });
