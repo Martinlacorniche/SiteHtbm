@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { lienReservation } from "@/lib/site";
 import PiedDePage from "@/components/PiedDePage";
+import RechercheAccueil from "./RechercheAccueil";
 import { useModale } from "@/hooks/useModale";
 
 // --- TYPOGRAPHIE ---
@@ -571,7 +572,7 @@ export default function PageUltimeV15() {
       </AnimatePresence>
 
       {/* --- HERO --- */}
-      <header className="relative h-[45vh] md:h-[55vh] flex flex-col items-center justify-center text-center px-4 pt-10">
+      <header className="relative flex flex-col items-center justify-center text-center px-4 pt-24 pb-10 md:pt-28 md:pb-14">
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}
           className="flex flex-col items-center"
@@ -585,6 +586,9 @@ export default function PageUltimeV15() {
         >
           {t.subtitle}
         </motion.p>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6 }} className="w-full">
+          <RechercheAccueil langue={lang} />
+        </motion.div>
       </header>
 
       {/* --- TRIPLE SPLIT SECTION (CORNICHE / VOILES / VILLA) --- */}

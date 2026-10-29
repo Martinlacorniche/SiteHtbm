@@ -2,6 +2,9 @@
 
 export const SITE_URL = "https://hotels-toulon-mer.com";
 
+/** Les Voiles ferment l'hiver (Martin, 29/10/2026) : la date de réouverture, lue par l'accueil. */
+export const REOUVERTURE_VOILES = "2027-04-01";
+
 // Grappes de pages équivalentes dans plusieurs langues.
 // Sert à générer les balises hreflang (alternates) et le sitemap.
 // Clé = code langue ISO ; valeur = chemin (sans domaine).

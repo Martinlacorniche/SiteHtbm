@@ -12,7 +12,7 @@
 // lectures HotSoft.
 
 import { chercherDisponibilite, chargerCategories, type ConfigMoteur } from "./mews";
-import type { PageMoteur } from "./pageCorniche";
+import { HOTEL_CORNICHE, type PageMoteur } from "./pageCorniche";
 import { SITE_URL } from "@/lib/site";
 
 type Mesure = { bas: number | null; noms: Map<string, string> };
@@ -40,6 +40,13 @@ async function mesurer(cfg: ConfigMoteur, langue: "fr" | "en"): Promise<Mesure> 
   const m = { bas: bas === null ? null : Math.round(bas), noms };
   memoire.set(langue, { le: Date.now(), m });
   return m;
+}
+
+/** Le « dès X € » de l'accueil : le même relevé que le balisage, sur la configuration minimale du moteur
+ *  (les deux opérations lues ne regardent que l'identifiant de l'hôtel). */
+export async function prixCorniche(): Promise<number | null> {
+  const cfg: ConfigMoteur = { client: "nwh-os-hotsoft", configurationId: HOTEL_CORNICHE, hotelId: HOTEL_CORNICHE };
+  return (await mesurer(cfg, "fr")).bas;
 }
 
 export type ChambrePubliee = { nom: string; description: string | null };
