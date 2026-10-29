@@ -728,6 +728,13 @@ export default function PageUltimeV15() {
               <h2 className="font-serif text-5xl md:text-7xl leading-none sur-photo text-white mb-2">{CONFIG.voiles.shortTitle}</h2>
               <p className="font-serif italic text-xl md:text-2xl text-amber-50 font-medium sur-photo mb-4">{CONFIG.voiles.tagline[lang]}</p>
 
+              {/* FERMETURE D'HIVER (Martin, 29/10/2026) : dite sur la vidéo, s'éteint seule le 1er avril. */}
+              {new Date() < new Date("2027-04-01") && (
+                  <p className="flex items-center gap-2 text-white text-xs md:text-sm font-semibold uppercase tracking-widest drop-shadow-md">
+                       <span className="w-1.5 h-1.5 rounded-full bg-amber-300"/>
+                       {lang === "en" ? "Closed for winter · reopening 1 April 2027" : "Fermé pour l’hiver · réouverture le 1er avril 2027"}
+                  </p>
+              )}
               {new Date() < new Date("2026-05-01") && (
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white text-[10px] font-medium uppercase tracking-widest shadow-sm">
                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"/>

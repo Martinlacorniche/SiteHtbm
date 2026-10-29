@@ -1806,6 +1806,20 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
        récapitulatif sa petite barre de défilement intérieure — que Martin ne
        veut pas voir sur une réservation d'une chambre (01/09/2026). */
     <main className="bg-cream text-[#222] lg:flex lg:h-screen lg:min-h-[930px] lg:flex-col lg:overflow-hidden">
+      {/* FERMETURE D'HIVER DES VOILES (Martin, 29/10/2026) : le bandeau s'éteint seul le 1er avril, et
+          renvoie vers La Villa, qui reste à louer. */}
+      {new Date() < new Date("2027-04-01") && (
+        <div className="shrink-0 bg-navy text-white">
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5 text-sm lg:px-6">
+            <p>{langue === "en"
+              ? "Les Voiles is closed for winter and reopens on 1 April 2027. You can already book for the spring."
+              : "Les Voiles sont fermées pour l’hiver et rouvrent le 1er avril 2027. Vous pouvez déjà réserver pour le printemps."}</p>
+            <Link href="/villa-les-voiles-toulon" className="font-semibold underline underline-offset-4 hover:opacity-90" style={{ color: "white" }}>
+              {langue === "en" ? "La Villa remains available →" : "La Villa reste à louer →"}
+            </Link>
+          </div>
+        </div>
+      )}
 
       <header className="mx-auto w-full max-w-[1600px] shrink-0 px-4 pt-5 lg:px-6 lg:pt-6">
         {/* « Site officiel » partage la ligne du lien de retour, et ne coute
