@@ -1618,7 +1618,6 @@ function ManageView({ token }: { token: string }) {
   const params = useSearchParams();
   const routeur = useRouter();
   const justPaid = params.get("paye") === "1" || params.get("carte") === "1";
-  const retourCarte = params.get("carte") === "1";
   // Arrivée depuis le plan : on ouvre l'édition d'emblée (voir openResa).
   const ouvrirEdition = params.get("edit") === "1";
   const editionOuverteRef = useRef(false);
@@ -1760,7 +1759,7 @@ function ManageView({ token }: { token: string }) {
 
         {/* ⛔ La banque n'a pas authentifié la carte : pas de réservation, et on le dit (le retour de
           * Stripe se fait quand même sur « succès »). */}
-        {params.get("carte") === "0" && (
+        {resas.length > 0 && resas.every((r: { statut: string; derniere_action?: string | null }) => r.statut === "annulee" && r.derniere_action === "carte_abandon") && (
           <Banner>{lang === "en"
             ? "No card was registered, so the booking was not made. A card guarantee is required to book."
             : "Aucune carte n’a été enregistrée : la réservation n’est pas faite. Une carte en garantie est obligatoire pour réserver."}</Banner>
@@ -1770,12 +1769,12 @@ function ManageView({ token }: { token: string }) {
             ? "Not confirmed: without a registered card, this booking is cancelled within 30 minutes."
             : "Non confirmée : sans carte enregistrée, cette réservation est annulée sous 30 minutes."}</Banner>
         )}
-        {retourCarte && resas.length > 0 && resas.every((r: { statut: string }) => r.statut === "annulee") && (
+        {resas.length > 0 && resas.every((r: { statut: string; derniere_action?: string | null }) => r.statut === "annulee" && r.derniere_action === "3ds_refuse") && (
           <Banner>{lang === "en"
             ? "Your bank did not confirm the card (3-D Secure), so the booking was not made. You can book again with another card."
             : "Votre banque n’a pas confirmé la carte (3-D Secure) : la réservation n’est pas faite. Vous pouvez réserver à nouveau avec une autre carte."}</Banner>
         )}
-        {justPaid && pending.length === 0 && !(retourCarte && resas.every((r: { statut: string }) => r.statut === "annulee")) && (
+        {justPaid && pending.length === 0 && !resas.every((r: { statut: string }) => r.statut === "annulee") && (
           <div className="flex items-start gap-2.5 px-1 mb-4">
             <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             <div>
