@@ -600,7 +600,8 @@ export default function PageUltimeV15() {
           onMouseEnter={() => setHoveredSection("corniche")}
           onMouseLeave={() => setHoveredSection(null)}
         >
-            <Link href="/wifi" className="absolute inset-0 z-10" aria-label="Best Western Plus La Corniche — espace client" />
+            {/* Comme Les Voiles depuis le 29/10/2026 : la carte mène au tunnel de réservation, plus au portail wifi. */}
+            <Link href={lienReservation("corniche", lang)} className="absolute inset-0 z-10" aria-label={CONFIG.corniche.title} />
             
             <div className="absolute inset-0 pointer-events-none">
                 <Image src={CONFIG.corniche.image} alt="Corniche" fill sizes="(max-width: 768px) 100vw, (max-width: 1900px) 50vw, 950px" className="object-cover transition-transform duration-1000 group-hover:scale-105 z-0"/>
