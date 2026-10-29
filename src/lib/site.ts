@@ -22,6 +22,11 @@ export const LANG_CLUSTERS: LangCluster[] = [
     en: "/en/book",
   },
   {
+    // Le tunnel de réservation directe de La Corniche.
+    fr: "/reserver-corniche",
+    en: "/en/book-corniche",
+  },
+  {
     fr: "/hotel-bord-de-mer-toulon",
     en: "/en/seafront-hotel-toulon",
   },
@@ -85,8 +90,9 @@ type Moteur =
   | { type: "maison"; chemins: Record<Locale, string> };
 
 const MOTEURS: Record<Hotel, Moteur> = {
-  // Best Western Plus La Corniche — « Hotels Toulon Bord De Mer » chez D-EDGE.
-  corniche: { type: "dedge", slug: "Hotels-Toulon-Bord-De-Mer", code: "JJ8R" },
+  // Best Western Plus La Corniche — notre tunnel sur HotSoft, depuis le 29/10/2026.
+  // Avant : D-EDGE, { type: "dedge", slug: "Hotels-Toulon-Bord-De-Mer", code: "JJ8R" }.
+  corniche: { type: "maison", chemins: { fr: "/reserver-corniche", en: "/en/book-corniche" } },
   // Hôtel-Rooftop Les Voiles — notre tunnel, depuis le 27/08/2026.
   voiles: { type: "maison", chemins: { fr: "/reserver", en: "/en/book" } },
 };

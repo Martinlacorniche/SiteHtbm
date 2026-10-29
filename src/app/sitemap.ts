@@ -23,6 +23,9 @@ const STATIC_PATHS: { path: string; priority: number; changeFreq: MetadataRoute.
      mecanique du chemin, et `hreflangFor` le sait. */
   { path: "/reserver", priority: 0.9, changeFreq: "daily" },
   { path: "/en/book", priority: 0.8, changeFreq: "daily" },
+  // Le tunnel de La Corniche, sur notre moteur depuis le 29/10/2026.
+  { path: "/reserver-corniche", priority: 0.9, changeFreq: "daily" },
+  { path: "/en/book-corniche", priority: 0.8, changeFreq: "daily" },
   { path: "/group-packages", priority: 0.6, changeFreq: "monthly" },
   { path: "/journal", priority: 0.6, changeFreq: "weekly" },
   // Versions multilingues
