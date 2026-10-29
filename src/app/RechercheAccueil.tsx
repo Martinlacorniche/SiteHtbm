@@ -29,6 +29,7 @@ type Etat =
   | { etat: "apercu"; des: number | null };
 type Reponse = { corniche: Etat; voiles: Etat };
 type Langue = "fr" | "en";
+const MUETS: Reponse = { corniche: { etat: "muet" }, voiles: { etat: "muet" } };
 
 const T = {
   fr: {
@@ -104,14 +105,28 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
       const q = new URLSearchParams({ arrivee, depart, adultes: String(adultes) });
       const r = await fetch(`/api/dispo-accueil?${q}`);
       const j = r.ok ? ((await r.json()) as Reponse) : null;
-      if (j) setResultat({ r: j, a: arrivee, d: depart, n: adultes });
-    } catch { /* la ligne garde son aperçu : le lien vers chaque hôtel reste */ }
+      setResultat({ r: j ?? MUETS, a: arrivee, d: depart, n: adultes });
+    } catch {
+      /* Une recherche ratée se dit « muette » ; le lien vers chaque hôtel reste. */
+      setResultat({ r: MUETS, a: arrivee, d: depart, n: adultes });
+    }
     setCharge(false);
   };
 
   /* Les résultats ne valent que pour la recherche qui les a produits : changer les dates ou le nombre
-   * de personnes rend l'aperçu, plutôt qu'un prix qui ne correspond plus à ce qui est affiché. */
+   * de personnes relance la recherche, plutôt que de garder un prix qui ne correspond plus. */
   const actuel = resultat && resultat.a === arrivee && resultat.d === depart && resultat.n === adultes ? resultat : null;
+
+  /* ⚠️ DES DATES CHOISIES NE MONTRENT JAMAIS LE « DÈS » GÉNÉRAL (Martin, 29/10 : « ça met toujours à
+   * partir de 89 et c'est mensonger »). Le « dès X € » est le plus bas des semaines à venir : sous des
+   * dates précises, il se lit comme le prix de CES dates. Dès que le séjour est complet, la recherche part
+   * d'elle-même, et la ligne attend sa réponse au lieu de garder l'aperçu. */
+  useEffect(() => {
+    if (!arrivee || !depart) return;
+    const minuteur = setTimeout(() => { void chercher(); }, 250);
+    return () => clearTimeout(minuteur);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrivee, depart, adultes]);
 
   const lien = (cle: "corniche" | "voiles", e: Etat | undefined) => {
     const base = lienReservation(cle, langue);
@@ -168,7 +183,7 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
       {/* Les deux maisons. Toujours présentes, même hauteur avant et après la recherche. */}
       <div className="mt-3 grid gap-2 md:grid-cols-2" aria-live="polite">
         {MAISONS.map((m) => {
-          const e = (actuel?.r ?? apercu)?.[m.cle];
+          const e = actuel ? actuel.r[m.cle] : pret ? undefined : apercu?.[m.cle];
           const nuits = actuel ? nuitsEntre(actuel.a, actuel.d) : 0;
           const libre = e?.etat === "libre";
           const terne = e?.etat === "complet" || e?.etat === "ferme";
@@ -177,7 +192,7 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
               key={m.cle} href={lien(m.cle, e)}
               className={`group flex min-h-[76px] items-center justify-between gap-3 rounded-2xl border px-5 py-3 transition ${
                 libre ? "border-gold/60 bg-white shadow-sm hover:shadow-md" : "border-[#ece6d8] bg-white/70 hover:bg-white"
-              } ${charge ? "animate-pulse" : ""}`}
+              } ${charge || (pret && !actuel) ? "animate-pulse" : ""}`}
             >
               <span className="min-w-0">
                 <span className="block whitespace-nowrap text-[10px] uppercase tracking-[0.2em] text-slate-400">
@@ -245,7 +260,7 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
                 onChange={(a, d) => { setArrivee(a); setDepart(d); }}
               />
               <button type="button" disabled={!pret}
-                onClick={() => { setFeuille(false); void chercher(); }}
+                onClick={() => setFeuille(false)}
                 className="mt-3 w-full rounded-full bg-navy py-4 text-[15px] font-semibold text-white transition hover:bg-navy-deep disabled:opacity-40">
                 {t.chercher}
               </button>
