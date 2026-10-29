@@ -172,7 +172,9 @@ const TEXTES = (tel: string, telEn: string) => ({
      * l'attendent donc, et se replient sur un mot neutre. */
     rooftopAjouter: (lieu: string) => (lieu ? `Ajouter une table · ${lieu}` : "Ajouter une table"),
     rooftopChoisie: (h: string, lieu: string) => (lieu ? `${lieu} · ${h}` : `Table · ${h}`),
-    gainDirect: (m: string) => `Bien vu — vous gardez ${m} en réservant ici.`,
+    gainDirect: (m: string) => `Vous gagnez ${m}`,
+    ecartIci: "Ici",
+    garantieSeule: "Carte en garantie · annulation gratuite jusqu’au jour d’arrivée 18 h",
     /* Ce qui arrive a la carte. Court sur la carte de tarif — il y a deux
      * cartes cote a cote et la place est comptee — entier sur l'ecran de
      * paiement, ou le client a la sienne en main. Les montants sont calcules
@@ -268,7 +270,9 @@ const TEXTES = (tel: string, telEn: string) => ({
     surBooking: ["On ", ", this stay is ", "."] as const,
     rooftopAjouter: (lieu: string) => (lieu ? `Add a table · ${lieu}` : "Add a table"),
     rooftopChoisie: (h: string, lieu: string) => (lieu ? `${lieu} · ${h}` : `Table · ${h}`),
-    gainDirect: (m: string) => `Nice move — you keep ${m} by booking direct.`,
+    gainDirect: (m: string) => `You win ${m}`,
+    ecartIci: "Here",
+    garantieSeule: "Card as guarantee · free cancellation until 6 pm on arrival day",
     empreinteCourt: (m: string) => `Card as guarantee · ${m} held`,
     debitCourt: (m: string) => `Charged now · ${m}`,
     empreinteLong: (m: string, pc: string) =>
@@ -2646,18 +2650,60 @@ export default function ReserverClient(
                   // économisez 0,40 € » dessert plus qu'il ne sert.
                   if (gain < 1) return null;
                   return (
-                    <div className="mt-2 rounded-lg bg-[#f4f8f5] px-3 py-2 text-[12.5px] leading-snug">
-                      <p className="text-[#6b7a82]">
-                        {T.surBooking[0]}
-                        <span className="font-semibold text-navy">Booking</span>
-                        {T.surBooking[1]}
-                        {/* Pas de barré : la phrase dit déjà que ce prix est
-                            ailleurs, et le gain juste en dessous dit ce qu'on
-                            garde. Le rayer par-dessus ne fait que charger. */}
-                        <span className="tabular-nums">{montant(ailleurs, langue)}</span>
-                        {T.surBooking[2]}
-                      </p>
-                      <p className="mt-0.5 font-semibold text-[#2d6a4f]">
+                    <div key={`${choix.total + taxe}-${ailleurs}`}
+                      /* ⛔ PLUS DE SURFACE VERTE. Un pavé vert pâle au milieu
+                         d'une page crème, marine et or, c'est une couleur qui
+                         n'appartient à aucune des trois — Martin : « le fond
+                         vert j'ai comme un doute ». Le vert garde son seul
+                         emploi légitime : le montant gagné, en texte. Tout le
+                         reste redevient la page. */
+                      className="mt-2.5 border-t border-[#f0ece4] pt-2.5 text-[12px] leading-snug">
+                      {/* ⚠️ LA RANGÉE DOIT SE REFERMER, PAS SEULEMENT SES
+                          PERDANTS. Le VS et la carte de Booking devenaient
+                          invisibles mais gardaient leur largeur, et les deux
+                          écarts de la rangée restaient : une quarantaine de
+                          pixels de vide à droite du gagnant, qui se retrouvait
+                          donc centré dans une boîte décalée vers la gauche.
+                          Martin : « tu n'arrives pas à centrer le podium dans la
+                          largeur de la colonne ». C'est l'ÉCART qui se ferme
+                          aussi, sur la rangée elle-même. */}
+                      <div className="vs-ring flex items-stretch gap-2">
+                        <span className="vs-nous min-w-0 flex-1 rounded-md px-2.5 py-1.5 text-center">
+                          <span className="block text-[10px] uppercase tracking-wider opacity-60">{T.ecartIci}</span>
+                          <span className="block text-[15px] font-bold tabular-nums">{montant(choix.total + taxe, langue)}</span>
+                          {/* ⚠️ LE PODIUM NE S'AJOUTE PAS À LA HAUTEUR, IL PREND
+                              CELLE DE LA CARTE. Quand le fond marine s'efface,
+                              les marges intérieures du gagnant tombent à zéro et
+                              rendent exactement les douze pixels que la marche
+                              occupe. La boîte verte ne bouge pas d'un pixel —
+                              c'était la condition. */}
+                          <svg className="vs-podium mx-auto mt-1 block" viewBox="0 0 72 12" width="72" height="12" aria-hidden>
+                            {/* ⚠️ LES DEUX MARCHES LATÉRALES SONT IDENTIQUES. En
+                                vrai podium, la deuxième et la troisième place
+                                n'ont ni la même hauteur ni le même poids — à
+                                douze pixels, cette asymétrie ne se lit pas comme
+                                un classement, elle se lit comme un dessin de
+                                travers : l'œil place le centre du côté le plus
+                                sombre, et le podium paraissait décalé alors que
+                                ses coordonnées étaient justes. */}
+                            <rect x="4" y="4" width="22" height="8" rx="1.5" fill="currentColor" opacity="0.24" />
+                            <rect x="46" y="4" width="22" height="8" rx="1.5" fill="currentColor" opacity="0.24" />
+                            <rect x="25" y="0" width="22" height="12" rx="1.5" fill="currentColor" opacity="0.5" />
+                          </svg>
+                        </span>
+                        {/* ⚠️ UN VS SE COUPE EN DIAGONALE. Deux lettres posées
+                            côte à côte, c'est une abréviation ; c'est la barre
+                            qui traverse qui en fait le signe d'un duel — et
+                            c'est à ça qu'on le reconnaît sans le lire. */}
+                        <span className="vs-mot self-center" aria-hidden>
+                          <span className="vs-v">V</span><span className="vs-s">S</span>
+                        </span>
+                        <span className="vs-eux min-w-0 flex-1 rounded-md bg-[#dfe5e8] px-2.5 py-1.5 text-center text-[#6b7a82]">
+                          <span className="block text-[10px] uppercase tracking-wider">Booking</span>
+                          <span className="block text-[15px] font-bold tabular-nums">{montant(ailleurs, langue)}</span>
+                        </span>
+                      </div>
+                      <p className="vs-gain mt-1.5 text-center text-[13px] font-bold text-[#2d6a4f]">
                         {T.gainDirect(montant(gain, langue))}
                       </p>
                     </div>
@@ -2698,7 +2744,8 @@ export default function ReserverClient(
                     <span aria-hidden className="text-gold-ink">✓</span>
                     {reg.debite
                       ? T.debitCourt(montant(reg.montant, langue))
-                      : T.empreinteCourt(montant(reg.montant, langue))}
+                      /* Une garantie à 0 € ne s'annonce pas « 0,00 € préautorisés » : on dit ce qu'elle vaut. */
+                      : reg.montant > 0 ? T.empreinteCourt(montant(reg.montant, langue)) : T.garantieSeule}
                   </li>
                 );
               })()}
