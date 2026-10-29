@@ -1269,7 +1269,9 @@ export default function ReserverClient(
    * ceux-ci décrivent un ÉTAT de l'écran, d'où les effets. Voir
    * `src/lib/mesure.ts` pour ce qui est mesuré — et ce qui ne l'est pas. */
   useEffect(() => { jalon(maison, "ouverture"); }, []);
-  useEffect(() => { if (paiementOuvert) jalon(maison, "paiement"); }, [paiementOuvert]);
+  /* La chambre proposee par defaut se paie sans clic de choix : sans ce rattrapage, l'etape
+   * « choix » manquait et l'entonnoir sautait une marche (vu le 29/10, 1 paiement pour 0 choix). */
+  useEffect(() => { if (paiementOuvert) { jalon(maison, "choix"); jalon(maison, "paiement"); } }, [paiementOuvert]);
   const [reserve, setReserve] = useState<{
     groupeId: string; numeros: string[];
     client: { prenom: string; nom: string; email: string; telephone: string };
