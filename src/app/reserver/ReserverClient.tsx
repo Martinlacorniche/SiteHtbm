@@ -2082,10 +2082,28 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
 
             {dispo && !erreur && !chargement && aJour && offresAffichees.length === 0 && (
               <div>
-                <p className="font-serif text-2xl text-navy">{tropLong ? T.tropLong : T.aucune}</p>
-                <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[#6b7a82]">
-                  {tropLong ? T.tropLongAide(nuits) : T.aucuneAide}
-                </p>
+                {/* FERMETURE D'HIVER (29/10/2026) : le bandeau du haut ne se lit pas — Martin : « on le lit pas
+                    en vrai ». La raison se dit donc ici, là où le client regarde quand rien ne sort. */}
+                {!tropLong && cherche && cherche.a < "2027-04-01" ? (
+                  <>
+                    <p className="font-serif text-2xl text-navy">{langue === "en" ? "We’re closed for winter." : "Nous sommes fermés pour l’hiver."}</p>
+                    <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[#6b7a82]">
+                      {langue === "en"
+                        ? "Les Voiles reopens on 1 April 2027: choose spring dates to book. La Villa remains available all winter."
+                        : "Les Voiles rouvrent le 1er avril 2027 : choisissez des dates à partir du printemps pour réserver. La Villa, elle, reste à louer tout l’hiver."}
+                    </p>
+                    <Link href="/villa-les-voiles-toulon" className="mt-3 inline-block font-semibold text-navy underline underline-offset-4">
+                      {langue === "en" ? "Discover La Villa →" : "Découvrir La Villa →"}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-serif text-2xl text-navy">{tropLong ? T.tropLong : T.aucune}</p>
+                    <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[#6b7a82]">
+                      {tropLong ? T.tropLongAide(nuits) : T.aucuneAide}
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
