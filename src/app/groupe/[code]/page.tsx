@@ -1760,6 +1760,16 @@ function ManageView({ token }: { token: string }) {
 
         {/* ⛔ La banque n'a pas authentifié la carte : pas de réservation, et on le dit (le retour de
           * Stripe se fait quand même sur « succès »). */}
+        {params.get("carte") === "0" && (
+          <Banner>{lang === "en"
+            ? "No card was registered, so the booking was not made. A card guarantee is required to book."
+            : "Aucune carte n’a été enregistrée : la réservation n’est pas faite. Une carte en garantie est obligatoire pour réserver."}</Banner>
+        )}
+        {groupe?.mode_paiement === "garantie" && resas.some((r: { statut: string }) => r.statut === "en_attente_paiement") && (
+          <Banner>{lang === "en"
+            ? "Not confirmed: without a registered card, this booking is cancelled within 30 minutes."
+            : "Non confirmée : sans carte enregistrée, cette réservation est annulée sous 30 minutes."}</Banner>
+        )}
         {retourCarte && resas.length > 0 && resas.every((r: { statut: string }) => r.statut === "annulee") && (
           <Banner>{lang === "en"
             ? "Your bank did not confirm the card (3-D Secure), so the booking was not made. You can book again with another card."
