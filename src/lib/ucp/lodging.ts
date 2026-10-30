@@ -39,6 +39,7 @@ import { conditions } from '@/lib/ucp/conditions';
 import { randomBytes } from 'node:crypto';
 import { SITE_URL } from '@/lib/site';
 import { supabaseServer } from '@/lib/supabase-server';
+import { HOTEL_CORNICHE } from '@/lib/moteurNwh/pageCorniche';
 
 /** La version de protocole qu'on annonce, et la seule qu'on sait parler.
  *
@@ -91,8 +92,16 @@ export type Session = {
   cree: number;
   demande: DemandeSejour;
   booking: Record<string, unknown>;
-  /** De quoi poser la réservation sans réinterroger la disponibilité. */
-  choix: { categorieId: string; tarifId: string; centimes: number; taxe: number; chambre: string };
+  /** De quoi poser la réservation sans réinterroger la disponibilité.
+   *
+   * 🔑 `hotel` DIT QUELLE MAISON VEND. Absent = Les Voiles (Mews), comme toutes les sessions ouvertes
+   * avant que La Corniche (HotSoft, vendue par NWH) n'arrive sur le même endpoint : une session déjà en
+   * base se relit donc à l'identique. `mode` n'existe que pour La Corniche, où une session peut être
+   * ouverte sur un flexible pour le DIRE — elle ne se complète alors pas, elle renvoie au tunnel. */
+  choix: {
+    categorieId: string; tarifId: string; centimes: number; taxe: number; chambre: string;
+    hotel?: 'corniche'; mode?: 'prepaye' | 'flexible';
+  };
   /** Qui réserve. Donné à la création ou par `update`, jamais à la complétion. */
   client?: ClientAgent;
   /** Ce qui a été fait, pour ne pas le refaire sur une reprise. */
@@ -120,7 +129,7 @@ export type Session = {
  *
  * ⚠️ C'EST UN CACHE, PAS UNE ARCHIVE (migration 348). Ce qui doit survivre —
  * la vente, son canal, la clé du séjour — vit ailleurs. */
-const DUREE_SESSION_MS = 30 * 60_000;
+export const DUREE_SESSION_MS = 30 * 60_000;
 
 /** Relit une session ouverte, ou `null` si elle n'existe plus. */
 export async function lireSession(id: string): Promise<Session | null> {
@@ -143,9 +152,9 @@ export async function lireSession(id: string): Promise<Session | null> {
 }
 
 /** Écrit ou réécrit une session. */
-async function ranger(s: Session): Promise<void> {
+export async function ranger(s: Session): Promise<void> {
   const { error } = await supabaseServer.from('ucp_session').upsert({
-    id: s.id, hotel_id: HOTEL_NWH,
+    id: s.id, hotel_id: s.choix.hotel === 'corniche' ? HOTEL_CORNICHE : HOTEL_NWH,
     demande: s.demande, choix: s.choix, client: s.client ?? null,
     booking: s.booking, fait: s.fait ?? null, attente: s.attente ?? null,
     /* ⚠️ UNE SESSION QUI ATTEND UN PAIEMENT NE DOIT PAS EXPIRER AVANT LUI.
@@ -196,7 +205,7 @@ const sansDecor = (t: string) => t.replace(/^[^\p{L}\p{N}]+/u, '').trim();
  *
  * La remarque valait déjà pour la clé du séjour (`acces.ts`) ; elle vaut ici
  * pour la même raison, puisque cet identifiant DONNE accès à la session. */
-const identifiant = (prefixe: string) =>
+export const identifiant = (prefixe: string) =>
   `${prefixe}_${randomBytes(12).toString('base64url')}`;
 
 export class ErreurUcp extends Error {
@@ -449,6 +458,13 @@ export async function completerSession(
   const session = await lireSession(id);
   if (!session) throw new ErreurUcp('Session inconnue ou expirée — ouvrez-en une nouvelle.', 'unavailable');
 
+  /* ⚠️ UNE SESSION DE LA CORNICHE NE SE CONCLUT PAS ICI : la vente est faite par NWH (HotSoft, compte
+     Stripe de La Corniche). Import dynamique : `corniche.ts` dépend de ce fichier. */
+  if (session.choix.hotel === 'corniche') {
+    const { completerCorniche } = await import('@/lib/ucp/corniche');
+    return completerCorniche(session, { instruments, cleIdempotence });
+  }
+
   /* Reprise : si tout était déjà fait, on rend le même résultat plutôt que de
      reposer une seconde chambre. */
   if (session.fait) return session.booking;
@@ -587,7 +603,7 @@ export async function completerSession(
  * ⚠️ Le verrou expire tout seul au bout de deux minutes : un processus qui
  * meurt en cours ne doit pas bloquer à jamais une vente déjà payée.
  */
-async function prendreLaMain(id: string): Promise<boolean> {
+export async function prendreLaMain(id: string): Promise<boolean> {
   const { data, error } = await supabaseServer.rpc('ucp_verrouiller', { p_id: id });
   /* Une RPC qui ne répond pas ne doit pas bloquer une vente : on laisse
      passer, le risque de double est plus faible que celui de ne pas conclure. */
@@ -772,11 +788,15 @@ export async function majSession(id: string, client?: ClientAgent): Promise<Reco
   const session = await lireSession(id);
   if (!session) throw new ErreurUcp('Session inconnue ou expirée — ouvrez-en une nouvelle.', 'unavailable');
   if (client?.nom?.trim()) session.client = client;
+  /* ⚠️ UNE SESSION QUI RENVOIE AU TUNNEL Y RESTE. Donner le nom du client ne rend pas vendable par agent
+     un flexible de La Corniche : son statut ne bouge pas. */
+  const escalade = session.booking.status === 'requires_escalation' && session.choix.hotel === 'corniche';
   session.booking = {
     ...session.booking,
     /* Le statut dit à l'agent ce qui manque encore. C'est la seule chose qui
-       le renseigne : la spécification n'a pas de champ « il manque ceci ». */
-    status: session.client?.nom ? 'ready_for_complete' : 'incomplete',
+       le renseigne : la spécification n'a pas de champ « il manque ceci ».
+       La Corniche exige aussi l'e-mail : sa confirmation part par mail (HotSoft n'en envoie aucune). */
+    status: escalade ? 'requires_escalation' : clientComplet(session) ? 'ready_for_complete' : 'incomplete',
     ...(session.client
       ? { booker: {
         first_name: session.client.prenom, last_name: session.client.nom,
@@ -788,6 +808,10 @@ export async function majSession(id: string, client?: ClientAgent): Promise<Reco
   await ranger(session);
   return session.booking;
 }
+
+/** Le client suffit-il pour conclure ? Le nom partout ; l'e-mail en plus à La Corniche. */
+export const clientComplet = (s: { client?: ClientAgent; choix: Session['choix'] }) =>
+  !!s.client?.nom?.trim() && (s.choix.hotel !== 'corniche' || !!s.client?.email?.trim());
 
 /** L'identifiant de notre handler de paiement, tel que le profil l'annonce. */
 export const HANDLER_ID = 'stripe_spt';
@@ -824,7 +848,7 @@ export const HANDLER = {
  * chercher — et on accepte ici les quelques écritures qu'un agent raisonnable
  * pourrait produire, plutôt que d'échouer sur une clé nommée autrement. Le
  * jour où Stripe publie sa forme, elle s'ajoute à cette liste. */
-function jetonDe(instruments: Record<string, unknown>[]): string {
+export function jetonDe(instruments: Record<string, unknown>[]): string {
   for (const i of instruments ?? []) {
     const cred = (i.credential ?? {}) as Record<string, unknown>;
     for (const v of [

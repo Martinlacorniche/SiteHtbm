@@ -14,11 +14,17 @@
 
 import { NextResponse } from 'next/server';
 import { SITE_URL } from '@/lib/site';
-import { HANDLER, HANDLER_ID, UCP_CANAL, UCP_VERSION } from '@/lib/ucp/lodging';
+import { HANDLER, HANDLER_ID, PROPRIETE, UCP_CANAL, UCP_VERSION } from '@/lib/ucp/lodging';
+import { HANDLER_ID_CORNICHE, handlerCorniche, profilCorniche, PROPRIETE_CORNICHE } from '@/lib/ucp/corniche';
 
 export const dynamic = 'force-dynamic';
 
-export function GET() {
+export async function GET() {
+  /* 🔴 LA CORNICHE N'EST ANNONCÉE PAYABLE QUE SI ELLE L'EST. Son handler porte le profil Stripe de SON
+   * compte, que NWH détient (réglage `profilAgent` du connecteur Stripe de l'hôtel). Tant qu'il n'est pas
+   * posé — ou si NWH ne répond pas — on n'annonce rien : un agent qui frapperait un jeton vers un profil
+   * que personne ne sait débiter échouerait au moment de payer, le pire moment. */
+  const profil = await profilCorniche();
   return NextResponse.json({
     ucp: {
       version: UCP_VERSION,
@@ -30,6 +36,15 @@ export function GET() {
             transport: 'mcp',
             schema: `https://ucp.dev/${UCP_CANAL}/services/lodging/mcp.openrpc.json`,
             endpoint: `${SITE_URL}/ucp/mcp`,
+            /* 🔑 DEUX HÔTELS SUR LE MÊME ENDPOINT. Sans `property_id`, c'est Les Voiles — comme avant. */
+            properties: [
+              { id: PROPRIETE.id, property_id: 'voiles', name: PROPRIETE.name, default: true,
+                payment_handler: HANDLER_ID },
+              { id: PROPRIETE_CORNICHE.id, property_id: 'corniche', name: PROPRIETE_CORNICHE.name, default: false,
+                ...(profil
+                  ? { payment_handler: HANDLER_ID_CORNICHE }
+                  : { note: 'Prix et disponibilité par agent ; la réservation se termine sur le site (continue_url).' }) },
+            ],
           },
         ],
         /* ⚠️ LE ROOFTOP N'EST PAS DU « LODGING », ET ON NE FAIT PAS SEMBLANT.
@@ -72,8 +87,9 @@ export function GET() {
             version: UCP_VERSION,
             transport: 'mcp',
             endpoint: `${SITE_URL}/ucp/mcp`,
-            tools: ['get_property_details'],
-            note: 'La fiche de l’hôtel : situation, horaires, équipements, conditions.',
+            tools: ['get_property_details', 'list_properties'],
+            note: 'La fiche de l’hôtel : situation, horaires, équipements, conditions. '
+              + '`property_id: "corniche"` pour le Best Western Plus La Corniche.',
           },
         ],
       },
@@ -93,7 +109,10 @@ export function GET() {
        * commun n'impose qu'un `type` et ouvre le reste. Stripe n'avait pas
        * publié la sienne au 28/09/2026 : on publie donc la nôtre, ici, où il
        * est prévu qu'on la cherche. */
-      payment_handlers: { [HANDLER_ID]: [HANDLER] },
+      payment_handlers: {
+        [HANDLER_ID]: [HANDLER],
+        ...(profil ? { [HANDLER_ID_CORNICHE]: [handlerCorniche(profil)] } : {}),
+      },
     },
   }, {
     headers: {

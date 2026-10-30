@@ -31,6 +31,39 @@ import { journaliser, type Issue } from '@/lib/ucp/journal';
 import { reconnaitre } from '@/lib/ucp/acces';
 import { arrivee, HEURE_ARRIVEE } from '@/lib/ucp/checkin';
 import { lireSejour, noteDuSejour, ouvrirReglement, consignerReglements } from '@/lib/ucp/sejour';
+import { creerSessionCorniche, ficheCorniche, profilCorniche, PROPRIETE_CORNICHE } from '@/lib/ucp/corniche';
+
+/* ══════════════════ DEUX HÔTELS, UN ENDPOINT ═════════════════════════════════
+ *
+ * 🔑 LA PROPRIÉTÉ SE CHOISIT, ET SON ABSENCE VAUT LES VOILES. Ce serveur n'a
+ * longtemps connu qu'un hôtel : tous les agents qui l'appellent aujourd'hui
+ * omettent la propriété, et doivent continuer d'obtenir exactement ce qu'ils
+ * obtenaient. La Corniche ne s'obtient donc QUE nommée — par `property_id`
+ * (forme courte), par `booking.property.id` (forme UCP), ou par son nom.
+ *
+ * ⚠️ UN NOM INCONNU EST UN REFUS, PAS LES VOILES. Un agent qui demande « Hôtel
+ * du Port » et reçoit une chambre des Voiles vendrait le mauvais hôtel. */
+type Maison = 'voiles' | 'corniche';
+function proprieteDe(...valeurs: unknown[]): Maison {
+  for (const v of valeurs) {
+    const t = String(v ?? '').trim().toLowerCase();
+    if (!t) continue;
+    if (t === PROPRIETE_CORNICHE.id || t.includes('corniche')) return 'corniche';
+    if (t === String(PROPRIETE.id).toLowerCase() || t.includes('voiles')) return 'voiles';
+    throw new ErreurUcp(
+      `Propriété inconnue : « ${String(v).slice(0, 60)} ». Ce serveur vend deux hôtels : `
+      + `« ${PROPRIETE.id} » (${PROPRIETE.name}) et « ${PROPRIETE_CORNICHE.id} » (${PROPRIETE_CORNICHE.name}) — voir \`list_properties\`.`,
+    );
+  }
+  return 'voiles';
+}
+
+/** Le champ `property_id`, tel que les outils l'annoncent. */
+const CHAMP_PROPRIETE = {
+  type: 'string',
+  description: 'L’hôtel : « corniche » (Best Western Plus La Corniche) ou « voiles » (Hôtel-Rooftop Les Voiles), '
+    + 'ou son identifiant (`list_properties`). Absent = Hôtel-Rooftop Les Voiles.',
+} as const;
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -60,7 +93,8 @@ const OUTILS = [
   {
     name: 'create_booking_session',
     description:
-      'Ouvre une session de réservation à l’Hôtel-Rooftop Les Voiles (Toulon, Mourillon) '
+      'Ouvre une session de réservation à l’Hôtel-Rooftop Les Voiles (Toulon, Mourillon) — '
+      + 'ou au Best Western Plus La Corniche avec `property_id: "corniche"` — '
       + 'pour des dates et une occupation données. Le plus simple : `check_in`, `check_out` '
       + '(AAAA-MM-JJ) et `adults`. La forme UCP `booking.stays[]` est acceptée aussi. Rend la chambre et le tarif réellement '
       + 'disponibles, le prix total en centimes d’euro, et une URL pour finaliser. '
@@ -84,6 +118,7 @@ const OUTILS = [
         check_in: { type: 'string', description: 'Date d’arrivée, AAAA-MM-JJ. Forme courte, équivaut à booking.stays[0].stay_dates.start_date.' },
         check_out: { type: 'string', description: 'Date de départ, AAAA-MM-JJ. Forme courte.' },
         adults: { type: 'integer', description: 'Nombre d’adultes (2 par défaut). Forme courte.' },
+        property_id: CHAMP_PROPRIETE,
         meta: { type: 'object', description: 'Métadonnées de protocole UCP.' },
         booking: {
           type: 'object',
@@ -170,7 +205,7 @@ const OUTILS = [
       'Conclut la réservation : débite le jeton de paiement et pose la chambre dans le PMS de l’hôtel. '
       + 'Le séjour est réglé EN TOTALITÉ et n’est pas remboursable (tarif prépayé). '
       + 'Exige un jeton de paiement partagé Stripe (`spt_…`) accordé au profil publié dans /.well-known/ucp, '
-      + 'et le nom du client. '
+      + 'et le nom du client (à La Corniche, son e-mail aussi : la confirmation part par e-mail). '
       + 'Si la banque du client réclame une authentification, rien n’est débité ni réservé : '
       + 'la réservation doit alors être finalisée par le client via `continue_url`.',
     inputSchema: {
@@ -253,6 +288,7 @@ const OUTILS = [
         start_date: { type: 'string', description: 'Arrivée souhaitée, AAAA-MM-JJ.' },
         end_date: { type: 'string', description: 'Départ souhaité, AAAA-MM-JJ.' },
         adults: { type: 'integer', description: 'Nombre d’adultes. 2 par défaut.' },
+        property_id: CHAMP_PROPRIETE,
       },
       required: ['start_date', 'end_date'],
     },
@@ -260,10 +296,18 @@ const OUTILS = [
   {
     name: 'get_property_details',
     description:
-      'Tout ce qu’il faut savoir pour DÉCRIRE l’Hôtel-Rooftop Les Voiles à un client : '
+      'Tout ce qu’il faut savoir pour DÉCRIRE l’Hôtel-Rooftop Les Voiles à un client '
+      + '(ou le Best Western Plus La Corniche avec `property_id: "corniche"`) : '
       + 'situation, étoiles, horaires d’arrivée et de départ, équipements compris (et ce qui ne l’est pas), '
       + 'petit-déjeuner, rooftop, catégories de chambres, conditions tarifaires et taxe de séjour. '
       + 'Ne contient ni prix ni disponibilité : ceux-ci viennent de `create_booking_session`.',
+    inputSchema: { type: 'object', properties: { property_id: CHAMP_PROPRIETE } },
+  },
+  {
+    name: 'list_properties',
+    description:
+      'Les hôtels vendus par ce serveur, avec leur identifiant (`property_id`), leur adresse, '
+      + 'et ce qu’un agent peut y faire (réserver et payer, ou seulement préparer la réservation).',
     inputSchema: { type: 'object', properties: {} },
   },
   /* ── LE SÉJOUR, UNE FOIS VENDU ───────────────────────────────────────────
@@ -440,6 +484,10 @@ const ANNOTATIONS: Record<string, {
     title: 'Décrire l’hôtel',
     readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
   },
+  list_properties: {
+    title: 'Voir les hôtels',
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+  },
   get_stay: {
     title: 'Relire un séjour réservé',
     readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
@@ -557,6 +605,11 @@ async function traiterInterne(req: Request, sansPaiement = false) {
             + '`search`, pas de mémoire.\n'
             + '· Seul le tarif prépayé se réserve par agent : réglé en totalité, non '
             + 'remboursable, dates non modifiables. Le dire avant de faire payer.\n'
+            /* 🔑 LA SECONDE MAISON, DITE ICI UNE FOIS. Sans propriété, tout
+               reste aux Voiles : c'est ce que les agents d'hier attendent. */
+            + '· Ce serveur vend aussi le Best Western Plus La Corniche (Toulon, face à la mer) : '
+            + 'passer `property_id: "corniche"`. Sans `property_id`, il s’agit toujours de '
+            + 'l’Hôtel-Rooftop Les Voiles. À La Corniche, le petit-déjeuner n’est pas compris.\n'
             + '· Transmettre les liens rendus sans les modifier.',
         });
       }
@@ -643,7 +696,9 @@ async function traiterInterne(req: Request, sansPaiement = false) {
 
           const dates = (stay.stay_dates ?? {}) as { start_date?: string; end_date?: string };
           const occ = (stay.occupancy ?? {}) as { adults?: number };
-          const session = await creerSession({
+          const maison = proprieteDe(args.property_id, args.property,
+            (booking.property as { id?: string } | undefined)?.id);
+          const session = await (maison === 'corniche' ? creerSessionCorniche : creerSession)({
             arrivee: String(dates.start_date ?? ''),
             depart: String(dates.end_date ?? ''),
             adultes: Number(occ.adults ?? 2),
@@ -686,6 +741,19 @@ async function traiterInterne(req: Request, sansPaiement = false) {
         }
 
         if (nom === 'get_alternative_dates') {
+          /* ⚠️ LA CORNICHE N'A PAS ENCORE DE REPLI CALCULÉ. Le repli des Voiles lit
+             un miroir des prix Mews ; celui de La Corniche demanderait une lecture
+             HotSoft par date essayée. On le dit plutôt que de rendre « rien »,
+             qui se lirait « complet partout ». */
+          if (proprieteDe(args.property_id, args.property) === 'corniche') {
+            return ok(corps.id, contenu({
+              requested: { start_date: args.start_date, end_date: args.end_date },
+              property: PROPRIETE_CORNICHE.name,
+              alternatives: [],
+              note: 'Les dates de repli ne sont pas encore calculées pour cet hôtel : essayez '
+                + '`create_booking_session` sur d’autres dates, ou ' + SITE + '/reserver-corniche.',
+            }));
+          }
           const liste = await alternatives({
             arrivee: String(args.start_date ?? ''), depart: String(args.end_date ?? ''),
             adultes: Number(args.adults ?? 2),
@@ -707,7 +775,29 @@ async function traiterInterne(req: Request, sansPaiement = false) {
           }));
         }
 
-        if (nom === 'get_property_details') return ok(corps.id, contenu(ficheHotel()));
+        if (nom === 'get_property_details') {
+          return ok(corps.id, contenu(proprieteDe(args.property_id, args.property) === 'corniche'
+            ? await ficheCorniche() : ficheHotel()));
+        }
+
+        if (nom === 'list_properties') {
+          /* Ce qu'un agent peut VRAIMENT faire dans chaque maison, lu à l'instant :
+             La Corniche ne se paie par agent que quand NWH a son profil Stripe. */
+          const profil = await profilCorniche();
+          return ok(corps.id, contenu({
+            properties: [
+              { ...PROPRIETE, property_id: 'voiles', default: true, agent_payment: true,
+                tools: ['create_booking_session', 'complete_booking_session', 'get_property_details',
+                  'get_alternative_dates', 'get_rooftop_availability', 'create_rooftop_reservation',
+                  'get_stay', 'get_check_in', 'get_folio', 'pay_folio'] },
+              { ...PROPRIETE_CORNICHE, property_id: 'corniche', default: false, agent_payment: !!profil,
+                tools: ['create_booking_session', ...(profil ? ['complete_booking_session'] : []), 'get_property_details'],
+                note: profil
+                  ? 'Tarif prépayé (à partir du lendemain) réservable et payable par agent ; petit-déjeuner non compris.'
+                  : 'Prix et disponibilité par agent ; la réservation se termine sur le site (`continue_url`).' },
+            ],
+          }));
+        }
 
         /* La clé, d'abord et toujours, pour tout ce qui touche un séjour. */
         if (nom === 'get_stay' || nom === 'get_check_in' || nom === 'get_folio' || nom === 'pay_folio') {
@@ -977,6 +1067,7 @@ export function GET(req: Request) {
     service: 'dev.ucp.lodging',
     version: UCP_VERSION,
     property: PROPRIETE.name,
+    properties: [PROPRIETE.name, PROPRIETE_CORNICHE.name],
     profil: '/.well-known/ucp',
     note: 'Transport MCP (JSON-RPC 2.0) en POST sur cette adresse.',
   }, { headers: CORS });
