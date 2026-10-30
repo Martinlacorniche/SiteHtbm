@@ -165,7 +165,7 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
   return (
     <div className="mx-auto mt-8 w-full max-w-3xl px-1 text-left md:mt-10">
       {/* La barre : une ligne sur ordinateur, une carte sur mobile. */}
-      <div className="rounded-[28px] border border-[#ece6d8] bg-white/90 p-2 shadow-[0_18px_50px_-24px_rgba(0,58,92,0.35)] backdrop-blur md:flex md:items-center md:gap-2 md:rounded-full">
+      <div className="rounded-[28px] border border-[#ece6d8] bg-white p-2 shadow-[0_18px_50px_-24px_rgba(0,58,92,0.35)] md:flex md:items-center md:gap-2 md:rounded-full">
         <button
           type="button" onClick={() => setFeuille(true)}
           className="flex w-full items-center gap-3 rounded-full px-5 py-3.5 text-left transition-colors hover:bg-cream md:flex-1"

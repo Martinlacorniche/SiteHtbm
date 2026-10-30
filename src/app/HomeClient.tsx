@@ -597,7 +597,7 @@ export default function PageUltimeV15() {
         {/* --- 1. CORNICHE --- */}
         <div 
           className={cn(
-            "group relative overflow-hidden rounded-2xl transition-all duration-700 ease-in-out cursor-pointer bg-slate-200",
+            "group relative overflow-hidden rounded-2xl transition-[flex-grow] duration-700 ease-in-out cursor-pointer bg-slate-200 [contain:layout_paint]",
             "flex-1 min-h-[420px] md:h-full", 
             getFlexClass("corniche")
           )}
@@ -682,7 +682,7 @@ export default function PageUltimeV15() {
         {/* --- 2. VOILES (CORRIGÉ ALIGNEMENT) --- */}
         <div 
           className={cn(
-            "group relative overflow-hidden rounded-2xl transition-all duration-700 ease-in-out cursor-pointer bg-slate-200",
+            "group relative overflow-hidden rounded-2xl transition-[flex-grow] duration-700 ease-in-out cursor-pointer bg-slate-200 [contain:layout_paint]",
             "flex-1 min-h-[420px] md:h-full",
             getFlexClass("voiles")
           )}
@@ -798,7 +798,7 @@ export default function PageUltimeV15() {
         {/* --- 3. VILLA --- */}
         <div 
           className={cn(
-            "group relative overflow-hidden rounded-2xl transition-all duration-700 ease-in-out cursor-pointer bg-slate-200",
+            "group relative overflow-hidden rounded-2xl transition-[flex-grow] duration-700 ease-in-out cursor-pointer bg-slate-200 [contain:layout_paint]",
             "flex-1 min-h-[420px] md:h-full",
             getFlexClass("villa")
           )}
