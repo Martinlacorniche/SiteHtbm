@@ -78,7 +78,12 @@ async function nwh<T>(op: 'profil' | 'devis' | 'vendre', corps: Record<string, u
     signal: AbortSignal.timeout(delaiMs),
   }).catch(() => null);
   const j = (await r?.json().catch(() => null)) as (T & { erreur?: string }) | null;
-  if (!r || !j) throw new ErreurUcp('Le moteur de réservation de l’hôtel n’a pas répondu.', 'unavailable');
+  /* ⚠️ Pour une VENTE, un silence n'est pas un échec : elle est peut-être en cours chez NWH (option,
+     débit). L'agent doit rappeler la MÊME session — une nouvelle session, avec un nouveau jeton, ferait
+     une seconde vente et un second débit (revue du 30/10/2026). */
+  if (!r || !j) throw new ErreurUcp(op === 'vendre'
+    ? 'La confirmation est toujours en cours chez l’hôtel. Rappelez `complete_booking_session` avec la MÊME session dans deux minutes : ne rouvrez PAS de session, la réservation ne sera ni posée ni débitée deux fois.'
+    : 'Le moteur de réservation de l’hôtel n’a pas répondu.', 'unavailable');
   if (!r.ok && op !== 'vendre') {
     /* ⚠️ UNE PANNE N'EST PAS UN « COMPLET ». NWH dit 502 quand HotSoft ne répond pas : on le dit aussi. */
     throw new ErreurUcp(r.status === 400 ? `Demande refusée : ${j.erreur ?? 'invalide'}.` : 'Le moteur de réservation de l’hôtel n’a pas répondu.',
