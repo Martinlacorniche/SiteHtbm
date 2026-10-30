@@ -70,6 +70,16 @@ const jourLong = (iso: string, l: Langue) => {
 };
 const nuitsEntre = (a: string, d: string) => Math.round((Date.parse(d) - Date.parse(a)) / 864e5);
 
+/** Une barre crème qu'un reflet traverse : la place d'un prix qui arrive, à sa taille. */
+function Lueur({ className }: { className: string }) {
+  return (
+    <span className={`relative block overflow-hidden rounded-full bg-[#f0ece4] ${className}`}>
+      <motion.span className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/90 to-transparent"
+        initial={{ x: "-120%" }} animate={{ x: "220%" }} transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }} />
+    </span>
+  );
+}
+
 export default function RechercheAccueil({ langue }: { langue: Langue }) {
   const t = T[langue];
   const [arrivee, setArrivee] = useState<string | null>(null);
@@ -123,6 +133,7 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
   /* Les résultats ne valent que pour la recherche qui les a produits : changer les dates ou le nombre
    * de personnes relance la recherche, plutôt que de garder un prix qui ne correspond plus. */
   const actuel = resultat && resultat.a === arrivee && resultat.d === depart && resultat.n === adultes ? resultat : null;
+  const attente = charge || (pret && !actuel);
 
   /* ⚠️ DES DATES CHOISIES NE MONTRENT JAMAIS LE « DÈS » GÉNÉRAL (Martin, 29/10 : « ça met toujours à
    * partir de 89 et c'est mensonger »). Le « dès X € » est le plus bas des semaines à venir : sous des
@@ -183,13 +194,27 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
           type="button" onClick={chercher} disabled={charge}
           className="mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-navy px-7 py-4 text-[15px] font-semibold text-white transition hover:bg-navy-deep disabled:opacity-70 md:mt-0 md:w-auto"
         >
-          {charge ? t.recherche : t.chercher}
-          {!charge && <ArrowRight className="h-4 w-4" aria-hidden />}
+          {/* Le libellé ne change pas pendant la recherche : « Recherche… » est plus court, le bouton
+              rétrécissait et poussait le champ des dates. Seule la flèche cède sa place aux points,
+              dans une case de largeur fixe. */}
+          <span className="sr-only">{charge ? t.recherche : ""}</span>
+          {t.chercher}
+          <span className="inline-flex w-[26px] justify-center">
+          {charge ? (
+            <span aria-hidden className="inline-flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <motion.span key={i} className="h-1.5 w-1.5 rounded-full bg-white"
+                  animate={{ opacity: [0.25, 1, 0.25], y: [0, -2, 0] }}
+                  transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }} />
+              ))}
+            </span>
+          ) : <ArrowRight className="h-4 w-4" aria-hidden />}
+          </span>
         </button>
       </div>
 
       {/* Les deux maisons. Toujours présentes, même hauteur avant et après la recherche. */}
-      <div className="mt-3 grid gap-2 md:grid-cols-2" aria-live="polite">
+      <div className="mt-3 grid gap-2 md:grid-cols-2" aria-live="polite" aria-busy={attente}>
         {MAISONS.map((m) => {
           const e = actuel ? actuel.r[m.cle] : pret ? undefined : apercu?.[m.cle];
           const nuits = actuel ? nuitsEntre(actuel.a, actuel.d) : 0;
@@ -200,8 +225,21 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
               key={m.cle} href={lien(m.cle, e)}
               className={`group flex min-h-[76px] items-center justify-between gap-3 rounded-2xl border px-5 py-3 transition ${
                 libre ? "border-gold/60 bg-white shadow-sm hover:shadow-md" : "border-[#ece6d8] bg-white/70 hover:bg-white"
-              } ${charge || (pret && !actuel) ? "animate-pulse" : ""}`}
+              } relative overflow-hidden`}
             >
+              {/* Pendant la recherche : un trait d'or court le long du bas de la carte. Il ne prend aucune
+                  place — la carte garde sa hauteur, rien ne bouge autour (pas de décalage). */}
+              <AnimatePresence>
+                {attente && (
+                  <motion.span aria-hidden key="trait"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] overflow-hidden">
+                    <motion.span className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-gold to-transparent"
+                      initial={{ x: "-100%" }} animate={{ x: "300%" }}
+                      transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut", delay: m.cle === "voiles" ? 0.15 : 0 }} />
+                  </motion.span>
+                )}
+              </AnimatePresence>
               <span className="min-w-0">
                 <span className="block whitespace-nowrap text-[10px] uppercase tracking-[0.2em] text-slate-400">
                   {m.ligne} <span className="text-gold">{"★".repeat(m.etoiles)}</span>
@@ -215,6 +253,12 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
                     initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}
                     className="block"
                   >
+                    {!e && attente && (
+                      <span aria-hidden className="flex flex-col items-end gap-1.5 py-0.5">
+                        <Lueur className="h-[18px] w-24" />
+                        <Lueur className="h-2.5 w-14" />
+                      </span>
+                    )}
                     {e?.etat === "libre" && (
                       <>
                         <span className="block text-[17px] font-semibold tabular-nums text-navy">{t.des(e.parNuit)} <span className="text-xs font-normal text-slate-400">{t.nuit}</span></span>
