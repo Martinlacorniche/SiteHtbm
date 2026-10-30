@@ -1881,7 +1881,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
         <div className="mt-3 lg:hidden">{bandeau}</div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-[1600px] gap-3 px-4 py-3 lg:gap-5 lg:px-6 lg:py-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[340px_minmax(0,1fr)_320px]">
+      <div className="mx-auto grid w-full max-w-[1600px] gap-3 px-4 pt-2 pb-3 lg:gap-5 lg:px-6 lg:pt-3 lg:pb-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[340px_minmax(0,1fr)_320px]">
 
         {/* ── Colonne 1 · Vos dates, et la maison ─────────────────────────── */}
         <section className="relative flex min-h-0 flex-col rounded-2xl bg-white p-4 shadow-[0_2px_20px_rgba(0,78,124,0.07)] lg:p-5">
