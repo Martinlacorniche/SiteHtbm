@@ -1832,19 +1832,25 @@ export default function ReserverClient(
             parce que c'est la reponse qui separe cette page d'une OTA. En
             navy sourd, jamais en or : l'or de cette page est reserve a ce qui
             se clique et a ce que le direct donne de plus. */}
+        {/* UNE SEULE LIGNE D'EN-TÊTE (Martin, 30/10/2026 : « cette zone, elle sert même à rien »). La ligne
+            « logo ← La Corniche … Site officiel » au-dessus du titre redisait le nom et prenait 45 px : le
+            logo passe devant le titre et ramène à l'accueil, le badge « Site officiel » se range à droite.
+            ⚠️ URL BRUTE pour le logo, pas `imageRedimensionnee` : `next.config.ts` n'autorise le domaine
+            Supabase que sur `/storage/v1/object/**`. */}
+        {/* Sur telephone, le chapo disparait : il redit ce que le total dit ensuite en chiffres. Il reste
+            dans le document — donc lu par les moteurs. */}
         <div className="flex items-center justify-between gap-3">
-          {/* ⚠️ LA SEULE PAGE PUBLIQUE SANS LOGO, ET C'ÉTAIT LA PLUS
-              COMMERCIALE. Le portail wifi, la carte, la réservation de table et
-              les trois pages légales affichent celui de l'hôtel ; le tunnel ne
-              rendait que « ← nom » en texte. Il ne pousse rien vers le bas : il
-              se pose sur la ligne qui existait déjà.
-              ⚠️ URL BRUTE, PAS `imageRedimensionnee` : `next.config.ts`
-              n'autorise le domaine Supabase que sur `/storage/v1/object/**`,
-              et le tunnel est le seul écran servi par `next/image`. */}
-          <Link href="/" className="inline-flex items-center gap-2.5 text-[13px] tracking-wide text-navy hover:underline">
-            {logo ? <img src={logo} alt="" className="h-9 w-9 rounded-xl object-cover shadow-sm" /> : null}
-            ← {nom}
-          </Link>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <Link href="/" aria-label={`← ${nom}`} className="flex shrink-0 items-center gap-3 text-navy hover:opacity-90">
+              {logo ? <img src={logo} alt="" className="h-10 w-10 rounded-xl object-cover shadow-sm" /> : null}
+              {/* ⚠️ `font-serif` DE TAILWIND N'EST PAS LORA : `--titre` réunit les titres du produit. */}
+              <h1 style={{ fontFamily: 'var(--titre, var(--font-lora), Georgia, serif)' }}
+                  className="text-[26px] leading-tight text-navy sm:text-3xl lg:text-[34px]">
+                {nom}
+              </h1>
+            </Link>
+            <p className="hidden text-[15px] text-[#4a5a63] sm:block">{T.chapo}</p>
+          </div>
           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-navy/[0.07] px-2.5 py-1 text-[11.5px] font-semibold text-navy">
             <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2.6l7.4 3v5.8c0 4.4-3 8.3-7.4 9.9-4.4-1.6-7.4-5.5-7.4-9.9V5.6z" />
@@ -1852,25 +1858,6 @@ export default function ReserverClient(
             </svg>
             {T.siteOfficiel}
           </span>
-        </div>
-        {/* Titre et promesse sur la même ligne : chaque pixel pris en hauteur
-            est un pixel de moins pour le calendrier et les chambres. */}
-        {/* Sur telephone, l'en-tete occupait 460 px avant la premiere chambre.
-            Le chapo y disparait : il redit ce que le total dit ensuite en
-            chiffres, et il coutait deux lignes pleines. Il reste dans le
-            document — donc lu par les moteurs — mais ne pousse plus les prix
-            sous la ligne de flottaison. */}
-        <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-1">
-          {/* ⚠️ `font-serif` DE TAILWIND N'EST PAS LORA. Rien n'étend le thème :
-              ce titre tombait sur la sérif générique du système, quand le
-              portail wifi et la carte écrivent Lora en dur. Deux typographies
-              de titre pour un même produit, sans que personne l'ait décidé.
-              `--titre` les réunit, et vaut Lora tant qu'on ne choisit rien. */}
-          <h1 style={{ fontFamily: 'var(--titre, var(--font-lora), Georgia, serif)' }}
-              className="text-[26px] leading-tight text-navy sm:text-3xl lg:text-[34px]">
-            {nom}
-          </h1>
-          <p className="hidden text-[15px] text-[#4a5a63] sm:block">{T.chapo}</p>
         </div>
 
         {/* Ce que le direct donne de plus, et qui doit se voir de loin.
