@@ -73,6 +73,19 @@ async function corniche(arrivee: string, depart: string, adultes: number): Promi
   }
 }
 
+/* ⚠️ LE CACHE DE NETLIFY IGNORE LA QUERY STRING PAR DÉFAUT (mesuré le 30/10/2026) : l'aperçu sans dates,
+ * mis en cache dix minutes, était rendu à TOUTES les recherches datées (« dès 79 » quelles que soient les
+ * dates). `Netlify-Vary: query` fait de chaque recherche sa propre entrée.
+ * Une recherche datée se garde une minute au CDN, et se resert pendant qu'on la rafraîchit : presque tous
+ * les visiteurs arrivent sur « ce soir → demain », un seul paie l'aller-retour vers HotSoft. Le moteur
+ * revérifie de toute façon le stock avant de vendre. */
+const CACHE_APERCU = { "cache-control": "public, max-age=600", "netlify-vary": "query" };
+const CACHE_RECHERCHE = {
+  "cache-control": "public, max-age=0, must-revalidate",
+  "netlify-cdn-cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+  "netlify-vary": "query",
+};
+
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
 
 export async function GET(req: NextRequest) {
@@ -87,7 +100,7 @@ export async function GET(req: NextRequest) {
         : prixAPartirDe().then((des): Etat => ({ etat: "apercu", des })).catch((): Etat => ({ etat: "apercu", des: null })),
       prixCorniche().then((des): Etat => ({ etat: "apercu", des })).catch((): Etat => ({ etat: "apercu", des: null })),
     ]);
-    return NextResponse.json({ corniche: c, voiles: v }, { headers: { "cache-control": "public, max-age=600" } });
+    return NextResponse.json({ corniche: c, voiles: v }, { headers: CACHE_APERCU });
   }
 
   if (!estDate(arrivee) || !estDate(depart) || depart <= arrivee || arrivee < aujourdhui()) {
@@ -102,5 +115,7 @@ export async function GET(req: NextRequest) {
     corniche(arrivee, depart, adultes),
     adultes > 2 ? Promise.resolve<Etat>({ etat: "complet" }) : voiles(arrivee, depart, adultes),
   ]);
-  return NextResponse.json({ corniche: c, voiles: v });
+  /* Un moteur muet ne se met pas en cache : la minute suivante doit pouvoir répondre. */
+  const muet = c.etat === "muet" || v.etat === "muet";
+  return NextResponse.json({ corniche: c, voiles: v }, { headers: muet ? { "cache-control": "no-store" } : CACHE_RECHERCHE });
 }

@@ -130,7 +130,8 @@ export default function RechercheAccueil({ langue }: { langue: Langue }) {
    * d'elle-même, et la ligne attend sa réponse au lieu de garder l'aperçu. */
   useEffect(() => {
     if (!arrivee || !depart) return;
-    const minuteur = setTimeout(() => { void chercher(); }, 250);
+    // La première recherche (ce soir → demain) part sans attendre ; l'attente ne sert qu'aux retouches.
+    const minuteur = setTimeout(() => { void chercher(); }, resultat ? 250 : 0);
     return () => clearTimeout(minuteur);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrivee, depart, adultes]);
