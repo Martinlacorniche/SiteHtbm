@@ -1254,7 +1254,7 @@ export default function ReserverClient(
    * configuration du moteur — et ne doivent pas l'etre, ils deviendraient
    * reservables en direct. Seul le Connector les lit, donc ca passe par notre
    * serveur, qui les garde quinze minutes en cache. */
-  const [tarifPublic, setTarifPublic] = useState<Record<string, { flexible: number; prepaye: number }> | null>(null);
+  const [tarifPublic, setTarifPublic] = useState<Record<string, { flexible?: number; prepaye?: number }> | null>(null);
 
   /* La table du rooftop, choisie AVEC la chambre. `tablePrise` n'existe
    * qu'apres la reservation : une table tenue pour un paiement qui echoue est
@@ -2644,7 +2644,10 @@ export default function ReserverClient(
                   if (!pub || !cherche || cherche.pax !== choix.pourPersonnes) return null;
                   const prepaye = estPrepaye(tarifs.find((r) => r.Id === choix.tarifId), groupes);
                   const taxe = taxeDe(choix.pourPersonnes);
-                  const ailleurs = (prepaye ? pub.prepaye : pub.flexible) + taxe;
+                  // Un tarif Booking que HotSoft n'a pas rendu manque : on se tait plutôt que de deviner.
+                  const booking = prepaye ? pub.prepaye : pub.flexible;
+                  if (booking == null) return null;
+                  const ailleurs = booking + taxe;
                   const gain = ailleurs - (choix.total + taxe);
                   // Sous un euro, l'écart ne vaut pas une ligne — et un « vous
                   // économisez 0,40 € » dessert plus qu'il ne sert.
