@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { telInternational } from "./telephone";
+import { VignettePetitDej } from "./VideoPetitDej";
 import {
   chargerConfigPaiement, autoriserCarte, infosNavigateur, lien3DSecure, paiementEnLigne, type Langue,
 } from "@/lib/moteurNwh/mews";
@@ -109,6 +110,7 @@ const TEXTES = (tel: string, telEn: string) => ({
     boutonFlex: "Enregistrer ma carte en garantie",
     boutonPrepaye: "Payer",
     pdj: (prix: string) => `Ajouter le petit-déjeuner (${prix} par personne et par nuit)`,
+    pdjLegende: "Le petit-déjeuner, ce matin au lever du soleil",
     prenom: "Prénom", nom: "Nom", email: "Email", telephone: "Téléphone",
     telephoneAide: "Pour vous joindre le jour de votre arrivée.",
     mot: "Un mot pour l'hôtel (facultatif)",
@@ -153,6 +155,7 @@ const TEXTES = (tel: string, telEn: string) => ({
     boutonFlex: "Register my card as a guarantee",
     boutonPrepaye: "Pay",
     pdj: (prix: string) => `Add breakfast (${prix} per person per night)`,
+    pdjLegende: "Breakfast this morning, at sunrise",
     prenom: "First name", nom: "Last name", email: "Email", telephone: "Phone",
     telephoneAide: "So we can reach you on the day you arrive.",
     mot: "A word for the hotel (optional)",
@@ -815,8 +818,10 @@ export default function Paiement({
           <>
             {coordonnees}
             {parStripe && (cfg.pdjPrix ?? 0) > 0 && (
-              <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl bg-[#faf7f1] px-4 py-3 text-[13.5px] leading-snug text-[#3c4a52]">
-                <input type="checkbox" checked={petitDej} onChange={(e) => setPetitDej(e.target.checked)} className="mt-0.5 h-4 w-4 accent-navy" />
+              /* La vignette tourne à côté de la case : le client qui hésite voit ce qu'il coche (30/10/2026). */
+              <label className="mt-5 flex cursor-pointer items-center gap-3 rounded-xl bg-[#faf7f1] px-3 py-2.5 text-[13.5px] leading-snug text-[#3c4a52]">
+                <VignettePetitDej legende={T.pdjLegende} />
+                <input type="checkbox" checked={petitDej} onChange={(e) => setPetitDej(e.target.checked)} className="h-4 w-4 shrink-0 accent-navy" />
                 <span className="flex-1">{T.pdj((cfg.pdjPrix ?? 0).toLocaleString(langue === "fr" ? "fr-FR" : "en-GB", { style: "currency", currency: "EUR" }))}</span>
                 <span className="shrink-0 font-semibold tabular-nums text-navy">+{montantPdj.toLocaleString(langue === "fr" ? "fr-FR" : "en-GB", { style: "currency", currency: "EUR" })}</span>
               </label>

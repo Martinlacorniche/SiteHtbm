@@ -16,6 +16,9 @@ public/media/
 !public/media/
 !public/media/corniche.mp4
 !public/media/voiles.mp4
+# Le petit-déjeuner au lever du soleil (Mariam, 30/10/2026), page de réservation de La Corniche : 640 et 460 Ko.
+!public/media/corniche-petit-dejeuner.mp4
+!public/media/corniche-petit-dejeuner.webm
 
 # secrets & build
 .env.local

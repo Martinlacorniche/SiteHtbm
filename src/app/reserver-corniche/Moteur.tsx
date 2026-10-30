@@ -8,6 +8,7 @@ import Link from "next/link";
 import CalendrierSejour from "./CalendrierSejour";
 import Image from "next/image";
 import Paiement, { type SejourAPayer } from "./Paiement";
+import { VoirPetitDej } from "./VideoPetitDej";
 import { jalon } from "@/lib/moteurNwh/mesure";
 import { reprendreVente } from "@/lib/moteurNwh/reprise3ds";
 import { lireRecherche } from "@/lib/moteurNwh/lienReserver";
@@ -208,6 +209,7 @@ const TEXTES = (tel: string, telEn: string) => ({
     surface: (n: number) => `${n} m²`,
     lit: (cm: number) => `lit ${cm} cm`,
     galerieOuvrir: (n: number) => `Voir les ${n} photos`,
+    pdjVoir: "Voir le petit-déjeuner en vidéo", pdjLegende: "Le petit-déjeuner, ce matin au lever du soleil",
     galerieCompteur: (i: number, n: number) => `Photo ${i} sur ${n}`,
     galerieFermer: "Fermer",
     galeriePrec: "Photo précédente",
@@ -302,6 +304,7 @@ const TEXTES = (tel: string, telEn: string) => ({
     surface: (n: number) => `${n} m²`,
     lit: (cm: number) => `${cm} cm bed`,
     galerieOuvrir: (n: number) => `See all ${n} photos`,
+    pdjVoir: "Watch breakfast", pdjLegende: "Breakfast this morning, at sunrise",
     galerieCompteur: (i: number, n: number) => `Photo ${i} of ${n}`,
     galerieFermer: "Close",
     galeriePrec: "Previous photo",
@@ -957,7 +960,11 @@ function Maison({
           <span aria-hidden className={i.absent ? "text-[#b0b6ba]" : "text-gold-ink"}>
             {i.absent ? "—" : "✓"}
           </span>
-          <span className={i.absent ? "text-[#8a9299]" : ""}>{i.texte}</span>
+          <span className={i.absent ? "text-[#8a9299]" : ""}>
+            {i.texte}
+            {/* La ligne du petit-déjeuner se voit, en cinq secondes de vidéo. */}
+            {!i.absent && /petit-d[ée]j|breakfast/i.test(i.texte) && <VoirPetitDej libelle={T.pdjVoir} legende={T.pdjLegende} />}
+          </span>
         </li>
       ))}
     </ul>
