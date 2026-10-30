@@ -45,7 +45,10 @@ import { creerSessionCorniche, ficheCorniche, profilCorniche, PROPRIETE_CORNICHE
  * du Port » et reçoit une chambre des Voiles vendrait le mauvais hôtel. */
 type Maison = 'voiles' | 'corniche';
 function proprieteDe(...valeurs: unknown[]): Maison {
-  for (const v of valeurs) {
+  for (const brut of valeurs) {
+    /* Un agent envoie parfois la propriété entière ({ id, name }) : on lit son identifiant, sinon
+       « [object Object] » se faisait refuser comme une propriété inconnue (revue du 30/10/2026). */
+    const v = brut && typeof brut === 'object' ? ((brut as { id?: unknown; name?: unknown }).id ?? (brut as { name?: unknown }).name) : brut;
     const t = String(v ?? '').trim().toLowerCase();
     if (!t) continue;
     if (t === PROPRIETE_CORNICHE.id || t.includes('corniche')) return 'corniche';
