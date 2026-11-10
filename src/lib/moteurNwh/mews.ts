@@ -35,7 +35,9 @@ export type ConfigMoteur = {
    * démo ne peut pas montrer le moteur — le seul écran que le prospect vient
    * voir — et il aurait fallu réécrire les 2 700 lignes de `Moteur.tsx`. */
   base?: string;
-  /** HotSoft : la vente passe par Stripe (carte en garantie ou paiement), pas par le PMS. */
+  /** La vente passe par une page Stripe (carte en garantie ou paiement), pas par le PMS : HotSoft (le Stripe de
+   *  l'hôtel chez NWH), et lessclic quand le compte Stripe de l'hôtel y est relié (10/11/2026, c'est lessclic qui
+   *  ouvre la page et conclut). Absent : rien ne se prend en ligne, ou c'est le Distributor de Mews qui le fait. */
   venteStripe?: boolean;
   /** HotSoft : le petit-déjeuner en option, par personne et par nuit (réglage du connecteur). */
   pdjPrix?: number;
@@ -46,15 +48,21 @@ export type ConfigMoteur = {
 };
 
 
-/** Le moteur est-il servi par le VRAI Distributor de Mews, seul à savoir encaisser en ligne ?
+/** Le moteur est-il servi par le VRAI Distributor de Mews — ses champs de carte PciProxy, son 3-D Secure, son
+ *  checkout ?
  *
- *  ⚠️ `cfg.base` n'est renseignée que lorsque nous servons nous-mêmes le Distributor — la démonstration
- *  et lessclic. Dans ces deux cas il n'y a ni carte à tokeniser, ni 3-D Secure, ni demande de paiement :
- *  l'écran doit proposer un autre geste, pas un formulaire de carte qui ne mènerait nulle part.
+ *  ⚠️ `cfg.base` n'est renseignée que lorsque nous servons nous-mêmes le Distributor — la démonstration, HotSoft
+ *  et lessclic. Là, il n'y a rien à tokeniser dans la page : l'écran doit proposer un autre geste (la page Stripe,
+ *  ou rien), pas un formulaire de carte qui ne mènerait nulle part.
  *
  *  🔑 Et c'est volontairement une question posée à la CONFIGURATION, pas au PMS : le nom du PMS se lit en
  *  base (`lib/pms/pms.ts`, côté serveur) et cet écran tourne dans le navigateur. */
-export const paiementEnLigne = (cfg: ConfigMoteur) => !cfg.base;
+export const distributorMews = (cfg: ConfigMoteur) => !cfg.base;
+
+/** L'établissement prend-il la carte ou l'argent EN LIGNE ? Le Distributor de Mews, et tout moteur dont la vente
+ *  part sur une page Stripe (`venteStripe` : HotSoft, lessclic au compte Stripe relié). Faux : la démonstration,
+ *  lessclic sans Stripe — la réservation se fait sans rien demander, réglée à l'hôtel. */
+export const paiementEnLigne = (cfg: ConfigMoteur) => distributorMews(cfg) || !!cfg.venteStripe;
 
 export type Langue = 'fr' | 'en';
 const CULTURE: Record<Langue, string> = { fr: 'fr-FR', en: 'en-GB' };

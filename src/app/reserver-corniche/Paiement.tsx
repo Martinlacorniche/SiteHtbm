@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { telInternational } from "./telephone";
 import { VignettePetitDej } from "./VideoPetitDej";
 import {
-  chargerConfigPaiement, autoriserCarte, infosNavigateur, lien3DSecure, paiementEnLigne, type Langue,
+  chargerConfigPaiement, autoriserCarte, infosNavigateur, lien3DSecure, distributorMews, type Langue,
 } from "@/lib/moteurNwh/mews";
 import type { ConfigMoteur } from "@/lib/moteurNwh/mews";
 import { poserVente } from "@/lib/moteurNwh/reprise3ds";
@@ -237,12 +237,14 @@ export default function Paiement({
 }) {
   const T = TEXTES(telHotel, telInternational(telHotel))[langue];
 
-  /* 🔑 L'ÉTABLISSEMENT PREND-IL DE L'ARGENT EN LIGNE ? Quand son moteur est servi
-   * par notre propre Distributor (lessclic, démonstration), non : il n'y a ni
-   * carte à tokeniser, ni 3-D Secure, ni checkout. Afficher le formulaire de
-   * carte reviendrait à demander un numéro pour ne rien en faire. */
-  const sansPaiement = !paiementEnLigne(cfg);
-  /* HotSoft : la vente part chez Stripe (garantie ou paiement) ; le petit-déjeuner est une option. */
+  /* 🔑 LES CHAMPS DE CARTE DE MEWS (PciProxy, Mews Payments Checkout) N'EXISTENT QUE CHEZ MEWS. Quand le moteur
+   * est servi par notre propre Distributor (HotSoft, lessclic, démonstration), il n'y a rien à tokeniser ici :
+   * l'écran prend les coordonnées, et la carte ou l'argent se donnent sur la page Stripe (`parStripe`) — ou nulle
+   * part, quand l'établissement ne prend rien en ligne. Afficher le formulaire de carte reviendrait à demander un
+   * numéro pour ne rien en faire. */
+  const horsMews = !distributorMews(cfg);
+  /* HotSoft, et lessclic au compte Stripe relié (10/11/2026) : la vente part chez Stripe (garantie ou paiement).
+   * HotSoft seul a le petit-déjeuner en option (`pdjPrix`). */
   const parStripe = !!cfg.venteStripe;
   const [petitDej, setPetitDej] = useState(false);
   const nuitsSejour = Math.max(1, Math.round((Date.parse(sejour.depart) - Date.parse(sejour.arrivee)) / 86_400_000));
@@ -295,13 +297,13 @@ export default function Paiement({
      * affichait « échec » AU CHARGEMENT de l'écran — avant que le client ait
      * touché quoi que ce soit. Une page de réservation parfaitement
      * fonctionnelle s'ouvrait sur un message d'erreur. */
-    if (sejour.debite || sansPaiement) return;
+    if (sejour.debite || horsMews) return;
     let annule = false;
     chargerConfigPaiement(cfg, langue)
       .then((c) => { if (!annule) setPublicKey(c.publicKey); })
       .catch(() => { if (!annule) setErreur(T.echec); });
     return () => { annule = true; };
-  }, [sejour.debite, sansPaiement, langue, T]);
+  }, [sejour.debite, horsMews, langue, T]);
 
   /* L'envoi final, une fois la carte tokenisée par PciProxy.
    *
@@ -414,7 +416,7 @@ export default function Paiement({
 
   // Le chargement de PciProxy et le montage des deux iframes.
   useEffect(() => {
-    if (sejour.debite || sansPaiement || !publicKey) return;
+    if (sejour.debite || horsMews || !publicKey) return;
     let annule = false;
 
     const monter = () => {
@@ -485,7 +487,7 @@ export default function Paiement({
       annule = true;
       try { sf.current?.destroy?.(); } catch { /* PciProxy n'expose pas toujours destroy */ }
     };
-  }, [sejour.debite, sansPaiement, publicKey, T]);
+  }, [sejour.debite, horsMews, publicKey, T]);
 
   const envoyerCarte = () => {
     if (enCours.current) return;
@@ -792,7 +794,7 @@ export default function Paiement({
             </h2>
             <p className="mt-1 text-[13.5px] text-[#6b7a82]">
               {ouverte ? T.tenue
-                : sansPaiement ? T.sousTitreSurPlace
+                : horsMews && !parStripe ? T.sousTitreSurPlace
                 : sejour.debite ? T.sousTitrePaiement : T.sousTitreCarte}
             </p>
           </div>
@@ -811,7 +813,7 @@ export default function Paiement({
           <span className="shrink-0 text-[20px] font-bold tabular-nums text-navy">{sejour.totalFormate}</span>
         </div>
 
-        {sansPaiement ? (
+        {horsMews ? (
           /* ── SANS PAIEMENT EN LIGNE : les coordonnées, et c'est tout ──────
                Pas de champ de carte, parce qu'il n'y a rien à en faire. La
                phrase dit ce qui se passera, et le bouton dit ce qu'il fait. */

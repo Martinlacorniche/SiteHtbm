@@ -1417,7 +1417,8 @@ export default function ReserverClient(
       setReprise("en-cours");
       void (async () => {
         for (let essai = 0; essai < 10; essai++) {
-          const r = await fetch(`/api/corniche/vente?vente=${venteId}`).then((x) => x.json()).catch(() => null);
+          /* `h` : l'hôtel de la page — chez NWH, une vente lessclic se demande à SON lessclic. */
+          const r = await fetch(`/api/corniche/vente?vente=${venteId}&h=${encodeURIComponent(hotel)}`).then((x) => x.json()).catch(() => null);
           if (r?.statut === "confirmee") {
             setReprise(null);
             setReserve({ groupeId: venteId, numeros: r.numeros ?? [], client: { prenom: r.prenom ?? "", nom: "", email: "", telephone: "" } });
