@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { chercherDisponibilite } from "@/lib/mewsBooking";
+/* À la bonne source : Mews, ou NWH → lessclic après la bascule des Voiles (`moteurVoilesServeur`). */
+import { disponibiliteVoiles } from "@/lib/moteurVoilesServeur";
 import { prixAPartirDe } from "@/lib/balisageReserver";
 import { prixCorniche } from "@/lib/moteurNwh/balisageCorniche";
 import { HOTEL_CORNICHE } from "@/lib/moteurNwh/pageCorniche";
@@ -34,7 +35,7 @@ async function voiles(arrivee: string, depart: string, adultes: number): Promise
    * rien ne distingue d'une maison pleine. Un séjour qui la chevauche (arrivée en mars) aussi. */
   if (arrivee < REOUVERTURE_VOILES) return { etat: "ferme", rouvre: REOUVERTURE_VOILES };
   try {
-    const d = await chercherDisponibilite({ arrivee, depart, adultes, langue: "fr" });
+    const d = await disponibiliteVoiles({ arrivee, depart, adultes, langue: "fr" });
     let bas: { parNuit: number; total: number } | null = null;
     for (const o of d.offres) {
       // Un prix « une personne » rendu sur une recherche à deux n'est pas une offre pour eux.

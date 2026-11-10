@@ -5,6 +5,7 @@ import {
   chargerConfigPaiement, autoriserCarte, infosNavigateur, lien3DSecure, type Langue,
 } from "@/lib/mewsBooking";
 import { poserVente } from "@/lib/reprise3ds";
+import { versLessclic, type MoteurNwhVoiles } from "@/lib/moteurVoiles";
 import { jalon } from "@/lib/mesure";
 
 /* L'écran de règlement — DEUX CHEMINS, un par tarif.
@@ -121,6 +122,16 @@ const TEXTES = {
     auth3ds: "On vérifie votre carte auprès de votre banque…",
     redirige: "Votre banque demande une confirmation. On vous y emmène…",
     refusee3ds: "Votre banque a refusé l'authentification de cette carte. Essayez-en une autre, ou appelez-nous au 04 94 41 36 23.",
+    /* Le moteur relayé par NWH (Les Voiles sur lessclic, 10/11/2026) : la carte ou l'argent se donnent sur la page
+       sécurisée de la banque de l'hôtel (Stripe), pas dans cet écran. On le dit AVANT le bouton. */
+    sousTitreEnLigne: "Puis la page sécurisée de notre banque.",
+    stripeFlex: "Pour confirmer, vous enregistrez une carte en garantie sur la page sécurisée de notre banque : rien n’est débité, votre banque vous demande de valider (3-D Secure). Vous réglez à l’hôtel.",
+    stripePrepaye: "Le séjour se règle maintenant, sur la page sécurisée de notre banque (3-D Secure).",
+    boutonFlex: "Enregistrer ma carte en garantie",
+    boutonPrepaye: "Payer",
+    versBanque: "On vous emmène sur la page sécurisée…",
+    /* ⛔ Ni carte ni paiement possibles en ligne : on ne vend pas — jamais une chambre sans garantie. */
+    enLigneIndisponible: "La réservation en ligne est momentanément indisponible. Appelez-nous au 04 94 41 36 23 : nous la prenons avec vous, au même prix.",
   },
   en: {
     titre: "Your details",
@@ -157,6 +168,13 @@ const TEXTES = {
     auth3ds: "Checking your card with your bank…",
     redirige: "Your bank needs to confirm. Taking you there…",
     refusee3ds: "Your bank declined the authentication for this card. Try another one, or call us on +33 4 94 41 36 23.",
+    sousTitreEnLigne: "Then our bank's secure page.",
+    stripeFlex: "To confirm, register a card as a guarantee on our bank's secure page: nothing is charged, your bank asks you to approve (3-D Secure). You pay at the hotel.",
+    stripePrepaye: "Your stay is paid now, on our bank's secure page (3-D Secure).",
+    boutonFlex: "Register my card as a guarantee",
+    boutonPrepaye: "Pay",
+    versBanque: "Taking you to the secure page…",
+    enLigneIndisponible: "Online booking is temporarily unavailable. Call us on +33 4 94 41 36 23 and we'll book it with you, at the same price.",
   },
 } as const;
 
@@ -191,14 +209,28 @@ type Client = { prenom: string; nom: string; email: string; telephone: string };
 type Ouverte = { groupeId: string; numeros: string[]; reservationIds: string[]; demandeId: string };
 
 export default function Paiement({
-  sejour, langue, onFermer, onReserve,
+  sejour, langue, onFermer, onReserve, moteur = null, avantBanque,
 }: {
   sejour: SejourAPayer;
   langue: Langue;
   onFermer: () => void;
   onReserve: (resa: { groupeId: string; numeros: string[]; client: Client }) => void;
+  /** Les Voiles sur lessclic (10/11/2026) : la vente part chez NWH, puis sur la page Stripe de l'hôtel. Absent : Mews,
+   *  comme avant — champs PciProxy pour le flexible, checkout de Mews pour le prépayé. */
+  moteur?: MoteurNwhVoiles | null;
+  /** Appelé juste avant de quitter la page pour celle de la banque : ce que l'écran doit retrouver au retour. */
+  avantBanque?: (client: Client) => void;
 }) {
   const T = TEXTES[langue];
+
+  /* 🔑 LES CHAMPS DE CARTE DE MEWS N'EXISTENT QUE CHEZ MEWS. Sur le moteur de NWH il n'y a rien à tokeniser ici :
+   * l'écran prend les coordonnées, et la carte ou l'argent se donnent sur la page Stripe de l'hôtel (`parStripe`).
+   * Sans Stripe relié chez lessclic, RIEN ne se vend en ligne — pas une chambre sans garantie. */
+  const horsMews = !!moteur;
+  const parStripe = !!moteur?.cfg.venteStripe;
+  /* Une clé par écran ouvert : un double clic ou une réponse perdue que le client rejoue rend la MÊME vente chez
+     lessclic, jamais deux. */
+  const cle = useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
@@ -240,13 +272,15 @@ export default function Paiement({
    * où l'hôtel change de contrat, et les deux iframes ne monteraient plus sans
    * que rien ne le dise. */
   useEffect(() => {
-    if (sejour.debite) return;
+    /* Sur le moteur de NWH, `hotels/getPaymentConfiguration` n'existe pas (501) : le demander afficherait « échec »
+       à l'ouverture de l'écran, avant que le client ait touché quoi que ce soit. */
+    if (sejour.debite || horsMews) return;
     let annule = false;
     chargerConfigPaiement(langue)
       .then((c) => { if (!annule) setPublicKey(c.publicKey); })
       .catch(() => { if (!annule) setErreur(T.echec); });
     return () => { annule = true; };
-  }, [sejour.debite, langue, T]);
+  }, [sejour.debite, horsMews, langue, T]);
 
   /* L'envoi final, une fois la carte tokenisée par PciProxy.
    *
@@ -283,7 +317,7 @@ export default function Paiement({
         }),
       });
       const j = await r.json().catch(() => null);
-      if (r.status === 409) { setErreur(T.plusDispo); relacher(); return; }
+      if (r.status === 409) { setErreur(j?.erreur === "moteur change" && j.message ? j.message : T.plusDispo); relacher(); return; }
       if (!r.ok || !j?.carteId || !j?.reservationIds?.length) {
         setErreur(T.echec); relacher(); return;
       }
@@ -365,7 +399,7 @@ export default function Paiement({
 
   // Le chargement de PciProxy et le montage des deux iframes.
   useEffect(() => {
-    if (sejour.debite || !publicKey) return;
+    if (sejour.debite || horsMews || !publicKey) return;
     let annule = false;
 
     const monter = () => {
@@ -436,7 +470,7 @@ export default function Paiement({
       annule = true;
       try { sf.current?.destroy?.(); } catch { /* PciProxy n'expose pas toujours destroy */ }
     };
-  }, [sejour.debite, publicKey, T]);
+  }, [sejour.debite, horsMews, publicKey, T]);
 
   const envoyerCarte = () => {
     if (enCours.current) return;
@@ -447,6 +481,59 @@ export default function Paiement({
     setEnvoi(true);
     // À partir d'ici la main passe à PciProxy : la suite arrive dans `success`.
     sf.current?.submit({ expm: Number(moisAn[1]), expy: Number(moisAn[2]) });
+  };
+
+  /* ══════════════════ Le moteur de NWH — la page Stripe de l'hôtel ══════════
+   *
+   * UN SEUL GESTE, quel que soit le tarif : NWH pose les chambres EN OPTION chez lessclic et rend la page Stripe que
+   * lessclic ouvre sur le compte de l'hôtel — carte en garantie avec 3-D Secure pour le flexible, paiement pour le
+   * prépayé. Le client y part ; Stripe le ramène sur cette page avec `?vente=`, que l'écran relit (c'est lessclic qui
+   * conclut, à la notification de Stripe, et qui envoie la confirmation). Ni carte ni montant ne passent par ici.
+   *
+   * Les chambres repartent avec leurs identifiants LESSCLIC (`versLessclic`) : l'écran ne parle qu'en identifiants
+   * Mews, ceux de ses photos et de ses descriptions. */
+  const reserverEnLigne = async () => {
+    if (!moteur || !parStripe || enCours.current) return;
+    setErreur(null);
+    if (!coordonneesOk) { setErreur(prenom.trim() && nom.trim() ? T.emailInvalide : T.champsManquants); return; }
+    enCours.current = true;
+    setEnvoi(true);
+    try {
+      const r = await fetch("/api/corniche/reserver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hotel: moteur.hotel, langue, client: client(), cle: cle.current,
+          sejour: {
+            lignes: sejour.lignes.map((l) => ({ ...l, categorieId: versLessclic(moteur, l.categorieId) })),
+            arrivee: sejour.arrivee, depart: sejour.depart,
+            notes: motHotel.trim() || undefined,
+          },
+          /* Stripe revient sur CETTE page (le serveur de NWH borne le chemin). */
+          pageRetour: window.location.pathname,
+        }),
+      });
+      const j = await r.json().catch(() => null);
+      if (r.status === 409) { setErreur(typeof j?.message === "string" ? j.message : T.plusDispo); relacher(); return; }
+      if (r.ok && typeof j?.redirection === "string") {
+        setEtape(T.versBanque);
+        jalon("carte");
+        avantBanque?.(client());
+        window.location.href = j.redirection;
+        return;
+      }
+      /* Un rejeu d'une vente déjà conclue (retour arrière après avoir payé) : elle est faite. */
+      if (r.ok && j?.termine) {
+        onReserve({ groupeId: String(j.groupeId ?? ""), numeros: (j.numeros ?? []) as string[], client: client() });
+        return;
+      }
+      /* Le message du serveur quand il en a un : lui seul sait POURQUOI. */
+      setErreur(typeof j?.message === "string" ? j.message : T.echec);
+      relacher();
+    } catch {
+      setErreur(T.echec);
+      relacher();
+    }
   };
 
   /* ══════════════════ Chemin PRÉPAYÉ — Mews Payments Checkout ═══════════════
@@ -472,7 +559,7 @@ export default function Paiement({
         }),
       });
       const j = await r.json().catch(() => null);
-      if (r.status === 409) { setErreur(T.plusDispo); relacher(); return; }
+      if (r.status === 409) { setErreur(j?.erreur === "moteur change" && j.message ? j.message : T.plusDispo); relacher(); return; }
       if (!r.ok || !j?.demandeId) { setErreur(T.echec); relacher(); return; }
       setOuverte(j as Ouverte);
       relacher();
@@ -695,7 +782,7 @@ export default function Paiement({
               {ouverte ? T.titrePaiement : T.titre}
             </h2>
             <p className="mt-1 text-[13.5px] text-[#6b7a82]">
-              {ouverte ? T.tenue : sejour.debite ? T.sousTitrePaiement : T.sousTitreCarte}
+              {ouverte ? T.tenue : horsMews ? T.sousTitreEnLigne : sejour.debite ? T.sousTitrePaiement : T.sousTitreCarte}
             </p>
           </div>
           <button
@@ -713,7 +800,38 @@ export default function Paiement({
           <span className="shrink-0 text-[20px] font-bold tabular-nums text-navy">{sejour.totalFormate}</span>
         </div>
 
-        {!sejour.debite ? (
+        {horsMews ? (
+          /* ── MOTEUR DE NWH : les coordonnées, puis la page de la banque ─────
+               Pas de champ de carte : il n'y a rien à en faire ici. La phrase dit
+               ce qui se passera, le bouton ce qu'il fait. */
+          parStripe ? (
+            <>
+              {coordonnees}
+              <p className="mt-5 rounded-xl bg-[#faf7f1] px-4 py-3 text-[13px] leading-relaxed text-[#3c4a52]">
+                {sejour.debite ? T.stripePrepaye : T.stripeFlex}
+              </p>
+              {messageErreur}
+              <button
+                type="button" onClick={reserverEnLigne} disabled={!coordonneesOk || envoi}
+                className="mt-4 w-full rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-navy-deep transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#ddd8ce] disabled:text-[#9a9a95]"
+              >
+                {envoi ? (etape ?? T.envoi) : sejour.debite ? T.boutonPrepaye : T.boutonFlex}
+              </button>
+            </>
+          ) : (
+            <>
+              <p role="alert" className="mt-5 rounded-xl border border-[#e8c7b0] bg-[#fdf6f1] px-4 py-3 text-[13.5px] leading-relaxed text-[#a8571f]">
+                {T.enLigneIndisponible}
+              </p>
+              <a
+                href="tel:+33494413623"
+                className="mt-4 flex w-full items-center justify-center rounded-full bg-gold px-6 py-3.5 text-[16px] font-bold text-navy-deep transition hover:brightness-105"
+              >
+                04 94 41 36 23
+              </a>
+            </>
+          )
+        ) : !sejour.debite ? (
           /* ── FLEXIBLE : coordonnées et carte, en un seul écran ───────────── */
           <>
             {coordonnees}

@@ -14,7 +14,9 @@
 // regarde autour des dates demandées, de plus en plus loin, et on s'arrête dès
 // qu'on a trois propositions : un agent n'en lira pas davantage à son client.
 
-import { chercherDisponibilite, estPrepaye } from '@/lib/mewsBooking';
+import { estPrepaye } from '@/lib/mewsBooking';
+/* La disponibilité des Voiles à la bonne source : Mews, ou NWH → lessclic après la bascule (`moteurVoilesServeur`). */
+import { disponibiliteVoiles } from '@/lib/moteurVoilesServeur';
 import { supabaseServer } from '@/lib/supabase-server';
 
 export type Alternative = {
@@ -137,7 +139,7 @@ export async function alternatives(
     const b = jour(a, nuits);
 
     try {
-      const dispo = await chercherDisponibilite({ arrivee: a, depart: b, adultes, langue: 'fr' });
+      const dispo = await disponibiliteVoiles({ arrivee: a, depart: b, adultes, langue: 'fr' });
       let meilleur: { total: number; cat: string } | null = null;
       for (const o of dispo.offres) {
         /* Même règle que la vente : le prépayé seul, et l'occupation exacte —

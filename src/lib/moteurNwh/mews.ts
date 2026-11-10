@@ -213,8 +213,12 @@ export type Disponibilite = {
 export async function chercherDisponibilite(
   cfg: ConfigMoteur,
   { arrivee, depart, adultes, langue }: { arrivee: string; depart: string; adultes: number; langue: Langue },
+  /** Des champs de plus pour NOTRE Distributor (`Repas` : les formules à vendre, Les Voiles sur lessclic). Le vrai
+   *  Distributor de Mews ne les reçoit jamais : la page qui en a besoin ne parle qu'au nôtre. */
+  enPlus: Record<string, unknown> = {},
 ): Promise<Disponibilite> {
   const j = await appel<ReponseDisponibilite>(cfg, 'hotels/getAvailability', {
+    ...enPlus,
     HotelId: cfg.hotelId,
     ConfigurationId: cfg.configurationId,
     StartUtc: `${arrivee}T00:00:00Z`,

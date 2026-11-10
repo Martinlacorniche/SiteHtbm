@@ -3,6 +3,7 @@ import {
   creerReservation, chercherDisponibilite, reglementDe, type Langue,
 } from '@/lib/mewsBooking';
 import { creerDemandePaiement, annulerDemandePaiement } from '@/lib/mewsConnector';
+import { moteurVoilesServeur } from '@/lib/moteurVoilesServeur';
 
 /* Pose l'option, et la règle — par l'un des deux chemins.
  *
@@ -72,6 +73,14 @@ const estGuid = (s: unknown): s is string =>
 const estEmail = (s: unknown): s is string => typeof s === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
 
 export async function POST(req: NextRequest) {
+  /* ⛔ LES VOILES ONT QUITTÉ MEWS (bascule vers lessclic, 10/11/2026) : plus aucune nuit ne se vend par ici. Un onglet
+   * ouvert avant la bascule enverrait encore sa vente au Distributor de Mews, dans un PMS que la réception ne regarde
+   * plus. Rien n'est posé ; le client recharge la page, qui vend alors par NWH. Les routes de reprise (`carte`,
+   * `confirmer`) restent ouvertes : elles terminent une vente déjà engagée chez Mews, elles n'en commencent pas. */
+  if ((await moteurVoilesServeur()).mode !== 'mews') {
+    return NextResponse.json({ erreur: 'moteur change', message: 'Notre page de réservation vient d’être mise à jour : rechargez-la pour réserver. Rien n’a été réservé ni débité.' }, { status: 409 });
+  }
+
   let corps: Corps;
   try {
     corps = await req.json();

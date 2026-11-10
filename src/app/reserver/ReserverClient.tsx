@@ -18,6 +18,23 @@ import {
   type Offre, type Tarif,
 } from "@/lib/mewsBooking";
 import { PRIVILEGES, RECIT, type Recit } from "@/lib/site";
+import { categoriesNwh, disponibiliteNwh, type MoteurVoiles } from "@/lib/moteurVoiles";
+import { poserVenteNwh, reprendreVenteNwh } from "@/lib/repriseVenteNwh";
+
+/* 🔑 QUI VEND LES NUITS : MEWS, OU NWH → LESSCLIC (10/11/2026). La page est en cache une heure ; la question, elle,
+ * se pose au serveur à chaque ouverture (`/api/moteur-voiles`), pour que la bascule des Voiles se voie dans la minute
+ * sans redéployer. L'écran ne change pas d'un pixel : `moteurVoiles.ts` rend les chambres de lessclic sous leurs
+ * identifiants Mews. Une demande ratée ne se garde pas : la recherche suivante la refait (et l'écran dit
+ * « réessayez » entre-temps, jamais « complet »). */
+let moteurDemande: Promise<MoteurVoiles> | null = null;
+function moteurDuSite(): Promise<MoteurVoiles> {
+  if (!moteurDemande) {
+    moteurDemande = fetch("/api/moteur-voiles", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<MoteurVoiles>) : Promise.reject(new Error(`moteur ${r.status}`))))
+      .catch((e) => { moteurDemande = null; throw e; });
+  }
+  return moteurDemande;
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * Écran 1 du tunnel : quand, et combien de personnes.
@@ -135,6 +152,14 @@ const TEXTES = {
      * paiement, ou le client a la sienne en main. Les montants sont calcules
      * depuis le groupe tarifaire Mews, jamais ecrits ici. */
     empreinteCourt: (m: string) => `Carte en garantie · ${m} préautorisés`,
+    /* Une garantie à 0 € (la page Stripe de l'hôtel, moteur de NWH) ne s'annonce pas « 0,00 € préautorisés ». */
+    garantieSeule: "Carte en garantie · rien n'est débité",
+    garantieLong: "Votre carte n'est pas débitée : enregistrée sur la page sécurisée de notre banque, elle garantit la chambre ; le séjour se règle à l'hôtel.",
+    venteNonFaite: "Réservation non faite",
+    venteRefusee: "Votre banque n’a pas confirmé la carte (3-D Secure) : la réservation n’est pas faite et rien n’a été débité. Vous pouvez réessayer, ou nous appeler au 04 94 41 36 23.",
+    venteAbandon: "Aucune carte n’a été enregistrée ni aucun paiement fait : la réservation n’est pas faite. Vous pouvez la reprendre quand vous voulez.",
+    venteAttenteTitre: "Confirmation en attente",
+    venteAttente: "Votre banque a répondu, mais la confirmation n’est pas encore arrivée chez nous. Vous recevrez un e-mail dans quelques minutes ; sinon, appelez-nous au 04 94 41 36 23.",
     debitCourt: (m: string) => `Débit immédiat · ${m}`,
     empreinteLong: (m: string, pc: string) =>
       `Votre carte n'est pas débitée. Une préautorisation de ${m} (${pc} du séjour) garantit la chambre ; le séjour se règle à l'hôtel.`,
@@ -239,6 +264,13 @@ const TEXTES = {
     rooftopModifier: "Change the time",
     gainDirect: (m: string) => `You win ${m}`,
     empreinteCourt: (m: string) => `Card as guarantee · ${m} held`,
+    garantieSeule: "Card as guarantee · nothing charged",
+    garantieLong: "Your card is not charged: registered on our bank's secure page, it secures the room; you settle at the hotel.",
+    venteNonFaite: "Booking not made",
+    venteRefusee: "Your bank did not confirm the card (3-D Secure): the booking was not made and nothing was charged. You can try again, or call us on +33 4 94 41 36 23.",
+    venteAbandon: "No card was registered and no payment was made: the booking was not made. You can start again whenever you like.",
+    venteAttenteTitre: "Confirmation pending",
+    venteAttente: "Your bank answered, but the confirmation has not reached us yet. You will receive an e-mail within minutes; otherwise call us on +33 4 94 41 36 23.",
     debitCourt: (m: string) => `Charged now · ${m}`,
     empreinteLong: (m: string, pc: string) =>
       `Your card is not charged. A ${m} hold (${pc} of the stay) secures the room; you settle at the hotel.`,
@@ -515,7 +547,8 @@ const estPrepaye = (tarif: Tarif | undefined, groupes: GroupeTarifaire[]): boole
  * promettre une date fausse, qui se paierait au comptoir. */
 const heureLimite = (tarif: Tarif | undefined, langue: Langue): number | null => {
   const texte = `${t(tarif?.Description, langue)}`.toLowerCase();
-  if (!/jour d'arriv|day of arrival/.test(texte)) return null;
+  /* L'apostrophe typographique aussi : lessclic écrit « jour d’arrivée 18:00 » (10/11/2026). */
+  if (!/jour d['’]arriv|day of arrival/.test(texte)) return null;
   const h = texte.match(/(\d{1,2})\s*h/) ?? texte.match(/(\d{1,2})\s*(?:pm|:00)/);
   const heure = h ? Number(h[1]) : NaN;
   return Number.isInteger(heure) && heure >= 1 && heure <= 23 ? heure : null;
@@ -1228,7 +1261,14 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
    * configuration du moteur — et ne doivent pas l'etre, ils deviendraient
    * reservables en direct. Seul le Connector les lit, donc ca passe par notre
    * serveur, qui les garde quinze minutes en cache. */
-  const [tarifPublic, setTarifPublic] = useState<Record<string, { flexible: number; prepaye: number }> | null>(null);
+  /* Un mode peut manquer (moteur de NWH : lessclic ne dit pas le prépayé des OTA) — il se tait alors. */
+  const [tarifPublic, setTarifPublic] = useState<Record<string, { flexible?: number; prepaye?: number }> | null>(null);
+  /* La source des nuits (voir `moteurDuSite`), connue à la première recherche. */
+  const [moteur, setMoteur] = useState<MoteurVoiles | null>(null);
+  /* Le séjour redit par la confirmation au retour de la page Stripe, quand l'état de l'écran est reparti à zéro. */
+  const [recapRetour, setRecapRetour] = useState<{ resume: string; totalFormate: string } | null>(null);
+  /* Ce que dit la surcouche de reprise au retour de la page Stripe (refus, abandon, attente). */
+  const [motVente, setMotVente] = useState<{ titre: string; texte: string } | null>(null);
 
   /* La table du rooftop, choisie AVEC la chambre. `tablePrise` n'existe
    * qu'apres la reservation : une table tenue pour un paiement qui echoue est
@@ -1292,9 +1332,17 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     // Jalon 2 : le visiteur a validé des dates. Voir `src/lib/mesure.ts`.
     jalon("recherche", { arrivee: a, nuits: nuitsEntre(a, d), personnes: pax });
     try {
+      const m = await moteurDuSite();
+      setMoteur(m);
+      /* La même question, à la source du moment. `indisponible` : l'hôtel a quitté Mews et NWH ne répond pas — on
+         ne vend rien, l'écran dit de réessayer ou d'appeler. */
+      const disponibilite = (q: { arrivee: string; depart: string; adultes: number; langue: Langue }) =>
+        m.mode === "nwh" ? disponibiliteNwh(m, q)
+          : m.mode === "mews" ? chercherDisponibilite(q)
+            : Promise.reject(new Error("moteur indisponible"));
       const [dispos, cats] = await Promise.all([
-        chercherDisponibilite({ arrivee: a, depart: d, adultes: pax, langue }),
-        chargerCategories(langue),
+        disponibilite({ arrivee: a, depart: d, adultes: pax, langue }),
+        m.mode === "nwh" ? categoriesNwh(m, langue) : chargerCategories(langue),
       ]);
       setDispo(dispos);
       setCategories(cats);
@@ -1318,7 +1366,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
       let trop = false;
       if (!dispos.offres.length && nuitsEntre(a, d) > 2) {
         try {
-          const court = await chercherDisponibilite({
+          const court = await disponibilite({
             arrivee: a, depart: ajouterJours(a, 2), adultes: pax, langue,
           });
           trop = court.offres.length > 0;
@@ -1400,6 +1448,54 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
        Le relais ne porte aucune donnee bancaire, et il ne prouve rien : c'est
        `/api/reserver/carte` qui relit l'autorisation CHEZ MEWS avant de
        confirmer. Voir `reprise3ds.ts`. */
+    /* LE RETOUR DE LA PAGE STRIPE (moteur de NWH, Les Voiles sur lessclic). La page revient avec `?vente=` : on
+       relit l'état de la vente chez NWH — le paramètre ne prouve rien, c'est lessclic qui conclut à la notification
+       de Stripe, parfois quelques secondes après le retour : on relit jusqu'à vingt secondes. */
+    const venteId = p.get("vente");
+    if (venteId && /^[0-9a-f-]{36}$/i.test(venteId)) {
+      const abandon = p.get("abandon") === "1";
+      window.history.replaceState({}, "", window.location.pathname);
+      const retenue = reprendreVenteNwh();
+      const dire = (titre: string, texte: string) => { setMotVente({ titre, texte }); setReprise("echec"); };
+      setReprise("en-cours");
+      void (async () => {
+        const m = await moteurDuSite().catch(() => null);
+        const h = m?.mode === "nwh" ? m.hotel : "les-voiles";
+        for (let essai = 0; essai < 10; essai++) {
+          const r = await fetch(`/api/corniche/vente?vente=${venteId}&h=${encodeURIComponent(h)}`).then((x) => x.json()).catch(() => null);
+          if (r?.statut === "confirmee") {
+            const client = retenue?.client ?? { prenom: "", nom: "", email: "", telephone: "" };
+            setReprise(null);
+            if (retenue) {
+              setArrivee(retenue.arrivee); setDepart(retenue.depart);
+              setRecapRetour({ resume: retenue.resume, totalFormate: retenue.totalFormate });
+            }
+            setReserve({ groupeId: venteId, numeros: r.numeros ?? [], client });
+            jalon("confirmee");
+            /* La chambre est acquise : la table du rooftop se pose maintenant, comme après une vente Mews. */
+            if (retenue?.table) {
+              const table = retenue.table;
+              setTableChoix(table);
+              void prendreTable({ choix: table, pax: retenue.pax, client, langue }).then(setTablePrise);
+            }
+            return;
+          }
+          if (r?.statut === "refusee") return dire(T.venteNonFaite, T.venteRefusee);
+          if (r?.statut === "annulee" || abandon) return dire(T.venteNonFaite, T.venteAbandon);
+          await new Promise((ok) => setTimeout(ok, 2000));
+        }
+        dire(T.venteAttenteTitre, T.venteAttente);
+      })();
+      /* Derrière, l'écran retrouve le séjour choisi : une vente non faite se reprend sans tout ressaisir. Sans relais
+         (autre onglet, navigation privée), la recherche par défaut, plus bas. */
+      if (retenue) {
+        const pax = retenue.pax === 1 ? 1 : 2;
+        setArrivee(retenue.arrivee); setDepart(retenue.depart); setVoyage(pax === 1 ? "seul" : "deux");
+        void lancer({ arrivee: retenue.arrivee, depart: retenue.depart, adultes: pax });
+        return;
+      }
+    }
+
     if (p.get("apres3ds")) {
       // On efface le parametre tout de suite : un rechargement ne doit pas
       // rejouer la reprise, et l'URL partagee ne doit pas la porter.
@@ -1718,7 +1814,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
         const reg = reglementDe(tarif, groupes, total);
         if (!reg) return "";
         const m = montant(reg.montant, langue);
-        if (!reg.debite) return T.empreinteLong(m, reg.part === null ? "" : pourcent(reg.part, langue));
+        if (!reg.debite) return reg.montant > 0 ? T.empreinteLong(m, reg.part === null ? "" : pourcent(reg.part, langue)) : T.garantieLong;
         // 100 % et un acompte ne se disent pas pareil : dans un cas il ne
         // restera rien a payer, dans l'autre si.
         return reg.part !== null && reg.part < 1
@@ -1728,6 +1824,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     };
   }, [chambres, lignesPanier, totalChambres, personnesRetenues,
       categories, tarifs, groupes, arrivee, depart, nuits, langue, T]);
+  /* Ce que la confirmation redit : le séjour à l'écran, ou celui rapporté de la page Stripe (`recapRetour`). */
+  const recapConfirme = recapRetour ?? sejourAPayer;
 
   /* ⚠️ DÉCLARÉ UNE FOIS, POSÉ À DEUX ENDROITS. Le bandeau vit sur la ligne du
    * haut en grand écran et sous le titre en petit : deux copies du même JSX
@@ -2627,7 +2725,9 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   if (!pub || !cherche || cherche.pax !== choix.pourPersonnes) return null;
                   const prepaye = estPrepaye(tarifs.find((r) => r.Id === choix.tarifId), groupes);
                   const taxe = taxeDe(choix.pourPersonnes);
-                  const ailleurs = (prepaye ? pub.prepaye : pub.flexible) + taxe;
+                  const public_ = prepaye ? pub.prepaye : pub.flexible;
+                  if (typeof public_ !== "number") return null;
+                  const ailleurs = public_ + taxe;
                   const gain = ailleurs - (choix.total + taxe);
                   // Sous un euro, l'écart ne vaut pas une ligne — et un « vous
                   // économisez 0,40 € » dessert plus qu'il ne sert.
@@ -2746,7 +2846,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                     <span aria-hidden className="text-gold-ink">✓</span>
                     {reg.debite
                       ? T.debitCourt(montant(reg.montant, langue))
-                      : T.empreinteCourt(montant(reg.montant, langue))}
+                      : reg.montant > 0 ? T.empreinteCourt(montant(reg.montant, langue)) : T.garantieSeule}
                   </li>
                 );
               })()}
@@ -2928,8 +3028,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               </>
             ) : (
               <>
-                <p className="font-serif text-2xl text-navy">{T.repriseEchecTitre}</p>
-                <p className="mt-3 text-[14.5px] leading-relaxed text-[#5b6a72]">{T.repriseEchec}</p>
+                <p className="font-serif text-2xl text-navy">{motVente?.titre ?? T.repriseEchecTitre}</p>
+                <p className="mt-3 text-[14.5px] leading-relaxed text-[#5b6a72]">{motVente?.texte ?? T.repriseEchec}</p>
                 <a
                   href="tel:+33494413623"
                   className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-gold px-6 py-3.5 text-[17px] font-bold text-navy-deep transition hover:brightness-105"
@@ -2937,7 +3037,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   04 94 41 36 23
                 </a>
                 <button
-                  type="button" onClick={() => setReprise(null)}
+                  type="button" onClick={() => { setReprise(null); setMotVente(null); }}
                   className="mt-3 text-[13px] font-semibold text-[#6b7a82] underline underline-offset-4 hover:text-navy"
                 >
                   {T.repriseFermer}
@@ -2960,6 +3060,11 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
         <Paiement
           sejour={sejourAPayer}
           langue={langue}
+          moteur={moteur?.mode === "nwh" ? moteur : null}
+          avantBanque={(client) => poserVenteNwh({
+            client, arrivee, depart, resume: sejourAPayer.resume, totalFormate: sejourAPayer.totalFormate,
+            table: tableChoix, pax: personnesRetenues, langue,
+          })}
           onFermer={() => setPaiementOuvert(false)}
           onReserve={(r) => {
             setPaiementOuvert(false);
@@ -3024,7 +3129,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               </div>
             )}
 
-            {sejourAPayer && (
+            {recapConfirme && (
               <dl className="mt-5 grid gap-2 border-t border-[#f0ece4] pt-4 text-left text-[14px]">
                 <div className="flex justify-between gap-3">
                   <dt className="text-[#8a9299]">{T.arrivee}</dt>
@@ -3038,11 +3143,11 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                   {/* `colOffres` titrait la COLONNE des chambres — repris ici,
                       il donnait « Nos chambres » en face de la chambre retenue. */}
                   <dt className="text-[#8a9299]">{T.confirmeChambre}</dt>
-                  <dd className="text-right font-semibold text-[#3c4a52]">{sejourAPayer.resume}</dd>
+                  <dd className="text-right font-semibold text-[#3c4a52]">{recapConfirme.resume}</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3 border-t border-[#f0ece4] pt-2">
                   <dt className="font-semibold text-[#3c4a52]">{T.totalSejour}</dt>
-                  <dd className="text-[22px] font-bold tabular-nums text-navy">{sejourAPayer.totalFormate}</dd>
+                  <dd className="text-[22px] font-bold tabular-nums text-navy">{recapConfirme.totalFormate}</dd>
                 </div>
               </dl>
             )}
@@ -3057,15 +3162,15 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
                 — un second événement pour un apéro encombrerait l'agenda plus
                 qu'il ne servirait. Nouvel onglet : on ne quitte pas la page qui
                 porte le numéro de confirmation. */}
-            {sejourAPayer && (
+            {recapConfirme && (
               <a
                 href={lienAgenda({
-                  titre: `${T.titre} — ${sejourAPayer.resume.split(" · ")[0]}`,
+                  titre: `${T.titre} — ${recapConfirme.resume.split(" · ")[0]}`,
                   arrivee, depart,
                   details: [
                     `${T.confirmeNumero} : ${reserve.numeros.join(", ")}`,
-                    sejourAPayer.resume,
-                    `${T.totalSejour} : ${sejourAPayer.totalFormate}`,
+                    recapConfirme.resume,
+                    `${T.totalSejour} : ${recapConfirme.totalFormate}`,
                     tablePrise ? `🍸 ${heureLisible(tablePrise.heure, langue)}` : null,
                   ].filter(Boolean).join("\n"),
                 })}

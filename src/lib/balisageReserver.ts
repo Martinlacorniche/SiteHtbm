@@ -19,7 +19,8 @@
 // venir, et on publie le minimum RÉELLEMENT proposé. Sans réponse, on ne publie
 // pas de prix du tout : une offre absente vaut mieux qu'une offre fausse.
 
-import { chercherDisponibilite } from './mewsBooking';
+/* À la bonne source : Mews, ou NWH → lessclic après la bascule des Voiles (`moteurVoilesServeur`). */
+import { disponibiliteVoiles } from './moteurVoilesServeur';
 import { supabaseServer } from './supabase-server';
 import { SITE_URL } from './site';
 
@@ -93,7 +94,7 @@ export async function prixAPartirDe(
   let bas: number | null = null;
   for (const s of sondages) {
     try {
-      const dispo = await chercherDisponibilite({ ...s, adultes, langue: 'fr' });
+      const dispo = await disponibiliteVoiles({ ...s, adultes, langue: 'fr' });
       for (const offre of dispo.offres) {
         for (const p of offre.prix) {
           if (p.parNuit > 0 && (bas === null || p.parNuit < bas)) bas = p.parNuit;

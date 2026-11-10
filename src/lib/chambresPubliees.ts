@@ -17,7 +17,9 @@
 // des machines qui le recopient. Sans réponse du moteur, on ne publie pas de
 // prix du tout pour cette chambre.
 
-import { chercherDisponibilite, chargerCategories, estPrepaye, surfaceDe, type CategorieChambre } from './mewsBooking';
+import { estPrepaye, surfaceDe, type CategorieChambre } from './mewsBooking';
+/* À la bonne source : Mews, ou NWH → lessclic après la bascule des Voiles (`moteurVoilesServeur`), mêmes identifiants. */
+import { categoriesVoiles, disponibiliteVoiles } from './moteurVoilesServeur';
 
 /* ⚠️ LA PREMIÈRE PHRASE, ET RIEN DE PLUS.
  *
@@ -59,12 +61,12 @@ export async function chambresPubliees(): Promise<ChambrePubliee[]> {
    * le prix de trois nombres justes. */
   const sondages = [2, 20, 60, 240].map((d) => ({ arrivee: jour(d), depart: jour(d + 1) }));
 
-  const cats = await chargerCategories('fr').catch(() => new Map<string, CategorieChambre>());
+  const cats = await categoriesVoiles('fr').catch(() => new Map<string, CategorieChambre>());
   const bas = new Map<string, number>();
 
   for (const s of sondages) {
     try {
-      const dispo = await chercherDisponibilite({ ...s, adultes: 2, langue: 'fr' });
+      const dispo = await disponibiliteVoiles({ ...s, adultes: 2, langue: 'fr' });
       for (const o of dispo.offres) {
         for (const p of o.prix) {
           /* Le prépayé seul : c'est le tarif qu'on annonce partout ailleurs,

@@ -22,9 +22,10 @@
 // L'agent prépare, le client finit chez nous. Rien à attendre de personne.
 
 import {
-  chercherDisponibilite, chargerCategories, estPrepaye, urlPhoto,
+  estPrepaye, urlPhoto,
   HOTEL_ID, type CategorieChambre,
 } from '@/lib/mewsBooking';
+import { categoriesVoiles, disponibiliteVoiles, moteurVoilesServeur } from '@/lib/moteurVoilesServeur';
 import {
   lireJeton, verifierJeton, debiter, rembourser, ErreurPaiement,
   lienDePaiement, paiementDuLien, TENUE_MINUTES, LIEN_MINUTES,
@@ -248,9 +249,21 @@ export async function creerSession(d: DemandeSejour): Promise<Session> {
     throw new ErreurUcp('Occupation invalide : de 1 à 4 adultes.');
   }
 
+  /* ⛔ LES VOILES SUR LESSCLIC (10/11/2026) : la vente par agent passe par Mews de bout en bout (option posée par le
+   * Connector, folio relu, débit du jeton, confirmation) et n'a pas encore son chemin chez NWH. On ne tient donc
+   * aucune chambre : l'agent l'apprend AVANT de promettre un prix, et renvoie au moteur du site, qui vend par lessclic.
+   * Les dates voisines (`alternatives`) suivent, elles, la bonne source. */
+  if ((await moteurVoilesServeur()).mode !== 'mews') {
+    throw new ErreurUcp(
+      'La réservation par agent des Voiles est momentanément suspendue (changement de système de réservation). '
+      + `Le client peut réserver directement sur ${SITE_URL}/reserver.`,
+      'unavailable',
+    );
+  }
+
   const [dispo, categories] = await Promise.all([
-    chercherDisponibilite({ arrivee: d.arrivee, depart: d.depart, adultes: d.adultes, langue: 'fr' }),
-    chargerCategories('fr').catch(() => new Map()),
+    disponibiliteVoiles({ arrivee: d.arrivee, depart: d.depart, adultes: d.adultes, langue: 'fr' }),
+    categoriesVoiles('fr').catch(() => new Map()),
   ]);
 
   /* ⚠️ AUCUNE OFFRE N'EST UNE RÉPONSE, PAS UNE PANNE. L'hôtel se loue aussi
@@ -468,6 +481,14 @@ export async function completerSession(
   /* Reprise : si tout était déjà fait, on rend le même résultat plutôt que de
      reposer une seconde chambre. */
   if (session.fait) return session.booking;
+  /* ⛔ Une session ouverte sur Mews juste avant la bascule des Voiles ne se conclut pas sur Mews après : l'hôtel n'y
+     vend plus. Rien n'a été tenu ni débité. */
+  if ((await moteurVoilesServeur()).mode !== 'mews') {
+    throw new ErreurUcp(
+      `La réservation par agent des Voiles est momentanément suspendue : rien n'a été réservé ni débité. Réservez sur ${SITE_URL}/reserver.`,
+      'unavailable',
+    );
+  }
   /* Une chambre déjà tenue, et un lien déjà envoyé : on ne recommence pas, on
      redonne le lien. Deux liens pour un séjour, c'est un double débit. */
   if (session.attente) return session.booking;

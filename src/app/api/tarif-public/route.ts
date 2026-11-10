@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prixPublic } from '@/lib/mewsConnector';
+import { moteurVoilesServeur } from '@/lib/moteurVoilesServeur';
+import { prixPublicVersMews } from '@/lib/moteurVoiles';
 
 /* Ce que le même séjour coûterait sur Booking.
  *
@@ -26,6 +28,26 @@ export async function GET(req: NextRequest) {
   }
   if (!Number.isInteger(adultes) || adultes < 1 || adultes > 4) {
     return NextResponse.json({ erreur: 'occupation invalide' }, { status: 400 });
+  }
+
+  /* Les Voiles sur lessclic (10/11/2026) : le prix des OTA est celui que lessclic montre à la grille du RMS, lu par NWH
+   * (`tarifs/public`). Il manque quand lessclic ne sait pas le dire — jamais recalculé ici. Moteur indisponible : on se
+   * tait, la comparaison n'est qu'un bonus. */
+  const moteur = await moteurVoilesServeur();
+  if (moteur.mode === 'indisponible') return NextResponse.json({ prix: {} });
+  if (moteur.mode === 'nwh') {
+    try {
+      const r = await fetch(`${moteur.cfg.base}/tarifs/public`, {
+        method: 'POST', cache: 'no-store', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ HotelId: moteur.cfg.hotelId, StartUtc: `${arrivee}T00:00:00Z`, EndUtc: `${depart}T00:00:00Z`, AdultCount: adultes }),
+        signal: AbortSignal.timeout(8_000),
+      });
+      const j = r.ok ? ((await r.json()) as { prix?: Record<string, { flexible?: number; prepaye?: number }> }) : null;
+      return NextResponse.json({ prix: prixPublicVersMews(moteur, j?.prix ?? {}) });
+    } catch (e) {
+      console.error('NWH tarif public', e instanceof Error ? e.message : e);
+      return NextResponse.json({ prix: {} });
+    }
   }
 
   try {
