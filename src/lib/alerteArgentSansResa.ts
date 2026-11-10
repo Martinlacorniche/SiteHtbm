@@ -42,7 +42,7 @@ export async function alerterArgentSansResa(a: ArgentSansResa): Promise<void> {
   const texte = `🔴 Site des Voiles : un paiement a été encaissé SANS réservation créée (${a.origine}). `
     + `${montant}, réf. ${a.reference ?? '?'}. ${a.sortDeLArgent}. ${a.detail ?? ''} `
     + 'Les Voiles ne vendent plus par Mews : vérifier le paiement (Mews / Stripe), rappeler le client, '
-    + 'et créer la réservation dans lessclic ou confirmer le remboursement.';
+    + 'et créer la réservation dans LessClic ou confirmer le remboursement.';
 
   await Promise.allSettled([
     (async () => {

@@ -158,7 +158,7 @@ async function alerter(a: Alerte): Promise<void> {
       { day: 'numeric', month: 'long', year: 'numeric' });
 
   const dispo = a.libres === null
-    ? 'non lue (planning lessclic injoignable) — vérifier dans lessclic avant de rappeler'
+    ? 'non lue (planning LessClic injoignable) — vérifier dans LessClic avant de rappeler'
     : a.libres >= a.capacite
       ? `✅ maison entière libre (${a.libres}/${a.capacite})`
       : `⚠️ ${a.libres}/${a.capacite} chambres libres — pas privatisable en l'état`;

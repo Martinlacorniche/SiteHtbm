@@ -259,7 +259,7 @@ export async function consignerReglements(jeton: string): Promise<number> {
           origine: 'règlement de note en ligne (/sejour), après la bascule',
           montant: Number(r.centimes) / 100,
           reference: paiement,
-          detail: `séjour Mews ${String(r.mews_reservation_id)} — à poser sur la note lessclic du client`,
+          detail: `séjour Mews ${String(r.mews_reservation_id)} — à poser sur la note LessClic du client`,
           sortDeLArgent: 'encaissé chez Stripe (Voiles), NON consigné au PMS',
         });
       }

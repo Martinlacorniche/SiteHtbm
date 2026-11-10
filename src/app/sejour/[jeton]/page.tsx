@@ -138,7 +138,7 @@ async function SejourLessclicPage(
     s = await lireSejourLessclic(jeton);
   } catch (e) {
     /* ⛔ UNE PANNE NE S'AFFICHE PAS EN NOTE VIDE, ni en « tout est réglé ». */
-    console.error('[sejour] lessclic par NWH injoignable', e instanceof Error ? e.message : e);
+    console.error('[sejour] LessClic par NWH injoignable', e instanceof Error ? e.message : e);
     return (
       <Cadre titre="Votre séjour">
         <p className="text-slate-600">Votre séjour ne peut pas être affiché pour le moment. Réessayez dans quelques minutes.</p>

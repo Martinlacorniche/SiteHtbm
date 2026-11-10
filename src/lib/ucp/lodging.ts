@@ -782,7 +782,7 @@ export async function finaliserSiPaye(id: string): Promise<Record<string, unknow
       rendu = false;
       console.error('[ucp] remboursement ÉCHOUÉ après bascule', paiement, e instanceof Error ? e.message : e);
     });
-    await annulerReservation(session.attente.reservationId, 'Agent : Voiles passées sur lessclic').catch(() => {});
+    await annulerReservation(session.attente.reservationId, 'Agent : Voiles passées sur LessClic').catch(() => {});
     await alerterArgentSansResa({
       origine: 'vente par agent (UCP), lien de paiement',
       montant: session.attente.centimes / 100,
