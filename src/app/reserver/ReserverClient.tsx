@@ -13,7 +13,7 @@ import {
   type TablePrise, type ChoixTable,
 } from "./TableRooftop";
 import {
-  chercherDisponibilite, chargerCategories, reglementDe, urlPhoto, t,
+  reglementDe, urlPhoto, t,
   type CategorieChambre, type Disponibilite, type GroupeTarifaire, type Langue,
   type Offre, type Tarif,
 } from "@/lib/mewsBooking";
@@ -94,6 +94,8 @@ const TEXTES = {
     seulAussiAction: "Voir le prix pour une personne",
     erreur: "La recherche n'a pas abouti.",
     erreurAide: "Réessayez dans un instant, ou appelez-nous au 04 94 41 36 23.",
+    horsLigne: "La réservation en ligne est momentanément indisponible.",
+    horsLigneAide: "Réservez par téléphone : la réception vous répond au",
     checkin: "Arrivée autonome à partir de 15 h · départ jusqu'à 12 h en direct",
     colDates: "Vos dates", colOffres: "Nos chambres", colRecap: "Votre séjour",
     attenteOffres: "Choisissez vos dates et dites-nous qui voyage : les chambres disponibles s'afficheront ici.",
@@ -228,6 +230,8 @@ const TEXTES = {
     seulAussiAction: "See the price for one person",
     erreur: "The search did not go through.",
     erreurAide: "Try again in a moment, or call us on +33 4 94 41 36 23.",
+    horsLigne: "Online booking is temporarily unavailable.",
+    horsLigneAide: "Please book by phone: our front desk answers on",
     checkin: "Self check-in from 3 pm · check-out until noon when booking direct",
     colDates: "Your dates", colOffres: "Our rooms", colRecap: "Your stay",
     attenteOffres: "Choose your dates and tell us who is travelling: available rooms will appear here.",
@@ -1214,6 +1218,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
   const [categories, setCategories] = useState<Map<string, CategorieChambre>>(new Map());
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState(false);
+  /* NWH ne répond pas : la vente en ligne est suspendue, on donne le téléphone (jamais Mews). */
+  const [horsLigne, setHorsLigne] = useState(false);
   /** `true` quand le vide vient de la LONGUEUR du séjour, pas des dates. */
   const [tropLong, setTropLong] = useState(false);
   // La chambre retenue, qui alimente la colonne de droite.
@@ -1332,17 +1338,22 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
     // Jalon 2 : le visiteur a validé des dates. Voir `src/lib/mesure.ts`.
     jalon("recherche", { arrivee: a, nuits: nuitsEntre(a, d), personnes: pax });
     try {
-      const m = await moteurDuSite();
+      const m = await moteurDuSite().catch(() => ({ mode: "indisponible" } as MoteurVoiles));
       setMoteur(m);
-      /* La même question, à la source du moment. `indisponible` : l'hôtel a quitté Mews et NWH ne répond pas — on
-         ne vend rien, l'écran dit de réessayer ou d'appeler. */
-      const disponibilite = (q: { arrivee: string; depart: string; adultes: number; langue: Langue }) =>
-        m.mode === "nwh" ? disponibiliteNwh(m, q)
-          : m.mode === "mews" ? chercherDisponibilite(q)
-            : Promise.reject(new Error("moteur indisponible"));
+      /* ⛔ LES VOILES NE VENDENT PLUS QUE PAR NWH → LESSCLIC (10/11/2026) : plus jamais par Mews, que l'hôtel a quitté.
+         Tout autre moteur que `nwh` (NWH muet, mal configuré) : rien ne se vend en ligne, l'écran dit « réservez par
+         téléphone » avec le numéro de l'hôtel. */
+      if (m.mode !== "nwh") {
+        setHorsLigne(true);
+        setDispo(null);
+        setTropLong(false);
+        return;
+      }
+      setHorsLigne(false);
+      const disponibilite = (q: { arrivee: string; depart: string; adultes: number; langue: Langue }) => disponibiliteNwh(m, q);
       const [dispos, cats] = await Promise.all([
         disponibilite({ arrivee: a, depart: d, adultes: pax, langue }),
-        m.mode === "nwh" ? categoriesNwh(m, langue) : chargerCategories(langue),
+        categoriesNwh(m, langue),
       ]);
       setDispo(dispos);
       setCategories(cats);
@@ -2167,6 +2178,18 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
           </h2>
 
           <div className="mt-3 min-h-0 flex-1 lg:overflow-y-auto">
+            {horsLigne && !erreur && (
+              <div role="status" className="rounded-xl border border-[#e0cfc0] bg-[#fdfaf7] p-5">
+                <p className="font-semibold text-[#8a4b2a]">{T.horsLigne}</p>
+                <p className="mt-1 text-[15px] text-[#6b7a82]">
+                  {T.horsLigneAide}{" "}
+                  <a href={`tel:${TELEPHONE.en.replace(/\s/g, "")}`} className="whitespace-nowrap font-semibold text-navy underline underline-offset-4 hover:text-gold-ink">
+                    {TELEPHONE[langue]}
+                  </a>
+                </p>
+              </div>
+            )}
+
             {erreur && (
               <div className="rounded-xl border border-[#e0cfc0] bg-[#fdfaf7] p-5">
                 <p className="font-semibold text-[#8a4b2a]">{T.erreur}</p>
@@ -2174,7 +2197,7 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
               </div>
             )}
 
-            {!dispo && !erreur && (
+            {!dispo && !erreur && !horsLigne && (
               <p className="max-w-sm text-[15px] leading-relaxed text-[#8a9299]">{T.attenteOffres}</p>
             )}
 

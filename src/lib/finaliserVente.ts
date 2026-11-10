@@ -28,6 +28,9 @@ import {
  * Secure, le prépayé après que le checkout de Mews a encaissé.
  */
 
+/** Bascule des Voiles vers lessclic, 10/11/2026 : plus aucune vente ne se confirme chez Mews. */
+const VOILES_HORS_MEWS = true;
+
 /** Une chambre du séjour. Plusieurs sont possibles, toutes du même groupe
  *  tarifaire — la contrainte qui garde une seule règle d'encaissement. */
 export type LigneVendue = { categorieId: string; tarifId: string; adultes: number };
@@ -45,6 +48,12 @@ export async function finaliserVente(
   { reservationIds, sejour, langue }:
   { reservationIds: string[]; sejour: SejourVendu; langue: Langue },
 ): Promise<void> {
+  /* ⛔ LES VOILES ONT QUITTÉ MEWS (10/11/2026) : confirmer ici déclencherait chez Mews le débit ou la préautorisation
+   * d'une chambre qui n'existe pas dans lessclic. Les deux appelants (`/api/reserver/carte`, `confirmer`) sont fermés ;
+   * ce garde ferme la porte à tout autre. Un échec ici est déjà traité par l'appelant comme « chambre non acquise ». */
+  if (VOILES_HORS_MEWS) {
+    throw new Error(`finaliserVente refusée : les Voiles ne vendent plus par Mews (options ${reservationIds.join(', ')})`);
+  }
   await confirmerReservations(reservationIds);
 
   try {

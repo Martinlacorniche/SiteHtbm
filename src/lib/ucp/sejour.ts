@@ -18,6 +18,12 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { SITE_URL } from '@/lib/site';
 import { lienDePaiement, paiementDuLien, urlDuLien, LIEN_MINUTES } from '@/lib/ucp/paiement';
 import { consignerPaiement } from '@/lib/ucp/reservationMews';
+import { alerterArgentSansResa } from '@/lib/alerteArgentSansResa';
+import { ErreurUcp } from '@/lib/ucp/lodging';
+
+/** Bascule des Voiles vers lessclic, 10/11/2026 : aucune note ne se règle ni ne se consigne plus chez Mews. */
+const VOILES_HORS_MEWS = true;
+const DEJA_SIGNALES = new Set<string>();
 
 export type LigneNote = { date: string; libelle: string; montant: number };
 export type Note = {
@@ -180,6 +186,16 @@ export async function ouvrirReglement(
   { jeton: string; hotelId: string; reservationId: string; accountId: string | null;
     centimes: number; libelle: string; email?: string },
 ): Promise<ReglementOuvert> {
+  /* ⛔ LES VOILES ONT QUITTÉ MEWS (10/11/2026). Ce règlement encaisse chez Stripe le solde d'une note MEWS, puis le
+   * consigne au folio MEWS : la note des Voiles vit désormais dans lessclic, et un paiement posé chez Mews n'y
+   * arriverait jamais — le client paierait, la réception réclamerait encore. On n'ouvre plus de lien. */
+  if (VOILES_HORS_MEWS) {
+    throw new ErreurUcp(
+      'Le règlement en ligne de la note est momentanément indisponible (changement de système). '
+      + 'Le client règle à la réception, ou l’hôtel lui envoie un lien de paiement.',
+      'unavailable',
+    );
+  }
   /* 🔴 ON N'OUVRE PAS DE RÈGLEMENT SUR UN SOLDE QU'ON SAIT FAUX — voir
    * `noteDuSejour` : Mews met quelques secondes à exposer ce qu'on vient de
    * poser, et c'est exactement là qu'un client paierait deux fois. */
@@ -233,6 +249,22 @@ export async function consignerReglements(jeton: string): Promise<number> {
   for (const r of data ?? []) {
     const paiement = await paiementDuLien(String(r.checkout));
     if (!paiement) continue;
+    /* ⛔ Après la bascule des Voiles : un lien ouvert avant, payé après. On ne pose plus rien chez Mews (la note est
+     * dans lessclic) : l'argent est pris et non consigné — on le dit à l'hôtel, une fois par processus. */
+    if (VOILES_HORS_MEWS) {
+      const cle = String(r.checkout);
+      if (!DEJA_SIGNALES.has(cle)) {
+        DEJA_SIGNALES.add(cle);
+        await alerterArgentSansResa({
+          origine: 'règlement de note en ligne (/sejour), après la bascule',
+          montant: Number(r.centimes) / 100,
+          reference: paiement,
+          detail: `séjour Mews ${String(r.mews_reservation_id)} — à poser sur la note lessclic du client`,
+          sortDeLArgent: 'encaissé chez Stripe (Voiles), NON consigné au PMS',
+        });
+      }
+      continue;
+    }
     try {
       await consignerPaiement({
         accountId: String(r.mews_account_id ?? ''),

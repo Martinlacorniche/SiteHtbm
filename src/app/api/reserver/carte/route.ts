@@ -32,7 +32,21 @@ type Corps = {
   sejour?: { lignes?: { categorieId?: string; tarifId?: string; adultes?: number }[]; arrivee?: string; depart?: string };
 };
 
+/* ⛔ FERMÉE DEPUIS LA BASCULE DES VOILES VERS LESSCLIC (10/11/2026). Confirmer ici, c'est déclencher chez Mews la
+ * préautorisation de la carte sur une option que plus personne ne regarde — de l'argent tenu pour une chambre qui
+ * n'existe pas dans lessclic. Aucune nouvelle option ne se pose (`/api/reserver` refuse), celles d'avant la bascule
+ * ont expiré (vingt minutes) : on refuse proprement, rien n'est confirmé ni préautorisé, Mews relâche l'option.
+ * Le code d'origine reste en dessous, inatteignable, jusqu'au retrait du code Mews. */
+const FERMEE = true;
+
 export async function POST(req: NextRequest) {
+  if (FERMEE) {
+    console.warn('/api/reserver/carte appelée après la bascule des Voiles — refusée, rien de confirmé ni préautorisé');
+    return NextResponse.json({
+      erreur: 'moteur change',
+      message: 'Notre réservation en ligne a changé : rien n’a été réservé ni débité. Rechargez la page pour réserver, ou appelez-nous au 04 94 41 36 23.',
+    }, { status: 409 });
+  }
   let corps: Corps;
   try { corps = await req.json(); } catch {
     return NextResponse.json({ erreur: 'requete illisible' }, { status: 400 });

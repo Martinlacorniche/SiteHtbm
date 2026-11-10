@@ -1,48 +1,34 @@
-// QUI VEND LES NUITS DES VOILES ? LA QUESTION POSÉE À NWH — CÔTÉ SERVEUR UNIQUEMENT (10/11/2026).
+// QUI VEND LES NUITS DES VOILES ? NWH → LESSCLIC, ET PERSONNE D'AUTRE — CÔTÉ SERVEUR UNIQUEMENT.
 //
 // Voir `moteurVoiles.ts` pour le pourquoi. Ici, le comment : on demande à NWH la page du moteur des Voiles sur
-// lessclic (`/api/moteur-lessclic/page`). Sa réponse EST la bascule :
+// lessclic (`/api/moteur-lessclic/page`) :
 //
-//   · 200 avec une configuration → les Voiles sont sur lessclic : on vend par NWH ;
-//   · 404                         → NWH dit « pas sur lessclic » : Mews, comme avant ;
-//   · tout le reste (NWH muet, 5xx, 501 d'un NWH trop ancien, moteur non configuré) → ON NE SAIT PAS.
+//   · 200 avec une configuration → on vend par NWH ;
+//   · tout le reste (NWH muet, 404, 5xx, 501, moteur non configuré, relais éteint) → `indisponible` : on ne vend RIEN,
+//     l'écran dit « réservez par téléphone » avec le numéro de l'hôtel.
 //
-// ⛔ « ON NE SAIT PAS » NE VEUT PAS DIRE MEWS. Repartir sur Mews par défaut, le lendemain de la bascule, ce serait
-// vendre des nuits dans un PMS que la réception ne regarde plus. On relit alors `hotels.pms` dans la base (celle de
-// NWH, que ce site lit déjà) : « lessclic » → `indisponible` (on ne vend rien, l'écran dit d'appeler) ; « mews » →
-// Mews. Base muette aussi : la dernière réponse connue de ce serveur, et à défaut Mews — l'état d'avant la bascule,
-// où Mews prend lui-même carte ou paiement : on ne vend jamais sans garantie.
-//
-// 🔧 `MOTEUR_VOILES` force la réponse sans rien demander : « mews » (le retour arrière, sans déploiement de NWH),
-// « nwh » (NWH obligatoire : muet, c'est `indisponible`). Absente : NWH décide.
+// ⛔ PLUS JAMAIS MEWS (10/11/2026, bascule faite). Les Voiles ont quitté Mews pour lessclic : Mews ne reçoit plus les
+// ventes, la réception ne le regarde plus, et il sera désactivé. Le repli vers Mews (404 de NWH, `hotels.pms`,
+// dernière réponse connue, `MOTEUR_VOILES=mews`, relais éteint) a été RETIRÉ : chacun de ces chemins aurait vendu des
+// nuits dans un PMS mort. `MOTEUR_VOILES` et l'absence de `GROUPE_RELAIS_NWH` ne ramènent plus Mews : sans NWH, rien
+// ne se vend en ligne. Le mode `mews` reste dans le type (le code Mews mort sera retiré à part), mais n'est plus rendu.
 
-import { supabaseServer } from "./supabase-server";
 import {
   HOTEL_VOILES_NWH, SLUG_VOILES, categoriesNwh, disponibiliteNwh,
   type MoteurNwhVoiles, type MoteurVoiles,
 } from "./moteurVoiles";
-import { chargerCategories, chercherDisponibilite, type CategorieChambre, type Disponibilite, type Langue } from "./mewsBooking";
+import type { CategorieChambre, Disponibilite, Langue } from "./mewsBooking";
 import type { ConfigMoteur } from "./moteurNwh/mews";
 
-/* Trente secondes de mémoire : la question se pose à chaque recherche (balisage, accueil, agents) et la réponse ne
- * change qu'une fois. Assez court pour que la bascule se voie dans la minute. */
+/* Trente secondes de mémoire pour une réponse de NWH ; cinq seulement pour « indisponible », pour qu'un hoquet de NWH
+ * ne ferme pas la vente une demi-minute de plus que nécessaire. */
 const MEMOIRE_MS = 30_000;
+const MEMOIRE_PANNE_MS = 5_000;
 let memoire: { quand: number; moteur: MoteurVoiles } | null = null;
-let derniere: MoteurVoiles | null = null;
 
 const baseNwh = () => (process.env.GROUPE_RELAIS_NWH || "").replace(/\/$/, "");
 
-async function pmsEnBase(): Promise<string | null> {
-  try {
-    const { data, error } = await supabaseServer.from("hotels").select("pms").eq("id", HOTEL_VOILES_NWH).maybeSingle();
-    if (error) return null;
-    return typeof data?.pms === "string" ? data.pms : null;
-  } catch {
-    return null;
-  }
-}
-
-async function demanderANwh(): Promise<MoteurVoiles | "muet"> {
+async function demanderANwh(): Promise<MoteurNwhVoiles | "muet"> {
   const base = baseNwh();
   if (!base) return "muet";
   try {
@@ -52,10 +38,17 @@ async function demanderANwh(): Promise<MoteurVoiles | "muet"> {
       body: JSON.stringify({ HotelId: HOTEL_VOILES_NWH, Langue: "fr" }),
       signal: AbortSignal.timeout(6_000),
     });
-    if (r.status === 404) return { mode: "mews" };
-    if (!r.ok) return "muet";
+    /* Un 404 disait autrefois « pas sur lessclic : restez sur Mews ». Les Voiles n'ont plus de Mews : c'est une panne
+     * de configuration chez NWH, on ne vend pas. */
+    if (!r.ok) {
+      console.error(`Moteur des Voiles : NWH répond ${r.status} — vente en ligne suspendue (réservation par téléphone)`);
+      return "muet";
+    }
     const p = (await r.json()) as { cfg?: ConfigMoteur | null; slug?: string | null; correspondance?: Record<string, string> };
-    if (!p?.cfg?.hotelId) return "muet";
+    if (!p?.cfg?.hotelId) {
+      console.error("Moteur des Voiles : NWH sans configuration de moteur — vente en ligne suspendue");
+      return "muet";
+    }
     return {
       mode: "nwh",
       /* L'adresse du Distributor, ABSOLUE côté serveur (NWH lui-même) ; le navigateur, lui, passe par le relais de ce
@@ -64,31 +57,22 @@ async function demanderANwh(): Promise<MoteurVoiles | "muet"> {
       hotel: p.slug || SLUG_VOILES,
       correspondance: p.correspondance ?? {},
     };
-  } catch {
+  } catch (e) {
+    console.error("Moteur des Voiles : NWH injoignable —", e instanceof Error ? e.message : e);
     return "muet";
   }
 }
 
 async function decider(): Promise<MoteurVoiles> {
-  const force = (process.env.MOTEUR_VOILES || "").trim().toLowerCase();
-  if (force === "mews") return { mode: "mews" };
   const nwh = await demanderANwh();
-  if (nwh !== "muet") return force === "nwh" && nwh.mode === "mews" ? { mode: "indisponible" } : nwh;
-  if (force === "nwh") return { mode: "indisponible" };
-  /* Relais éteint (aucune adresse NWH, un poste de développement) : rien n'a changé pour ce site, c'est Mews. */
-  if (!baseNwh()) return { mode: "mews" };
-  const pms = await pmsEnBase();
-  if (pms === "mews") return { mode: "mews" };
-  if (pms) return { mode: "indisponible" };
-  return derniere ?? { mode: "mews" };
+  return nwh === "muet" ? { mode: "indisponible" } : nwh;
 }
 
 /** Le moteur des Voiles, vu du serveur (adresse de NWH absolue). */
 export async function moteurVoilesServeur(): Promise<MoteurVoiles> {
-  if (memoire && Date.now() - memoire.quand < MEMOIRE_MS) return memoire.moteur;
+  if (memoire && Date.now() - memoire.quand < (memoire.moteur.mode === "nwh" ? MEMOIRE_MS : MEMOIRE_PANNE_MS)) return memoire.moteur;
   const moteur = await decider();
   memoire = { quand: Date.now(), moteur };
-  if (moteur.mode !== "indisponible") derniere = moteur;
   return moteur;
 }
 
@@ -99,24 +83,22 @@ export async function moteurVoilesNavigateur(): Promise<MoteurVoiles> {
 }
 
 export class MoteurVoilesIndisponible extends Error {
-  constructor() { super("Moteur des Voiles indisponible : l'hôtel a quitté Mews et NWH ne répond pas"); }
+  constructor() { super("Moteur des Voiles indisponible : NWH ne répond pas (réservation par téléphone)"); }
 }
 
-/** `chercherDisponibilite` des Voiles, à la bonne source. Mêmes identifiants (Mews) quelle qu'elle soit. */
+/** `chercherDisponibilite` des Voiles, chez NWH (identifiants Mews de l'écran). Lève si NWH ne répond pas. */
 export async function disponibiliteVoiles(q: { arrivee: string; depart: string; adultes: number; langue: Langue }): Promise<Disponibilite> {
   const m = await moteurVoilesServeur();
-  if (m.mode === "nwh") return disponibiliteNwh(m, q);
-  if (m.mode === "indisponible") throw new MoteurVoilesIndisponible();
-  return chercherDisponibilite(q);
+  if (m.mode !== "nwh") throw new MoteurVoilesIndisponible();
+  return disponibiliteNwh(m, q);
 }
 
-/** `chargerCategories` des Voiles, à la bonne source. */
+/** `chargerCategories` des Voiles, chez NWH. Lève si NWH ne répond pas. */
 export async function categoriesVoiles(langue: Langue): Promise<Map<string, CategorieChambre>> {
   const m = await moteurVoilesServeur();
-  if (m.mode === "nwh") return categoriesNwh(m as MoteurNwhVoiles, langue);
-  if (m.mode === "indisponible") throw new MoteurVoilesIndisponible();
-  return chargerCategories(langue);
+  if (m.mode !== "nwh") throw new MoteurVoilesIndisponible();
+  return categoriesNwh(m, langue);
 }
 
 /** Tests seulement. */
-export function oublierMoteurVoiles() { memoire = null; derniere = null; }
+export function oublierMoteurVoiles() { memoire = null; }

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { libresParNuit } from '@/lib/mewsConnector';
+import { libresParNuitVoiles } from '@/lib/villaLibres';
 import { etatDeLaNuit, type EtatNuit } from '@/lib/villa';
 
 /* Le calendrier : l'état de chaque nuit, en UN appel.
  *
  *   GET /api/villa/calendrier?debut=2026-11-01&fin=2026-12-31
+ *
+ * 🔑 DEPUIS LE 10/11/2026, LA SOURCE EST LESSCLIC, LUE PAR NWH (`lib/villaLibres.ts`). Les Voiles ont quitté Mews,
+ * qui ne reçoit plus les ventes : il annonçait libres des nuits vendues. Le pavé ci-dessous raconte le choix d'origine
+ * (Mews) ; la règle, elle, n'a pas changé — des chambres physiquement libres, fermeture d'hiver ignorée.
  *
  * ⚠️ POURQUOI PAS LA MÊME API QUE LE VERDICT.
  * `/api/villa/dispo` interroge la Booking Engine, qui ne répond que sur une
@@ -46,15 +50,15 @@ export async function GET(req: NextRequest) {
   if (jours > JOURS_MAX) return NextResponse.json({ erreur: 'fenetre' }, { status: 400 });
 
   try {
-    const libres = await libresParNuit(debut, fin);
+    const libres = await libresParNuitVoiles(debut, fin);
     const nuits: JourCalendrier[] = [...libres.entries()]
       .map(([jour, n]) => ({ jour, libres: n, etat: etatDeLaNuit(n) }));
     return NextResponse.json({ nuits });
-  } catch {
-    /* Mews injoignable : on rend une fenêtre VIDE plutôt qu'une erreur. Le
-       calendrier s'affiche alors en gris neutre, sans rien promettre, et le
-       visiteur peut quand même poser ses dates — c'est le verdict qui
-       tranchera. Un calendrier absent vaut mieux qu'un calendrier menteur. */
-    return NextResponse.json({ nuits: [], panne: true });
+  } catch (e) {
+    /* NWH ou lessclic injoignable : une fenêtre VIDE, marquée `panne`. Le calendrier ne peint aucune nuit libre et
+       dit « appelez-nous » ; le verdict, lui aussi, renverra au téléphone. Un calendrier absent vaut mieux qu'un
+       calendrier menteur. */
+    console.error('Villa calendrier — dispo illisible :', e instanceof Error ? e.message : e);
+    return NextResponse.json({ nuits: [], panne: true }, { status: 503 });
   }
 }

@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 import { expediteurVoiles } from '@/lib/expediteurVoiles';
 import { supabaseServer } from '@/lib/supabase-server';
 import { ALERTES } from '@/lib/villaContenu';
-import { chambresLibres } from '@/lib/mewsConnector';
+import { chambresLibresVoiles } from '@/lib/villaLibres';
 import { nuitsEntre, type Formule } from '@/lib/villa';
 import { chargerTarifsVilla } from '@/lib/villaDb';
 
@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
   const nuits = nuitsEntre(c.arrivee, c.depart);
   if (nuits < 1 || nuits > 60) return NextResponse.json({ erreur: 'dates' }, { status: 400 });
 
-  /* On relit Mews, mais on n'en fait PAS une condition d'acceptation.
+  /* On relit la dispo (lessclic par NWH depuis le 10/11/2026, `lib/villaLibres.ts`), mais on n'en fait PAS une
+     condition d'acceptation.
      Une demande sur des dates prises reste une demande : le commercial peut
      proposer la semaine d'à côté, ou déplacer la réservation qui gêne. La
      refuser ici, c'est jeter un client qui vient d'écrire son numéro. */
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
   const tarifs = await chargerTarifsVilla();
 
   let libres: number | null = null;
-  try { libres = await chambresLibres({ arrivee: c.arrivee, depart: c.depart }); } catch { libres = null; }
+  try { libres = await chambresLibresVoiles({ arrivee: c.arrivee, depart: c.depart }); } catch { libres = null; }
 
   /* La formule demandée. Elle ne se déduit PAS de la disponibilité — les deux
      exigent l'hôtel entier — c'est un choix du client : combien de chambres il
@@ -157,7 +158,7 @@ async function alerter(a: Alerte): Promise<void> {
       { day: 'numeric', month: 'long', year: 'numeric' });
 
   const dispo = a.libres === null
-    ? 'non lue (Mews injoignable)'
+    ? 'non lue (planning lessclic injoignable) — vérifier dans lessclic avant de rappeler'
     : a.libres >= a.capacite
       ? `✅ maison entière libre (${a.libres}/${a.capacite})`
       : `⚠️ ${a.libres}/${a.capacite} chambres libres — pas privatisable en l'état`;

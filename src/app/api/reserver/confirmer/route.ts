@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Langue } from '@/lib/mewsBooking';
 import { annulerDemandePaiement, etatDemandePaiement } from '@/lib/mewsConnector';
 import { finaliserVente } from '@/lib/finaliserVente';
+import { alerterArgentSansResa } from '@/lib/alerteArgentSansResa';
 
 /* Ferme la vente du tarif PRÉPAYÉ, une fois le paiement encaissé.
  *
@@ -33,6 +34,41 @@ type Corps = {
   sejour?: { lignes?: { categorieId?: string; tarifId?: string; adultes?: number }[]; arrivee?: string; depart?: string };
 };
 
+/* ⛔ FERMÉE DEPUIS LA BASCULE DES VOILES VERS LESSCLIC (10/11/2026). Elle confirmait chez Mews une option payée par
+ * le checkout de Mews : plus rien ne se vend par Mews, aucune option n'y est plus posée (`/api/reserver` refuse).
+ * Si l'appel arrive quand même (une page ouverte avant la bascule), on relit la demande chez Mews :
+ *   · payée (`Completed`) → de l'argent est pris et AUCUNE réservation n'existera : alerte (journal, mail à l'équipe,
+ *     consigne de réception) et refus ; la réception rappelle le client et le rembourse ou le reloge dans lessclic ;
+ *   · pas payée → on annule la demande (plus rien ne pourra être encaissé) et on refuse.
+ * Le code d'origine reste en dessous, inatteignable, jusqu'au retrait du code Mews. */
+const FERMEE = true;
+
+async function refuserApresBascule(demandeId: string | undefined, ids: string[]): Promise<NextResponse> {
+  let etat: string | null = null;
+  if (estGuid(demandeId)) {
+    try { etat = await etatDemandePaiement(demandeId); } catch (e) {
+      console.error('Mews paymentRequests/getAll (après bascule)', e instanceof Error ? e.message : e);
+      etat = 'illisible';
+    }
+  }
+  if (etat === 'Completed' || etat === 'illisible') {
+    await alerterArgentSansResa({
+      origine: '/api/reserver/confirmer (checkout Mews)',
+      reference: demandeId ?? null,
+      detail: `options Mews ${ids.join(', ') || '?'}${etat === 'illisible' ? ' — état du paiement ILLISIBLE, peut-être encaissé' : ''}`,
+      sortDeLArgent: etat === 'Completed' ? 'encaissé chez Mews, NON remboursé (à rembourser ou reloger)' : 'à vérifier chez Mews',
+    });
+  } else if (estGuid(demandeId)) {
+    await annulerDemandePaiement(demandeId).catch(() => {});
+  }
+  return NextResponse.json({
+    erreur: 'moteur change',
+    message: etat === 'Completed'
+      ? 'Votre paiement a bien été reçu, mais la réservation n’a pas pu être enregistrée. La réception est prévenue et vous rappelle ; vous pouvez aussi l’appeler au 04 94 41 36 23.'
+      : 'Notre réservation en ligne a changé : rien n’a été réservé. Rechargez la page pour réserver, ou appelez-nous au 04 94 41 36 23.',
+  }, { status: 409 });
+}
+
 export async function POST(req: NextRequest) {
   let corps: Corps;
   try { corps = await req.json(); } catch {
@@ -41,6 +77,8 @@ export async function POST(req: NextRequest) {
   const langue: Langue = corps.langue === 'en' ? 'en' : 'fr';
   const ids = (corps.reservationIds ?? []).filter(estGuid);
   const sejour = corps.sejour;
+
+  if (FERMEE) return refuserApresBascule(corps.demandeId, ids);
 
   if (!ids.length) return NextResponse.json({ erreur: 'reservation absente' }, { status: 400 });
   if (!estGuid(corps.demandeId)) {

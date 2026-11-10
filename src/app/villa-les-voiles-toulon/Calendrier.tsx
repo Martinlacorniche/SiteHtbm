@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { EtatNuit } from "@/lib/villa";
+import { CONTACT } from "@/lib/villaContenu";
 
 /* Le calendrier de la privatisation.
  *
@@ -45,6 +46,7 @@ const NOMS = {
     ferme: "Complet",
     aide: "Cliquez votre arrivée, puis votre départ.",
     passe: "Date passée",
+    panne: "Nous n'arrivons pas à lire le planning à l'instant : appelez-nous au",
   },
   en: {
     mois: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
@@ -53,6 +55,7 @@ const NOMS = {
     ferme: "Full",
     aide: "Click your arrival, then your departure.",
     passe: "Past date",
+    panne: "We can't read the planning right now: please call us on",
   },
 } as const;
 
@@ -62,7 +65,7 @@ const NOMS = {
    partagée, une fois. */
 type Noms = {
   mois: readonly string[]; jours: readonly string[];
-  libre: string; ferme: string; aide: string; passe: string;
+  libre: string; ferme: string; aide: string; passe: string; panne: string;
 };
 
 export default function Calendrier({
@@ -88,6 +91,9 @@ export default function Calendrier({
   });
   const [jours, setJours] = useState<Map<string, Jour>>(new Map());
   const [charge, setCharge] = useState(true);
+  /* ⛔ Planning illisible (NWH ou lessclic muet) : aucune nuit n'est peinte libre, et on le DIT avec le téléphone —
+     un calendrier tout gris sans explication se lirait « tout est pris », ou pire, s'ignorerait. */
+  const [panne, setPanne] = useState(false);
   // La sélection en cours : une arrivée posée, un départ pas encore choisi.
   const [enCours, setEnCours] = useState<string | null>(null);
 
@@ -104,13 +110,15 @@ export default function Calendrier({
     let vivant = true;
     setCharge(true);
     fetch(`/api/villa/calendrier?debut=${fenetre.debut}&fin=${fenetre.fin}`)
-      .then((r) => r.json())
-      .then((j: { nuits?: Jour[] }) => {
+      .then(async (r) => ({ ok: r.ok, j: (await r.json().catch(() => ({}))) as { nuits?: Jour[]; panne?: boolean } }))
+      .then(({ ok, j }) => {
         if (!vivant) return;
-        setJours(new Map((j.nuits ?? []).map((n) => [n.jour, n])));
+        const enPanne = !ok || !!j.panne;
+        setPanne(enPanne);
+        setJours(enPanne ? new Map() : new Map((j.nuits ?? []).map((n) => [n.jour, n])));
         setCharge(false);
       })
-      .catch(() => { if (vivant) setCharge(false); });
+      .catch(() => { if (vivant) { setPanne(true); setJours(new Map()); setCharge(false); } });
     return () => { vivant = false; };
   }, [fenetre]);
 
@@ -165,6 +173,15 @@ export default function Calendrier({
             classe={k === 1 ? "hidden sm:block" : ""} />
         ))}
       </div>
+
+      {panne && (
+        <p role="status" className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {N.panne}{" "}
+          <a href={`tel:${CONTACT.telephone.replace(/\s/g, "")}`} className="whitespace-nowrap font-semibold underline underline-offset-2">
+            {CONTACT.telephone}
+          </a>
+        </p>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
         <Legende ton="libre" texte={N.libre} />

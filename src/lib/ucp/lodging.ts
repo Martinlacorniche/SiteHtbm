@@ -26,6 +26,7 @@ import {
   HOTEL_ID, type CategorieChambre,
 } from '@/lib/mewsBooking';
 import { categoriesVoiles, disponibiliteVoiles, moteurVoilesServeur } from '@/lib/moteurVoilesServeur';
+import { alerterArgentSansResa } from '@/lib/alerteArgentSansResa';
 import {
   lireJeton, verifierJeton, debiter, rembourser, ErreurPaiement,
   lienDePaiement, paiementDuLien, TENUE_MINUTES, LIEN_MINUTES,
@@ -771,6 +772,41 @@ export async function finaliserSiPaye(id: string): Promise<Record<string, unknow
 
   const paiement = await paiementDuLien(session.attente.checkout);
   if (!paiement) return session.booking;
+
+  /* ⛔ LES VOILES ONT QUITTÉ MEWS (10/11/2026). Un lien payé après la bascule, pour une chambre tenue chez Mews avant
+   * elle : on ne confirme plus rien chez Mews — l'argent est pris et AUCUNE réservation ne sera créée. On rend l'argent
+   * (comme pour une chambre relâchée, juste en dessous) et on le DIT à l'hôtel : mail, consigne, journal. */
+  if (session.choix.hotel !== 'corniche' && (await moteurVoilesServeur()).mode !== 'mews') {
+    let rendu = true;
+    await rembourser(paiement).catch((e) => {
+      rendu = false;
+      console.error('[ucp] remboursement ÉCHOUÉ après bascule', paiement, e instanceof Error ? e.message : e);
+    });
+    await annulerReservation(session.attente.reservationId, 'Agent : Voiles passées sur lessclic').catch(() => {});
+    await alerterArgentSansResa({
+      origine: 'vente par agent (UCP), lien de paiement',
+      montant: session.attente.centimes / 100,
+      reference: paiement,
+      detail: `session ${id} · ${session.demande.arrivee} → ${session.demande.depart} · ${session.client?.nom ?? 'client sans nom'}`
+        + `${session.client?.email ? ` · ${session.client.email}` : ''}`,
+      sortDeLArgent: rendu ? 'remboursé automatiquement' : 'remboursement ÉCHOUÉ — à rembourser à la main dans Stripe',
+    });
+    session.attente = undefined;
+    session.booking = {
+      ...session.booking,
+      status: 'canceled',
+      messages: [{
+        type: 'error',
+        content: {
+          plain: rendu
+            ? 'La réservation par agent des Voiles est suspendue : aucune réservation n’a été prise et le montant a été intégralement remboursé.'
+            : 'La réservation par agent des Voiles est suspendue : aucune réservation n’a été prise. L’hôtel est prévenu et rembourse le montant.',
+        },
+      }],
+    };
+    await ranger(session);
+    return session.booking;
+  }
 
   /* ⚠️ LA CHAMBRE EST-ELLE ENCORE À NOUS ? Le lien meurt cinq minutes avant
    * elle, donc le cas est rare — mais rare n'est pas jamais, et un paiement

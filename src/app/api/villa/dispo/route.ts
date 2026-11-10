@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { chambresLibres } from '@/lib/mewsConnector';
+import { chambresLibresVoiles } from '@/lib/villaLibres';
 import { nuitsEntre, type Verdict } from '@/lib/villa';
 import { chargerTarifsVilla } from '@/lib/villaDb';
 
 /* Le verdict de disponibilité de la privatisation.
  *
  *   GET /api/villa/dispo?arrivee=2026-11-10&depart=2026-11-13
+ *
+ * 🔑 DEPUIS LE 10/11/2026 : lessclic, lu par NWH (`lib/villaLibres.ts`), même source et même règle que le calendrier
+ * — les deux concordent par construction. Les pavés ci-dessous datent de Mews.
  *
  * ⚠️ UN APPEL PAR DEMANDE, JAMAIS UN BALAYAGE DE CALENDRIER.
  * La Booking Engine API de Mews est, sa propre documentation le dit,
@@ -57,7 +60,7 @@ export async function GET(req: NextRequest) {
      groupe, ce que le filtre interdisait. */
 
   try {
-    const libres = await chambresLibres({ arrivee, depart });
+    const libres = await chambresLibresVoiles({ arrivee, depart });
     /* ⚠️ LE SEUIL EST LE MÊME POUR LES DEUX FORMULES. Privatiser, c'est être
        seul dans les murs : que le groupe ouvre huit chambres ou seize, on ne
        vend rien à côté de lui. Une seule chambre prise ferme la date. */
@@ -77,8 +80,9 @@ export async function GET(req: NextRequest) {
           }
         : null,
     } satisfies Verdict);
-  } catch {
-    /* Mews injoignable. On ne dit surtout pas « c'est libre » : une
+  } catch (e) {
+    console.error('Villa verdict — dispo illisible :', e instanceof Error ? e.message : e);
+    /* NWH / lessclic injoignable. On ne dit surtout pas « c'est libre » : une
        privatisation annoncée disponible puis refusée est pire qu'un
        « appelez-nous ». L'écran bascule sur le téléphone. */
     return NextResponse.json({ erreur: 'indisponible' }, { status: 503 });
