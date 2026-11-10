@@ -29,8 +29,9 @@ import { chercher, lire } from '@/lib/ucp/recherche';
 import { appelant, compter, PLAFONDS, TropDAppels } from '@/lib/ucp/debit';
 import { journaliser, type Issue } from '@/lib/ucp/journal';
 import { reconnaitre } from '@/lib/ucp/acces';
-import { arrivee, HEURE_ARRIVEE } from '@/lib/ucp/checkin';
-import { lireSejour, noteDuSejour, ouvrirReglement, consignerReglements } from '@/lib/ucp/sejour';
+import { arrivee, arriveeLessclic, HEURE_ARRIVEE } from '@/lib/ucp/checkin';
+import { lireSejour, noteDuSejour, ouvrirReglement, consignerReglements, VOILES_HORS_MEWS } from '@/lib/ucp/sejour';
+import { lireSejourLessclic, lienDeReglement, facturesAReglerEnLigne } from '@/lib/ucp/sejourLessclic';
 import { creerSessionCorniche, ficheCorniche, profilCorniche, PROPRIETE_CORNICHE } from '@/lib/ucp/corniche';
 
 /* ══════════════════ DEUX HÔTELS, UN ENDPOINT ═════════════════════════════════
@@ -817,6 +818,70 @@ async function traiterInterne(req: Request, sansPaiement = false) {
               message: 'Trop de tentatives.',
             });
             return ko(corps.id, -32001, 'Clé de séjour invalide.');
+          }
+
+          /* 🔁 LES VOILES SONT SUR LESSCLIC (10/11/2026) : le séjour, l'arrivée et la note se lisent là-bas, par NWH,
+           * dans le modèle de lessclic (factures ouvertes ou émises). Rien chez Mews ; le règlement passe par le lien
+           * de lessclic, sur le Stripe de l'hôtel. */
+          if (VOILES_HORS_MEWS) {
+            const cle = String(args.stay_key);
+            const s = await lireSejourLessclic(cle);
+            if (!s) return ko(corps.id, -32001, 'Clé de séjour invalide.');
+            const page = `${SITE}/sejour/${encodeURIComponent(cle)}`;
+
+            if (nom === 'get_stay') {
+              return ok(corps.id, contenu({
+                reservation: s.sejour.numero, status: s.sejour.etat,
+                check_in_date: s.sejour.arrivee, check_out_date: s.sejour.depart,
+                room: s.sejour.chambre, room_type: s.sejour.categorie,
+                property: PROPRIETE.name, stay_url: page,
+              }));
+            }
+            if (nom === 'get_check_in') {
+              return ok(corps.id, contenu(await arriveeLessclic({
+                hotelId: ouvert.hotelId, sejour: s.sejour, reference: `ucp:${cle}`,
+              })));
+            }
+            const c = (n: number) => Math.round(n * 100);
+            if (nom === 'get_folio') {
+              return ok(corps.id, contenu({
+                reservation: s.sejour.numero,
+                currency: 'EUR',
+                invoices: s.note.factures.filter((f) => f.lignes.length || f.totalTtc !== 0).map((f) => ({
+                  id: f.id, label: f.nom, number: f.numero, issued: f.emise, total: c(f.totalTtc),
+                  lines: f.lignes.map((l) => ({ date: l.jour, label: l.nom, amount: c(l.totalTtc), upcoming: l.aVenir })),
+                  ...(f.emise ? { pdf_url: `${page}/facture/${encodeURIComponent(f.id)}` } : {}),
+                })),
+                unassigned_lines: s.note.sansFacture.map((l) => ({ date: l.jour, label: l.nom, amount: c(l.totalTtc), upcoming: l.aVenir })),
+                total: c(s.note.totalTtc),
+                paid: c(s.note.payeTtc),
+                balance_due: c(s.note.resteTtc),
+                ...(s.note.priseEnCharge ? { note: `La part réglée par ${s.note.priseEnCharge} n’apparaît pas ici.` } : {}),
+                stay_url: page,
+              }));
+            }
+            /* pay_folio */
+            if (s.note.resteTtc <= 0) {
+              return ko(corps.id, -32602, 'Cette note est déjà soldée — il n’y a rien à régler.');
+            }
+            const candidates = facturesAReglerEnLigne(s);
+            if (candidates.length !== 1) {
+              return ko(corps.id, -32602, candidates.length
+                ? `Ce séjour a plusieurs notes à régler : le client choisit la sienne sur ${page}.`
+                : 'Le règlement en ligne n’est pas ouvert pour cette note : le client règle à l’hôtel.');
+            }
+            const url = await lienDeReglement(cle, candidates[0].id);
+            if (!url) {
+              return ko(corps.id, -32603, 'Le règlement en ligne est momentanément indisponible : le client règle à l’hôtel.');
+            }
+            /* Le montant se relit sur la page de paiement : lessclic le recalcule à l'ouverture, sur les lignes
+             * POSTÉES. Il n'est annoncé ici que quand cette note porte tout le séjour et rien « à venir ». */
+            const seule = s.note.factures.filter((f) => f.totalTtc > 0).length === 1
+              && !candidates[0].lignes.some((l) => l.aVenir) && !s.note.sansFacture.length;
+            return ok(corps.id, contenu({
+              payment_url: url, currency: 'EUR',
+              ...(seule ? { amount: c(s.note.resteTtc) } : {}),
+            }));
           }
 
           const sejour = await lireSejour(ouvert.reservationId);

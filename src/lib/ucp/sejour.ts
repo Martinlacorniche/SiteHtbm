@@ -22,7 +22,7 @@ import { alerterArgentSansResa } from '@/lib/alerteArgentSansResa';
 import { ErreurUcp } from '@/lib/ucp/lodging';
 
 /** Bascule des Voiles vers lessclic, 10/11/2026 : aucune note ne se règle ni ne se consigne plus chez Mews. */
-const VOILES_HORS_MEWS = true;
+export const VOILES_HORS_MEWS = true;
 const DEJA_SIGNALES = new Set<string>();
 
 export type LigneNote = { date: string; libelle: string; montant: number };

@@ -76,13 +76,13 @@ const jourParis = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Par
  * fin mars à fin octobre, faux le reste de l'année — un agent aurait annoncé
  * « à partir de 15 h » en donnant un instant qui vaut 14 h en novembre. On le
  * demande à `Intl`, qui connaît les changements d'heure. */
-function instantParis(jour: string): string {
+function instantParis(jour: string, heure = HEURE_ARRIVEE): string {
   const [a, m, j] = jour.split('-').map(Number);
   const repere = new Date(Date.UTC(a, m - 1, j, 12));
   const rendu = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', timeZoneName: 'longOffset' }).format(repere);
   const t = rendu.match(/GMT([+-])(\d{2}):(\d{2})/);
   const decalage = t ? `${t[1]}${t[2]}:${t[3]}` : '+01:00';
-  return `${jour}T${String(HEURE_ARRIVEE).padStart(2, '0')}:00:00${decalage}`;
+  return `${jour}T${String(heure).padStart(2, '0')}:00:00${decalage}`;
 }
 const heureParis = () => Number(new Intl.DateTimeFormat('fr-FR', {
   timeZone: 'Europe/Paris', hour: '2-digit', hour12: false,
@@ -168,19 +168,95 @@ export async function arrivee(
     };
   }
 
-  /* ⚠️ TOUS LES HÔTELS N'ONT PAS DE PORTAIL, NI DE CODE À LA PORTE. Le réglage
-   * dit lequel des deux existe ici (migration 352). Annoncer « votre code de
-   * porte » à un hôtel qui remet des cartes au comptoir enverrait le client
-   * chercher un clavier qui n'existe pas. */
-  /* 🔑 DEUX CODES FIXES, PAS UN PAR CHAMBRE. Les dix-huit chambres des Voiles
-   * ont une serrure connectée : leur code est engendré POUR CE SÉJOUR par le
-   * module Clefs, il n'est pas écrit d'avance. Ce qui se saisit une fois pour
-   * toutes, ce sont les deux portes communes — le portail de la rue, puis la
-   * porte d'entrée.
-   *
-   * ⚠️ ET TOUS LES HÔTELS N'ONT NI L'UN NI L'AUTRE (migration 352). Annoncer
-   * un code à qui remet des cartes au comptoir enverrait le client chercher un
-   * clavier qui n'existe pas. */
+  return codesDArrivee({
+    hotelId, chambre, reference,
+    debut: String(resa.StartUtc ?? ''),
+    /* La validité court jusqu'au départ à midi — l'heure du PMS, pas la nôtre. */
+    fin: String(resa.EndUtc ?? ''),
+  });
+}
+
+/* ═══════════════════════ UN HÔTEL SUR LESSCLIC ══════════════════════════════
+ *
+ * Depuis le 10/11/2026 les Voiles sont sur lessclic : la réservation, la chambre attribuée et son état de ménage se
+ * lisent là-bas (par NWH, `sejourLessclic.ts`), plus chez Mews. Les QUATRE conditions restent les mêmes, dans le même
+ * ordre : un séjour identifié (le jeton, vérifié en amont et par NWH), le bon jour, 15 h, une chambre attribuée ET
+ * propre. Seule la source change. */
+
+/** Les états de ménage de lessclic qui valent « la chambre est prête ». */
+const PRETE_LESSCLIC = new Set(['propre', 'inspectee']);
+/** L'heure de départ : la validité du code de la chambre court jusque-là. */
+const HEURE_DEPART = 12;
+
+export async function arriveeLessclic(
+  { hotelId, sejour, reference }:
+  {
+    hotelId: string; reference: string;
+    sejour: { etat: string; arrivee: string | null; depart: string | null; chambre: string | null; menage: string | null };
+  },
+): Promise<Arrivee> {
+  if (sejour.etat === 'annulee') return { pret: false, raison: 'Cette réservation a été annulée.' };
+  if (sejour.etat === 'no_show') {
+    return { pret: false, raison: 'Cette réservation n’est plus active. Appelez l’hôtel : 04 94 41 36 23.' };
+  }
+  /* Une option n'est pas un séjour : elle peut tomber d'ici ce soir. */
+  if (sejour.etat !== 'confirmee') {
+    return { pret: false, raison: 'Cette réservation n’est pas encore confirmée. Appelez l’hôtel : 04 94 41 36 23.' };
+  }
+
+  /* 🔴 LA BORNE DE FIN, comme chez Mews : un client parti ne reçoit pas les codes de l'immeuble. */
+  const jourDepart = sejour.depart ?? '';
+  const aujourdHui = jourParis();
+  if (jourDepart && (aujourdHui > jourDepart || (aujourdHui === jourDepart && heureParis() >= HEURE_DEPART))) {
+    return { pret: false, raison: 'Ce séjour est terminé.' };
+  }
+
+  const jourArrivee = sejour.arrivee ?? '';
+  if (!jourArrivee) return { pret: false, raison: 'Cette réservation n’a pas de date d’arrivée.' };
+  if (aujourdHui < jourArrivee) {
+    return {
+      pret: false,
+      raison: `Les codes sont délivrés le jour de l’arrivée, le ${jourArrivee}, à partir de ${HEURE_ARRIVEE} h.`,
+      a_partir_de: instantParis(jourArrivee),
+    };
+  }
+  if (aujourdHui === jourArrivee && heureParis() < HEURE_ARRIVEE) {
+    return {
+      pret: false,
+      raison: `La chambre se libère à ${HEURE_ARRIVEE} h. Les bagages peuvent être déposés avant, à l’hôtel.`,
+      a_partir_de: instantParis(jourArrivee),
+    };
+  }
+
+  const chambre = String(sejour.chambre ?? '').trim();
+  if (!chambre) {
+    return { pret: false, raison: 'La chambre n’est pas encore attribuée. Elle le sera avant votre arrivée.' };
+  }
+  /* 🔴 LE MÉNAGE DÉCIDE, PAS L'HORLOGE. Un état inconnu (lessclic muet) n'est pas « propre ». */
+  if (!PRETE_LESSCLIC.has(String(sejour.menage ?? ''))) {
+    return {
+      pret: false,
+      raison: 'La chambre est en cours de préparation. Elle sera prête d’ici peu — '
+        + 'l’équipe est au rooftop du 4ᵉ étage si vous voulez patienter au frais.',
+    };
+  }
+
+  return codesDArrivee({
+    hotelId, chambre, reference,
+    debut: instantParis(jourArrivee),
+    fin: instantParis(jourDepart || jourArrivee, HEURE_DEPART),
+  });
+}
+
+/** La chambre est prête : les codes des portes communes et celui de la chambre.
+ *
+ *  ⚠️ TOUS LES HÔTELS N'ONT PAS DE PORTAIL, NI DE CODE À LA PORTE — le réglage dit lequel existe (migration 352).
+ *  🔑 DEUX CODES FIXES (portail, porte d'entrée), PLUS UN PAR SÉJOUR pour la chambre, engendré par NWH sur la
+ *  serrure connectée et le MÊME à chaque demande (c'est la `reference` qui le garantit). */
+async function codesDArrivee(
+  { hotelId, chambre, reference, debut, fin }:
+  { hotelId: string; chambre: string; reference: string; debut: string; fin: string },
+): Promise<Arrivee> {
   const [reglage, coffre] = await Promise.all([
     supabaseServer.from('codes_acces_reglage')
       .select('portail, porte').eq('hotel_id', hotelId).maybeSingle(),
@@ -202,12 +278,7 @@ export async function arrivee(
    * le MÊME à chaque demande : un client le redemande le lendemain matin, et
    * celui qu'il a noté doit encore ouvrir. C'est la `reference` qui le garantit
    * côté NWH. */
-  const codeChambre = await codeDeLaChambre({
-    hotelId, chambre, reference,
-    debut: String(resa.StartUtc ?? ''),
-    /* La validité court jusqu'au départ à midi — l'heure du PMS, pas la nôtre. */
-    fin: String(resa.EndUtc ?? ''),
-  });
+  const codeChambre = await codeDeLaChambre({ hotelId, chambre, reference, debut, fin });
 
   return {
     pret: true,
