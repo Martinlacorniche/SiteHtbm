@@ -95,6 +95,8 @@ const TEXTES = {
     telephoneAide: "Pour vous joindre le jour de votre arrivée.",
     mot: "Un mot pour l'hôtel (facultatif)",
     motAide: "Heure d'arrivée prévue, occasion particulière…",
+    cleMobile: "Recevoir ma clé sur mon téléphone",
+    cleMobileAide: "Le jour de votre arrivée, dès que la chambre est prête.",
     continuer: "Continuer vers le paiement",
     prepare: "On prépare votre réservation…",
     titrePaiement: "Votre règlement",
@@ -141,6 +143,8 @@ const TEXTES = {
     telephoneAide: "So we can reach you on the day you arrive.",
     mot: "A word for the hotel (optional)",
     motAide: "Expected arrival time, a special occasion…",
+    cleMobile: "Get my room key on my phone",
+    cleMobileAide: "On arrival day, as soon as your room is ready.",
     continuer: "Continue to payment",
     prepare: "Preparing your booking…",
     titrePaiement: "Your payment",
@@ -237,6 +241,8 @@ export default function Paiement({
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
   const [motHotel, setMotHotel] = useState("");
+  /* 12/11/2026 — la clé dans le téléphone, proposée à la réservation : seulement sur la vente par NWH (LessClic). */
+  const [cleMobile, setCleMobile] = useState(true);
   const [porteur, setPorteur] = useState("");
   const [exp, setExp] = useState("");
 
@@ -508,6 +514,7 @@ export default function Paiement({
             lignes: sejour.lignes.map((l) => ({ ...l, categorieId: versLessclic(moteur, l.categorieId) })),
             arrivee: sejour.arrivee, depart: sejour.depart,
             notes: motHotel.trim() || undefined,
+            cleMobile,
           },
           /* Stripe revient sur CETTE page (le serveur de NWH borne le chemin). */
           pageRetour: window.location.pathname,
@@ -750,6 +757,15 @@ export default function Paiement({
         <textarea className={`${champ} min-h-[64px] resize-y`} value={motHotel} onChange={(e) => setMotHotel(e.target.value)} maxLength={500} />
         <span className="text-[12px] text-[#8a9299]">{T.motAide}</span>
       </label>
+      {parStripe && (
+        <label className="flex min-h-[44px] items-center justify-between gap-3 sm:col-span-2">
+          <span className="grid gap-0.5">
+            <span className="text-[15px] text-navy">{T.cleMobile}</span>
+            <span className="text-[12px] text-[#8a9299]">{T.cleMobileAide}</span>
+          </span>
+          <input type="checkbox" className="h-5 w-5 shrink-0 accent-navy" checked={cleMobile} onChange={(e) => setCleMobile(e.target.checked)} />
+        </label>
+      )}
     </div>
   );
 
