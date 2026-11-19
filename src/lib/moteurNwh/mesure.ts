@@ -17,21 +17,44 @@
 // dans le tunnel coûte une vente. Aucun `await` non plus au fil du parcours —
 // le jalon part et on n'attend pas.
 
-/* Copie du moteur NWH pour le site vitrine : un simple ensemble suffit dans le navigateur. */
-const cacheParInstance = <T,>(_nom: string, _o: { ttlMs: number; max: number }) => { const m = new Map<string, T>(); return { get: (k: string) => m.get(k), set: (v: T, k: string) => { m.set(k, v); return v; }, has: (k: string) => m.has(k) }; };
+/* Copie du moteur NWH pour le site vitrine.
+ *
+ * 🔴 19/11/2026 — CETTE COPIE ÉTAIT RESTÉE À SIX MARCHES, SANS CONTEXTE. C'est elle que lit le moteur
+ * de la Corniche depuis son ouverture (29/10) : pas de `carte`, pas de `3ds_echec`, pas
+ * d'`aucune_offre`, aucune date, aucun prix affiché, aucune provenance. L'entonnoir de la Corniche
+ * montrait donc 0 carte saisie puis 5 confirmées (« sans les étapes d'avant »), et « 0 session porte
+ * ses dates » — alors que le tunnel des Voiles (`src/lib/mesure.ts`) les portait depuis le 20/10.
+ * Elle reprend maintenant les mêmes marches, le même contexte et la même provenance. */
 import { supabase } from "@/lib/supabase";
+import { noterProvenance } from "@/lib/mesure";
 
-/** Les six marches, dans l'ordre. La table les contrôle : une étape inventée
- *  est refusée par Postgres plutôt que comptée à part. */
+/** Les marches, dans l'ordre — les mêmes que `src/lib/mesure.ts` (Voiles). La table les contrôle
+ *  (migration 391) : une étape inventée est refusée par Postgres plutôt que comptée à part. */
 export type Etape =
   | "ouverture"   // le tunnel s'affiche
   | "recherche"   // dates et occupants validés
+  | "aucune_offre" // SORTIE : la recherche n'a rien rendu (complet ou séjour trop long)
   | "offres"      // au moins une chambre est proposée
   | "choix"       // une chambre est sélectionnée
-  | "paiement"    // la carte est saisie
-  | "confirmee";  // la réservation existe dans Mews
+  | "paiement"    // le PANNEAU de paiement s'ouvre — pas la carte
+  | "carte"       // coordonnées validées, chambre tenue, carte donnée (ou départ vers la page Stripe)
+  | "3ds"         // la banque réclame le client : on l'envoie s'authentifier
+  | "3ds_echec"   // il revient SANS authentification (ou la banque a refusé)
+  | "confirmee";  // la réservation existe
+
+/** Ce qu'on joint à un jalon. Rien qui désigne une personne : des dates de séjour, un nombre de
+ *  nuits et de personnes, un montant affiché (TTC). `montant` : sur `offres`, le séjour le moins
+ *  cher proposé ; à partir de `choix`, le total du panier. */
+export type Contexte = {
+  nuits?: number;
+  montant?: number;
+  arrivee?: string;
+  personnes?: number;
+  raison?: "complet" | "trop_long";
+};
 
 const CLE = "waveos_mesure_session";
+const CLE_POSEES = "waveos_mesure_posees";
 
 /** L'identifiant de visite. `sessionStorage` et pas `localStorage` : on veut
  *  qu'il meure avec l'onglet — un identifiant qui survit devient un traceur. */
@@ -50,34 +73,66 @@ function session(): string | null {
   }
 }
 
-/* ⚠️ UNE ÉTAPE N'EST POSÉE QU'UNE FOIS PAR VISITE. Un visiteur qui relance
- * trois recherches produirait trois `recherche` : l'entonnoir s'élargirait au
- * milieu et ses taux cesseraient de vouloir dire quelque chose. La route de
- * lecture compte déjà des sessions distinctes, mais autant ne pas écrire trois
- * lignes pour une. */
-/* ⚠️ La clé porte la MAISON. Le jeu était global au module : une navigation
- * côté client d'un hôtel à l'autre — même arbre React, sans rechargement —
- * gardait les étapes déjà posées, et tous les jalons du second tombaient. */
-/* ⚠️ Les jalons DÉJÀ POSÉS. Partagés, le jalon d'un hôtel ferait taire celui
- * d'un autre — une mesure manquante, et personne pour s'en apercevoir. */
-const posees = cacheParInstance<true>('moteur:jalons', { ttlMs: 0, max: 20_000 });
+/* ⚠️ UNE ÉTAPE N'EST POSÉE QU'UNE FOIS PAR VISITE — et la visite SURVIT AU RETOUR DE STRIPE.
+ * Le jeu des étapes posées vivait en mémoire : le client qui part payer chez Stripe revient sur une
+ * page rechargée, le jeu est vide, et le montage reposait `ouverture`, `recherche` (sur la nuit du
+ * jour, les dates de l'URL ayant été effacées) et `offres`. Mesuré le 19/11 : 354 `ouverture` pour
+ * 268 visiteurs, et chaque confirmée suivie d'une fausse recherche « pour ce soir ». Avec le contexte,
+ * ces fausses recherches auraient faussé le délai et les nuits. Le jeu est donc rangé dans le même
+ * `sessionStorage` que l'identifiant : il meurt avec l'onglet, comme lui.
+ * La clé porte la MAISON : le jalon d'un hôtel ne fait pas taire celui d'un autre. */
+const enMemoire = new Set<string>();
+
+function dejaPosee(cle: string): boolean {
+  if (enMemoire.has(cle)) return true;
+  try {
+    const l = JSON.parse(window.sessionStorage.getItem(CLE_POSEES) ?? "[]");
+    return Array.isArray(l) && l.includes(cle);
+  } catch { return false; }
+}
+
+function marquer(cle: string): void {
+  enMemoire.add(cle);
+  try {
+    const l = JSON.parse(window.sessionStorage.getItem(CLE_POSEES) ?? "[]");
+    const liste = Array.isArray(l) ? l : [];
+    if (!liste.includes(cle)) liste.push(cle);
+    window.sessionStorage.setItem(CLE_POSEES, JSON.stringify(liste.slice(-50)));
+  } catch { /* la mémoire suffit */ }
+}
+
+function provenance(): string | null {
+  try {
+    noterProvenance();
+    return window.sessionStorage.getItem("htbm_mesure_provenance");
+  } catch {
+    return null;
+  }
+}
 
 /* ⚠️ `maison` était la constante "voiles" : tous les jalons d'un futur client
  * seraient tombés dans la ligne des Voiles, et la mesure aurait été fausse pour
  * les deux. L'appelant la donne — c'est `maisonDuSlug(hotel.slug)`. */
-export function jalon(maison: string, etape: Etape, extras?: { nuits?: number; montant?: number }): void {
-  const cle = `${maison}:${etape}`;
-  if (posees.has(cle)) return;
+export function jalon(maison: string, etape: Etape, extras?: Contexte): void {
   const s = session();
   if (!s) return;
-  posees.set(true, cle);
+  const cle = `${maison}:${etape}`;
+  if (dejaPosee(cle)) return;
+  marquer(cle);
   try {
+    const nombre = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    const montant = nombre(extras?.montant);
     void supabase.from("moteur_evenements").insert({
       hotel: maison,
       session: s,
       etape,
-      nuits: extras?.nuits ?? null,
-      montant: extras?.montant ?? null,
+      nuits: nombre(extras?.nuits),
+      montant: montant == null ? null : Math.round(montant * 100) / 100,
+      arrivee: extras?.arrivee && /^\d{4}-\d{2}-\d{2}$/.test(extras.arrivee) ? extras.arrivee : null,
+      personnes: nombre(extras?.personnes),
+      raison: extras?.raison ?? null,
+      // Sur chaque ligne : une session dont l'ouverture s'est perdue garde son origine.
+      provenance: provenance(),
     }).then(undefined, () => { /* silence : voir l'en-tête */ });
   } catch { /* idem */ }
 }

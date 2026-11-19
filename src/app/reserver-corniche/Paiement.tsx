@@ -8,6 +8,7 @@ import {
 } from "@/lib/moteurNwh/mews";
 import type { ConfigMoteur } from "@/lib/moteurNwh/mews";
 import { poserVente } from "@/lib/moteurNwh/reprise3ds";
+import { jalon } from "@/lib/moteurNwh/mesure";
 
 /* L'écran de règlement — DEUX CHEMINS, un par tarif.
  *
@@ -221,7 +222,7 @@ type Client = { prenom: string; nom: string; email: string; telephone: string };
 type Ouverte = { groupeId: string; numeros: string[]; reservationIds: string[]; demandeId: string };
 
 export default function Paiement({
-  sejour, langue, cfg, hotel, telHotel, onFermer, onReserve,
+  sejour, langue, cfg, hotel, maison, telHotel, onFermer, onReserve,
 }: {
   sejour: SejourAPayer;
   langue: Langue;
@@ -229,6 +230,8 @@ export default function Paiement({
    * exigent pour savoir chez qui elles réservent. */
   cfg: ConfigMoteur;
   hotel: string;
+  /* La ligne de l'entonnoir (`moteur_evenements.hotel`) : les jalons `carte` et `3ds` se posent ici. */
+  maison: string;
   /* ⚠️ `telHotel`, pas `telephone` : ce dernier est celui du CLIENT, saisi
    * dans le formulaire. Deux numéros dans le même composant. */
   telHotel: string;
@@ -346,6 +349,9 @@ export default function Paiement({
         setErreur(T.echec); relacher(); return;
       }
 
+      /* La carte est saisie et la chambre posée : la marche `carte`, comme aux Voiles. */
+      jalon(maison, "carte");
+
       // ── Temps 2 : l'authentification de la carte ───────────────────────────
       setEtape(T.auth3ds);
       let etat: string | null = null;
@@ -376,6 +382,7 @@ export default function Paiement({
           client: client(),
           langue,
         });
+        jalon(maison, "3ds");
         const retour = `${window.location.origin}${window.location.pathname}?apres3ds=1`;
         window.location.href = lien3DSecure(j.carteId, retour);
         return;
@@ -535,7 +542,12 @@ export default function Paiement({
       if (r.status === 409) { setErreur(typeof j?.message === "string" ? j.message : T.plusDispo); relacher(); return; }
       /* HotSoft : la chambre est tenue, la suite se passe chez Stripe — on y part, et le retour
        * revient sur cette page avec `?vente=`, que le moteur relit. */
-      if (r.ok && typeof j?.redirection === "string") { window.location.href = j.redirection; return; }
+      /* 🔴 LE JALON `carte` MANQUAIT ICI, et c'est le chemin de TOUTES les ventes de la Corniche : le
+       * tunnel passait de 22 « paiement » à 0 « carte » puis 5 « confirmée ». Même règle qu'aux Voiles
+       * (`src/app/reserver/Paiement.tsx`) : coordonnées valides, chambre tenue, départ vers la page
+       * Stripe où la carte se tape. Ce qui s'y passe ensuite se lit au retour (`?vente=`) : confirmée,
+       * refusée (`3ds_echec`), ou abandon. Rien du client dans le jalon. */
+      if (r.ok && typeof j?.redirection === "string") { jalon(maison, "carte"); window.location.href = j.redirection; return; }
       if (!r.ok || !j?.termine) {
         /* Le message du serveur quand il en a un : lui seul sait POURQUOI. */
         setErreur(typeof j?.message === "string" ? j.message : T.echec);
@@ -586,6 +598,8 @@ export default function Paiement({
   /* Temps 2 : la vente ne se ferme QUE quand le paiement a abouti. */
   const finaliserPaiement = useCallback(async () => {
     if (!ouverte) return;
+    /* Le checkout de Mews vient d'aboutir : la carte est saisie ET acceptée. */
+    jalon(maison, "carte");
     try {
       const r = await fetch("/api/reserver/confirmer", {
         method: "POST",

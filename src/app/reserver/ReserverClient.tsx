@@ -1491,7 +1491,8 @@ export default function ReserverClient({ langue }: { langue: Langue }) {
             }
             return;
           }
-          if (r?.statut === "refusee") return dire(T.venteNonFaite, T.venteRefusee);
+          /* La banque a refusé chez Stripe : la sortie `3ds_echec` (elle manquait sur ce chemin). */
+          if (r?.statut === "refusee") { jalon("3ds_echec"); return dire(T.venteNonFaite, T.venteRefusee); }
           if (r?.statut === "annulee" || abandon) return dire(T.venteNonFaite, T.venteAbandon);
           await new Promise((ok) => setTimeout(ok, 2000));
         }

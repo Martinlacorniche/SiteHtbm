@@ -1282,7 +1282,14 @@ export default function ReserverClient(
   useEffect(() => { jalon(maison, "ouverture"); }, []);
   /* La chambre proposee par defaut se paie sans clic de choix : sans ce rattrapage, l'etape
    * « choix » manquait et l'entonnoir sautait une marche (vu le 29/10, 1 paiement pour 0 choix). */
-  useEffect(() => { if (paiementOuvert) { jalon(maison, "choix"); jalon(maison, "paiement"); } }, [paiementOuvert]);
+  useEffect(() => {
+    if (!paiementOuvert) return;
+    /* Le total du panier et la durée : les mêmes que les Voiles (`src/app/reserver`). */
+    const contexte = { montant: totalChambres, nuits: cherche ? nuitsEntre(cherche.a, cherche.d) : undefined };
+    jalon(maison, "choix", contexte);
+    jalon(maison, "paiement", contexte);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paiementOuvert]);
   const [reserve, setReserve] = useState<{
     groupeId: string; numeros: string[];
     client: { prenom: string; nom: string; email: string; telephone: string };
@@ -1314,7 +1321,7 @@ export default function ReserverClient(
     setChargement(true);
     setErreur(false);
     // Jalon 2 : le visiteur a validé des dates. Voir `src/lib/mesure.ts`.
-    jalon(maison, "recherche");
+    jalon(maison, "recherche", { arrivee: a, nuits: nuitsEntre(a, d), personnes: pax });
     try {
       const [dispos, cats] = await Promise.all([
         chercherDisponibilite(cfg, { arrivee: a, depart: d, adultes: pax, langue }),
@@ -1325,7 +1332,12 @@ export default function ReserverClient(
       /* Jalon 3 : on lui a montré quelque chose. ⚠️ SEULEMENT S'IL Y A DES
          OFFRES — une liste vide est précisément la marche où l'on perd les
          gens, et la compter comme franchie effacerait l'information. */
-      if (dispos?.offres?.length) jalon(maison, "offres");
+      /* Le montant : le séjour le moins cher qu'on lui a montré — celui qu'on confronte à Booking
+         quand il repart sans rien choisir. */
+      if (dispos?.offres?.length) {
+        const moinsCher = Math.min(...dispos.offres.flatMap((o) => o.prix.map((x) => x.total)));
+        jalon(maison, "offres", { arrivee: a, nuits: nuitsEntre(a, d), personnes: pax, montant: moinsCher });
+      }
       /* ⚠️ POURQUOI IL N'Y A RIEN : la maison est pleine, ou le séjour est trop
          long ? La Booking Engine ne le dit pas — elle rend une liste vide dans
          les deux cas. On le DÉDUIT d'un second appel : les mêmes dates, deux
@@ -1344,6 +1356,13 @@ export default function ReserverClient(
         } catch { /* on ne conclut rien d'un appel raté */ }
       }
       setTropLong(trop);
+      /* SORTIE : il a cherché, on n'avait rien (complet, ou séjour trop long). Manquait ici : les
+         recherches sans chambre de la Corniche se confondaient avec celles qui partaient devant les prix. */
+      if (!dispos.offres.length) {
+        jalon(maison, "aucune_offre", {
+          arrivee: a, nuits: nuitsEntre(a, d), personnes: pax, raison: trop ? "trop_long" : "complet",
+        });
+      }
       setChambres([]); // les prix changent avec les dates : on ne garde pas l'ancien choix
       setCherche({ a, d, pax });
       setTour((t) => t + 1);
@@ -1425,9 +1444,10 @@ export default function ReserverClient(
             jalon(maison, "confirmee");
             return;
           }
-          if (r?.statut === "refusee") return dire(fr ? "Réservation non faite" : "Booking not made", fr
+          /* La banque a refusé au 3-D Secure, chez Stripe : la sortie `3ds_echec`, comme aux Voiles. */
+          if (r?.statut === "refusee") { jalon(maison, "3ds_echec"); return dire(fr ? "Réservation non faite" : "Booking not made", fr
             ? "Votre banque n’a pas confirmé la carte (3-D Secure) : la réservation n’est pas faite et rien n’a été débité. Vous pouvez réessayer avec une autre carte."
-            : "Your bank did not confirm the card (3-D Secure): the booking was not made and nothing was charged. You can try again with another card.");
+            : "Your bank did not confirm the card (3-D Secure): the booking was not made and nothing was charged. You can try again with another card."); }
           if (r?.statut === "annulee" || abandon) return dire(fr ? "Réservation non faite" : "Booking not made", fr
             ? "Aucune carte n’a été enregistrée ni aucun paiement fait : la réservation n’est pas faite. Vous pouvez la reprendre quand vous voulez."
             : "No card was registered and no payment was made: the booking was not made. You can start again whenever you like.");
@@ -1465,7 +1485,7 @@ export default function ReserverClient(
           }),
         })
           .then((r) => {
-            if (!r.ok) { setReprise("echec"); return; }
+            if (!r.ok) { setReprise("echec"); jalon(maison, "3ds_echec"); return; }
             setReprise(null);
             setReserve({
               groupeId: vente.groupeId, numeros: vente.numeros, client: vente.client,
@@ -1476,11 +1496,12 @@ export default function ReserverClient(
                barreau, exactement là où on veut être sûr de soi. */
             jalon(maison, "confirmee");
           })
-          .catch(() => setReprise("echec"));
+          .catch(() => { setReprise("echec"); jalon(maison, "3ds_echec"); });
       } else {
         // Onglet ferme, navigation privee, ou plus de trente minutes : on ne
         // sait plus de quelle vente il s'agit. Le telephone rattrape.
         setReprise("echec");
+        jalon(maison, "3ds_echec");
       }
     }
 
@@ -1581,7 +1602,7 @@ export default function ReserverClient(
     const deja = chambres.some((x) => memeLigne(x, c));
     // Jalon 4 : on ne compte que l'AJOUT — retirer une chambre n'est pas un
     // pas de plus dans le tunnel.
-    if (!deja) jalon(maison, "choix");
+    if (!deja) jalon(maison, "choix", { montant: c.total, nuits: cherche ? nuitsEntre(cherche.a, cherche.d) : undefined });
 
     if (!enComposition) {
       // Un seul choix a la fois : on remplace, ou on retire si c'etait celui-la.
@@ -2921,6 +2942,7 @@ export default function ReserverClient(
           langue={langue}
           cfg={cfg}
           hotel={hotel}
+          maison={maison}
           telHotel={telephone}
           onFermer={() => setPaiementOuvert(false)}
           onReserve={(r) => {
