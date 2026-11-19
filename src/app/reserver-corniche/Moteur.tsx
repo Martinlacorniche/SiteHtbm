@@ -1323,10 +1323,19 @@ export default function ReserverClient(
     // Jalon 2 : le visiteur a validé des dates. Voir `src/lib/mesure.ts`.
     jalon(maison, "recherche", { arrivee: a, nuits: nuitsEntre(a, d), personnes: pax });
     try {
-      const [dispos, cats] = await Promise.all([
+      /* 🔴 UNE SECONDE CHANCE AVANT « LA RECHERCHE N'A PAS ABOUTI ». Vu le 19/11/2026 sur le site en
+         ligne : au premier chargement, `configuration/get` répond 502 chez NWH (HotSoft froid) et la
+         page affiche l'erreur à la place des chambres ; la même requête, rejouée, passe. 105 des 274
+         visiteurs du tunnel depuis le 29/10 n'avaient jamais vu une chambre. On rejoue une fois, après
+         une courte pause, avant de dire à quelqu'un que ça n'a pas marché. */
+      const charger = () => Promise.all([
         chercherDisponibilite(cfg, { arrivee: a, depart: d, adultes: pax, langue }),
         chargerCategories(cfg, langue),
       ]);
+      const [dispos, cats] = await charger().catch(async () => {
+        await new Promise((ok) => setTimeout(ok, 1200));
+        return charger();
+      });
       setDispo(dispos);
       setCategories(cats);
       /* Jalon 3 : on lui a montré quelque chose. ⚠️ SEULEMENT S'IL Y A DES
