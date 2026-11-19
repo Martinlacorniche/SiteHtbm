@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * Calendrier de séjour — deux tapes, pas six.
@@ -60,6 +60,19 @@ export default function CalendrierSejour({
     });
   }, [moisAffiches]);
 
+  /* À l'ouverture, le calendrier se pose sur le mois de l'arrivée. Il partait
+   * toujours du mois en cours : pour un séjour de mai pris en novembre, le
+   * client rouvrait sur novembre et devait redescendre six mois pour retrouver
+   * ses dates (Martin, 19/11/2026). Une fois seulement, au montage : recaler à
+   * chaque tape ferait sauter la boîte sous le doigt. */
+  const boite = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const b = boite.current;
+    const m = arrivee && b?.querySelector<HTMLElement>(`[data-mois="${arrivee.slice(0, 7)}"]`);
+    if (b && m) b.scrollTop += m.getBoundingClientRect().top - b.getBoundingClientRect().top;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const choisir = (jour: string) => {
     // Une seule règle : s'il n'y a pas d'arrivée, ou si le séjour est déjà
     // complet, ou si l'on tape avant l'arrivée, on repart de cette date.
@@ -75,13 +88,14 @@ export default function CalendrierSejour({
   // propositions. Deux mois de front en pleine largeur, un seul en colonne.
   return (
     <div
+      ref={boite}
       className={`overflow-y-auto overscroll-contain rounded-xl border border-[#e3e0d9] bg-white p-1 ${className}`}
       role="group"
       aria-label={langue === "fr" ? "Choisir les dates du séjour" : "Choose your dates"}
     >
       <div className="grid gap-6 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-1">
         {mois.map(({ annee, indexMois, premierJour, nbJours }) => (
-          <div key={`${annee}-${indexMois}`} className="px-2 pb-1">
+          <div key={`${annee}-${indexMois}`} data-mois={cle(annee, indexMois, 1).slice(0, 7)} className="px-2 pb-1">
             <p className="sticky top-0 z-10 -mx-2 bg-white px-2 pb-2 pt-3 font-serif text-[17px] capitalize text-navy">
               {MOIS[langue][indexMois]} {annee}
             </p>
