@@ -1382,6 +1382,9 @@ export default function ReserverClient(
       window.history.replaceState(null, "", url);
     } catch {
       setErreur(true);
+      /* La sortie `panne` (migration 450 chez NWH) : sans elle, une recherche restée sans réponse du PMS
+         se lisait dans l'entonnoir comme un visiteur parti sans rien voir. */
+      jalon(maison, "panne");
       setDispo(null);
       setTropLong(false);
     } finally {
@@ -1661,29 +1664,10 @@ export default function ReserverClient(
   // Arrivee du jour : le prepaye n'a plus de contrepartie (voir `cartesDe`).
   const arriveeCeJour = arrivee === dansNJours(0);
 
-  /* La colonne de droite est remplie des le chargement.
-   *
-   * Elle disait « Choisissez une chambre pour voir le total » et laissait 400 px
-   * de blanc sous un bouton gris : un tiers de l'ecran occupe a ne rien dire. On
-   * y pose la chambre la moins chere, a son tarif FLEXIBLE — le total apparait
-   * tout de suite, et le defaut propose est celui qui ne peut pas se retourner
-   * contre le client. La carte correspondante s'allume dans la liste : c'est un
-   * defaut visible, pas un choix fait a sa place. */
-  useEffect(() => {
-    if (chambres.length) return;
-    // `principales` est triee par prix croissant : la moins chere est en tete.
-    const offre = principales[0];
-    if (!offre) return;
-    // Le moins cher des flexibles : avec un tarif direct derive, Mews peut en
-    // renvoyer deux, et `find` aurait attrape le tarif public au plein prix.
-    const cartes = cartesDe(offre.prix, tarifs, groupes, arriveeCeJour);
-    const p = (cartes.find((c) => !c.prepaye) ?? cartes[0])?.direct;
-    if (!p) return;
-    setChambres([{
-      categorieId: offre.categorieId, tarifId: p.tarifId,
-      total: p.total, parNuit: p.parNuit, pourPersonnes: offre.pourPersonnes,
-    }]);
-  }, [chambres.length, principales, tarifs, groupes, arriveeCeJour]);
+  /* ⚠️ PLUS DE CHAMBRE POSÉE D'OFFICE (Martin, 25/11/2026, « pas ouf »). La chambre par défaut était
+   * la première de la liste, c'est-à-dire la plus chère tant que l'hôtel les rangeait vue mer d'abord, et
+   * la barre du bas annonçait son total avant que le client ait rien choisi. Le récapitulatif vide dit
+   * `recapVide`, la barre du bas ne paraît qu'au premier choix. */
   // Annulation gratuite du tarif retenu — nulle si c'est un prepaye.
   /* Les soirs où le rooftop peut recevoir, sur toute la durée du séjour.
    * Vide = le bloc ne s'affiche pas du tout. */
@@ -1920,7 +1904,7 @@ export default function ReserverClient(
                     et la graisse plus legere du petit-dejeuner acheve de le
                     distinguer — on retire le trait plutot qu'un orphelin. */}
                 <span aria-hidden className="hidden h-4 w-px bg-navy-deep/30 sm:block" />
-                <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 font-semibold text-navy-deep/75 sm:gap-x-5">
+                <ul className="hidden flex-wrap items-center gap-x-4 gap-y-1.5 font-semibold text-navy-deep/75 sm:flex sm:gap-x-5">
                   {privileges.filter((p) => !p.exclusif).map((p) => (
                     <li key={p.texte}>{p.texte}</li>
                   ))}
@@ -2006,7 +1990,9 @@ export default function ReserverClient(
             <legend className="mb-2.5 hidden text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a9299] lg:block">
               {T.voyageLabel}
             </legend>
-            <div className="grid grid-cols-2 gap-2">
+            {/* Une ligne sur téléphone : deux rangées de gros boutons poussaient le premier prix sous la
+                barre du bas (Martin, 25/11/2026 : « pas ouf » — 87 % repartaient sans choisir). */}
+            <div className={["grid gap-2 lg:grid-cols-2", Math.max(2, Math.min(4, cfg.personnesMax ?? 2)) > 2 ? "grid-cols-4" : "grid-cols-2"].join(" ")}>
               {/* 3 et 4 seulement chez un hôtel qui a des chambres pour eux (des suites). */}
               {VOYAGES_TOUS.slice(0, Math.max(2, Math.min(4, cfg.personnesMax ?? 2))).map((v) => (
                 <button
@@ -2029,7 +2015,7 @@ export default function ReserverClient(
                   }}
                   aria-pressed={voyage === v}
                   className={[
-                    "rounded-xl border px-2 py-2.5 text-[14px] font-semibold transition-colors lg:py-3",
+                    "rounded-xl border px-1 py-2 text-[13px] font-semibold transition-colors lg:px-2 lg:py-3 lg:text-[14px]",
                     voyage === v
                       ? "border-navy bg-navy text-white"
                       : "border-[#e3e0d9] bg-white text-[#3c4a52] hover:border-gold",
@@ -2071,6 +2057,8 @@ export default function ReserverClient(
                 onClick={() => chercher(adultes)}
                 className={[
                   "mt-4 w-full shrink-0 rounded-full border px-6 py-3.5 text-[16px] font-bold",
+                  // Sur téléphone, sourd et inerte, il prenait 70 px au-dessus des chambres pour ne rien dire.
+                  aFaire || chargement || !voyage ? "" : "hidden lg:block",
                   "transition-[background-color,border-color,color] duration-300",
                   aFaire && voyage && nuits >= 1
                     ? "border-gold bg-gold text-navy-deep hover:brightness-105"
@@ -2402,6 +2390,9 @@ export default function ReserverClient(
                         const remise = carte.public
                           ? Math.round((1 - p.total / carte.public.total) * 100)
                           : 0;
+                        /* Taxe de séjour COMPRISE, comme le total du récapitulatif : la carte disait 157 €
+                           et la barre du bas 162,66 €, sous un « prix tout compris ». */
+                        const taxeCarte = taxeDe(o.pourPersonnes);
                         return (
                           <button
                             key={p.tarifId}
@@ -2449,11 +2440,11 @@ export default function ReserverClient(
                                   "text-[14px] tabular-nums line-through",
                                   retenu ? "text-white/60" : "text-[#a9b1b6]",
                                 ].join(" ")}>
-                                  {montant(carte.public.total, langue)}
+                                  {montant(carte.public.total + taxeCarte, langue)}
                                 </span>
                               )}
                               <span className="text-[22px] font-bold tabular-nums">
-                                {montant(p.total, langue)}
+                                {montant(p.total + taxeCarte, langue)}
                               </span>
                               {carte.public && remise > 0 && (
                                 <span className={[
@@ -2468,7 +2459,7 @@ export default function ReserverClient(
                                   "text-[12px] tabular-nums",
                                   retenu ? "text-white/70" : "text-[#8a9299]",
                                 ].join(" ")}>
-                                  {montant(p.parNuit, langue)} {T.parNuit}
+                                  {montant((p.total + taxeCarte) / nuits, langue)} {T.parNuit}
                                 </span>
                               )}
                             </span>

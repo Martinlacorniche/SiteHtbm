@@ -34,6 +34,7 @@ export type Etape =
   | "ouverture"   // le tunnel s'affiche
   | "recherche"   // dates et occupants validés
   | "aucune_offre" // SORTIE : la recherche n'a rien rendu (complet ou séjour trop long)
+  | "panne"       // SORTIE : le PMS n'a pas répondu à la recherche (migration 450)
   | "offres"      // au moins une chambre est proposée
   | "choix"       // une chambre est sélectionnée
   | "paiement"    // le PANNEAU de paiement s'ouvre — pas la carte
