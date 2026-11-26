@@ -293,13 +293,22 @@ function BookingView({ code }: { code: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    let part = false;
     try {
       const res = await fetch(`/api/groupe/${code}`);
       const data = await res.json();
       if (!data.ok) { setError(data.error || "Groupe introuvable"); return; }
+      /* Un groupe « prix négocié, sans blocage » (NWH, migration 451) se réserve par TYPE de chambre, dans la
+         dispo du PMS : cette page ne sait afficher que des chambres. NWH donne l'adresse de SA page du groupe,
+         qui, elle, ne renvoie jamais ici un tel groupe — pas de boucle. */
+      if (data.groupe?.sans_bloc && typeof data.page_nwh === "string" && /^https?:\/\//.test(data.page_nwh)) {
+        part = true;
+        window.location.replace(data.page_nwh);
+        return;
+      }
       setGroupe(data.groupe); setRooms(data.rooms);
     } catch { setError("Connexion impossible."); }
-    finally { setLoading(false); }
+    finally { if (!part) setLoading(false); }
   }, [code]);
   useEffect(() => { load(); }, [load]);
 
